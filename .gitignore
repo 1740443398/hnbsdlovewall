@@ -1,7 +1,14 @@
-# 敏感数据目录（用户数据/私信等）不纳入开源仓库
-/data/
-# 本地工具缓存
-/portable-git/
-# 临时脚本
-_setup_git_gh.py
-_ftp_upload_tmp.py
+# ===== 本地开发环境 =====
+.idea/
+.trae/
+start_server.bat
+
+# ===== 运行时数据与用户内容（切勿上传，内含真实用户数据）=====
+data/
+uploads/
+music/
+*.log
+
+# ===== 系统 / 编辑器 =====
+Thumbs.db
+.DS_Store

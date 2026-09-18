@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /sql/
+Disallow: /uploads/
+Disallow: /pages/login.php
+Disallow: /pages/register.php
+Allow: /
+Crawl-delay: 10

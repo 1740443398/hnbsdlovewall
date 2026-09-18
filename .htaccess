@@ -1,0 +1,39 @@
+RewriteEngine On
+
+# 移除.php扩展名
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# 禁止直接访问敏感配置目录
+RewriteRule ^(config|includes|sql|data)/ - [F,L]
+
+# 禁止外网访问浏览器缓存目录 Default/（服务器文件虽无法删除，但需确保不可被外网读取）
+RewriteRule ^Default(/|$) - [F,L]
+RewriteRule ^(Default|Path|Code%20Cache|Session%20Storage|Local%20Storage|Service%20Worker|Share%20Data)/ - [F,L]
+
+# 禁止外网访问以点开头的隐藏目录（如 .edbg 等编辑器/调试残留）
+RewriteRule ^\.[^/]+(/|$) - [F,L]
+
+# 允许访问uploads目录下的图片
+RewriteRule ^uploads/images/ - [L]
+
+# 自定义错误页面
+ErrorDocument 403 /pages/403.php
+ErrorDocument 404 /pages/404.php
+ErrorDocument 500 /pages/500.php
+
+# 禁止目录列表
+Options -Indexes
+
+# ============================================================
+# 静态资源缓存（减少手机服务器带宽消耗）
+# ============================================================
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|ico|woff2?|ttf|eot)$">
+    Header set Cache-Control "public, max-age=2592000"
+</FilesMatch>
+
+# Gzip压缩（若mod_deflate可用）
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json text/plain text/xml image/svg+xml
+</IfModule>
