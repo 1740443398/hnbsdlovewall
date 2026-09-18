@@ -115,9 +115,6 @@ switch ($type) {
         break;
 }
 
-jsonSuccess([
-    'type' => $type,
-    'total' => count($exportData),
-    'exported_at' => date('Y-m-d H:i:s'),
-    'data' => $exportData
-]);
+// 直接返回导出的数据本身（完整备份为 {表名: 行数组} 结构），
+// 前端下载后即为一大段 JSON，可直接粘贴回「导入前恢复」。
+jsonSuccess($exportData);
