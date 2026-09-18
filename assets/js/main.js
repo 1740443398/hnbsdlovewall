@@ -2892,4 +2892,61 @@
   } else {
     init();
   }
+
+  // ===== 彩蛋：连点标题/Logo、连点页脚、搜索框神秘指令 =====
+  (function () {
+    var EGG_VIDEO = 'https://www.bilibili.com/video/BV1GJ411x7h7/';
+    var LOGO_CLICKS = 0, FOOTER_CLICKS = 0, LAST = 0;
+    var COOLDOWN = 8000;
+
+    function go() {
+      var now = Date.now();
+      if (now - LAST < COOLDOWN) return;
+      LAST = now;
+      // 跳前仅提示触发了彩蛋
+      if (window.confirm('触发彩蛋，是否前往？')) {
+        window.location.href = EGG_VIDEO;
+      }
+    }
+
+    function resetTrack() {
+      LOGO_CLICKS = 0; FOOTER_CLICKS = 0;
+    }
+
+    function mount() {
+      // 触发一：连点顶部标题/Logo 5 次
+      var logo = document.querySelector('.site-logo');
+      if (logo) {
+        logo.addEventListener('click', function (e) {
+          e.preventDefault(); // 阻止跳到首页，避免每次点击刷新清零
+          LOGO_CLICKS++;
+          if (LOGO_CLICKS >= 5) { resetTrack(); go(); }
+          if (LOGO_CLICKS === 1) setTimeout(function () { if (LOGO_CLICKS < 5) LOGO_CLICKS = 0; }, 2200);
+        });
+      }
+      // 触发二：连点页脚 5 次
+      var footer = document.querySelector('.site-footer');
+      if (footer) {
+        footer.addEventListener('click', function () {
+          FOOTER_CLICKS++;
+          if (FOOTER_CLICKS >= 5) { resetTrack(); go(); }
+          if (FOOTER_CLICKS === 1) setTimeout(function () { if (FOOTER_CLICKS < 5) FOOTER_CLICKS = 0; }, 2200);
+        });
+      }
+      // 触发三：搜索框输入神秘指令（awa / awsl / loose / rick）后回车
+      var si = document.getElementById('searchInput');
+      if (si) {
+        si.addEventListener('keyup', function (e) {
+          var v = (si.value || '').trim().toLowerCase();
+          if (e.key === 'Enter' && (v === 'awa' || v === 'awsl' || v === 'loose' || v === 'rick')) {
+            si.value = '';
+            go();
+          }
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+    else mount();
+  })();
 })();
