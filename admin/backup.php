@@ -29,15 +29,10 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
     </div>
     <div class="section-body">
         <div class="bk-box">
-            <div style="font-weight:600;margin-bottom:4px;">导出数据</div>
-            <div class="bk-tip">可分别导出帖子、用户、评论，或一键导出「完整备份」涵盖全部数据表，便于迁移与维护。</div>
+            <div style="font-weight:600;margin-bottom:4px;">导出完整备份</div>
+            <div class="bk-tip">一键导出包含全部数据表的完整备份，生成一大段 JSON 文件，可直接用于迁移站点或稍后「导入」还原维护。</div>
             <div class="bk-actions">
-                <button class="btn btn-outline" onclick="doExport('posts')">导出帖子数据</button>
-                <button class="btn btn-outline" onclick="doExport('users')">导出用户数据</button>
-                <button class="btn btn-outline" onclick="doExport('comments')">导出评论数据</button>
-                <?php if ($isSuper): ?>
-                <button class="btn btn-success" onclick="doExport('full')">完整备份（全部数据）</button>
-                <?php endif; ?>
+                <button class="btn btn-success" onclick="doExport('full')">导出完整备份（全部数据）</button>
             </div>
         </div>
 
