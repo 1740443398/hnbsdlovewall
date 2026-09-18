@@ -50,7 +50,7 @@ adminHeader('头衔申请', $adminUser, $csrfToken);
 </div>
 
 <script>
-    var CSRF_TOKEN = <?= json_encode($csrfToken) ?>;
+    // CSRF_TOKEN 由布局页 adminHeader 以 const 全局声明，这里直接复用，避免重复声明报错
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
