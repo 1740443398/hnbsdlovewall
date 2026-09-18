@@ -1,5 +1,7 @@
 # 表白墙 - 校园交流平台
 
+<p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
+
 一个功能完整的校园社交平台，基于 PHP 构建，采用 JSON 文件存储，无需数据库。
 
 ## 作者
