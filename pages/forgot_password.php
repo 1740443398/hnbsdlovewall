@@ -805,15 +805,5 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
     })();
     </script>
 
-    <nav class="mobile-bottom-nav" id="mobileNav">
-        <a href="/" class="mobile-nav-item">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span>首页</span>
-        </a>
-        <a href="/pages/login.php" class="mobile-nav-item">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            <span>登录</span>
-        </a>
-    </nav>
 </body>
 </html>
