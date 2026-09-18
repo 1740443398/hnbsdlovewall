@@ -39,9 +39,9 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
         <?php if ($isSuper): ?>
         <div class="bk-box">
             <div style="font-weight:600;margin-bottom:4px;">导入完整备份</div>
-            <div class="bk-tip">从「完整备份」导出的 JSON 文件中复制全部内容粘贴到下方，点击恢复。此操作会覆盖现有数据，不可撤销，请先在「导出」处完成备份后再操作。</div>
-            <div style="margin-top:10px;">
-                <textarea id="importDataArea" rows="8" class="form-input" placeholder="在此粘贴完整备份的 JSON 内容..." style="width:100%;font-family:Consolas,'Courier New',monospace;font-size:12px;box-sizing:border-box;"></textarea>
+            <div class="bk-tip">将上方「导出」复制到的完整备份 JSON 粘贴到下方，点击恢复。此操作会覆盖现有数据，不可撤销，请先完成备份后再操作。</div>
+            <div class="form-group" style="margin-top:10px;">
+                <textarea id="importDataArea" rows="8" class="form-control" placeholder="在此粘贴完整备份的 JSON 内容..." style="width:100%;font-family:Consolas,'Courier New',monospace;font-size:12px;box-sizing:border-box;"></textarea>
             </div>
             <div class="bk-actions">
                 <button class="btn btn-primary" onclick="doImport()">恢复数据</button>
@@ -57,10 +57,29 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
 <script>
     var CSRF_TOKEN = <?= json_encode($csrfToken) ?>;
 
+    function legacyCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); } catch (e) { }
+        document.body.removeChild(ta);
+    }
+
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {}, function () { legacyCopy(text); });
+        } else {
+            legacyCopy(text);
+        }
+    }
+
     function doExport(type) {
         var fd = new URLSearchParams();
         fd.append('csrf_token', CSRF_TOKEN);
-        fd.append('type', type);
+        fd.append('type', type || 'full');
         fetch('/api/admin/export.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -69,17 +88,9 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (res && res.success && res.data) {
-                    var jsonStr = JSON.stringify(res.data, null, 2);
-                    var blob = new Blob(['\ufeff' + jsonStr], { type: 'application/json;charset=utf-8' });
-                    var url = URL.createObjectURL(blob);
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = type + '_export_' + new Date().toISOString().slice(0, 10) + '.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    showToast('导出成功', 'success');
+                    // 直接复制一大段完整 JSON 到剪贴板
+                    copyText(JSON.stringify(res.data, null, 2));
+                    showToast('已复制完整备份到剪贴板', 'success');
                 } else {
                     showToast((res && res.message) || '导出失败', 'error');
                 }
