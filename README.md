@@ -1,5 +1,7 @@
 # Love Wall - Campus Communication Wall
 
+<p align="center"><strong>English</strong> · <a href="README_CN.md">简体中文</a></p>
+
 A full-featured campus social platform built with PHP, featuring a JSON file-based storage system with no database required.
 
 ## Author
