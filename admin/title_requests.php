@@ -63,40 +63,64 @@ adminHeader('头衔申请', $adminUser, $csrfToken);
         return '<span class="tr-status ' + esc(st) + '">' + (map[st] || esc(st)) + '</span>';
     }
 
+    function renderList(list) {
+        var body = document.getElementById('trBody');
+        if (!list || list.length === 0) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">暂无头衔申请</td></tr>';
+            return;
+        }
+        var html = '';
+        list.forEach(function (r) {
+            html += '<tr>' +
+                '<td>' + esc(r.nickname) + ' <span style="color:#888;">(' + esc(r.qq) + ')</span></td>' +
+                '<td><strong>' + esc(r.title_text) + '</strong></td>' +
+                '<td style="max-width:220px;">' + (r.reason ? esc(r.reason) : '<span style="color:#aaa;">—</span>') + '</td>' +
+                '<td>' + (r.cur_title ? esc(r.cur_title) : '<span style="color:#aaa;">无</span>') + '</td>' +
+                '<td>' + statusBadge(r.status) + '</td>' +
+                '<td>' + esc(r.created_at) + '</td>' +
+                '<td>' + (r.status === 'pending'
+                    ? '<button class="btn btn-success btn-sm" onclick="review(' + r.id + ', \'approve\', \'' + String(r.title_text || '').replace(/'/g, "\\'") + '\')">通过</button> ' +
+                      '<button class="btn btn-warning btn-sm" onclick="review(' + r.id + ', \'reject\')">驳回</button>'
+                    : '<span style="color:#aaa;">已处理</span>') + '</td>' +
+                '</tr>';
+        });
+        body.innerHTML = html;
+    }
+
     function loadList() {
         var body = document.getElementById('trBody');
         body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">加载中...</td></tr>';
+        // 兜底超时：用标志位+定时器，不依赖 AbortController（低版本浏览器可能不支持），保证任何结果都退出「加载中」
+        var done = false;
+        var to = setTimeout(function () {
+            if (done) return;
+            done = true;
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c0392b;">加载超时，请检查网络后点击「刷新」重试</td></tr>';
+        }, 8000);
+
         var fd = new FormData();
         fd.append('csrf_token', CSRF_TOKEN);
         fd.append('action', 'list');
-        // 请求超时兜底，避免永远停留在「加载中」
-        var ctrl = new AbortController();
-        var to = setTimeout(function () { ctrl.abort(); }, 10000);
-        fetch('/api/admin/title_request_review.php', { method: 'POST', body: fd, signal: ctrl.signal })
+
+        fetch('/api/admin/title_request_review.php', { method: 'POST', body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
-                clearTimeout(to);
-                if (!res.success) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c0392b;">' + esc(res.message) + '</td></tr>'; return; }
-                var list = res.data || [];
-                if (list.length === 0) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">暂无头衔申请</td></tr>'; return; }
-                var html = '';
-                list.forEach(function (r) {
-                    html += '<tr>' +
-                        '<td>' + esc(r.nickname) + ' <span style="color:#888;">(' + esc(r.qq) + ')</span></td>' +
-                        '<td><strong>' + esc(r.title_text) + '</strong></td>' +
-                        '<td style="max-width:220px;">' + (r.reason ? esc(r.reason) : '<span style="color:#aaa;">—</span>') + '</td>' +
-                        '<td>' + (r.cur_title ? esc(r.cur_title) : '<span style="color:#aaa;">无</span>') + '</td>' +
-                        '<td>' + statusBadge(r.status) + '</td>' +
-                        '<td>' + esc(r.created_at) + '</td>' +
-                        '<td>' + (r.status === 'pending'
-                            ? '<button class="btn btn-success btn-sm" onclick="review(' + r.id + ', \'approve\', \'' + esc(r.title_text).replace(/'/g, "\\'") + '\')">通过</button> ' +
-                              '<button class="btn btn-warning btn-sm" onclick="review(' + r.id + ', \'reject\')">驳回</button>'
-                            : '<span style="color:#aaa;">已处理</span>') + '</td>' +
-                        '</tr>';
-                });
-                body.innerHTML = html;
+                if (done) return;
+                done = true; clearTimeout(to);
+                // 兼容两种返回：{success,data} 或直接返回数组
+                var list = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+                if (!list && res && res.success !== undefined && !res.success) {
+                    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c0392b;">' + esc(res.message) + '</td></tr>';
+                    return;
+                }
+                if (list) { renderList(list); return; }
+                body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c0392b;">数据格式异常，请点击「刷新」重试</td></tr>';
             })
-            .catch(function () { clearTimeout(to); body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c0392b;">加载失败（网络异常或请求超时）</td></tr>'; });
+            .catch(function () {
+                if (done) return;
+                done = true; clearTimeout(to);
+                body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c0392b;">加载失败（网络异常或请求超时）</td></tr>';
+            });
     }
 
     function review(id, action, titleText) {
