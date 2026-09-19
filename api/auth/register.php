@@ -77,23 +77,16 @@ if (!isValidQQ($qq)) {
     jsonError('QQ号格式不正确');
 }
 
-if ($nickname === '') {
+$trimmedNickname = trim($nickname);
+if ($trimmedNickname === '') {
     jsonError('请输入用户名');
 }
 
-$nickLen = mb_strlen($nickname);
-if ($nickLen < 2 || $nickLen > 20) {
-    jsonError('用户名长度需在2-20个字符之间');
-}
-
-if (preg_match('/[\r\n<>\/\\\"\'`]/', $nickname)) {
-    jsonError('用户名包含不允许的特殊字符');
-}
-
-$duplicateNick = $fs->findOne('users', ['nickname' => $nickname]);
+$duplicateNick = $fs->findOne('users', ['nickname' => $trimmedNickname]);
 if ($duplicateNick !== null) {
     jsonError('该用户名已被使用');
 }
+$nickname = $trimmedNickname;
 
 $pwdCheck = validatePasswordStrength($password);
 if ($pwdCheck !== true) {
@@ -193,17 +186,17 @@ try {
             $clsTxt = ($cn > 0 && $cn <= 10) ? ($cnClass[$cn] . '班') : ($cn . '班');
             $devGrade = ($gMap[$gradeIdx] ?? '高一') . $clsTxt;
             $devName = $devGrade . ' ' . $dev['real_name'];
-            $pub = [
-                'QQ'     => $dev['qq'],
-                '昵称'     => $dev['nickname'] ?? '',
-                '身份'     => '站长 / 开发者',
-                '班级'     => $devGrade,
-                '真实姓名' => $dev['real_name'],
-                '注册时间' => $dev['created_at'] ?? '',
-            ];
-            $devSnippet = htmlspecialchars(json_encode($pub, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $devHtmlBlock = '<li><strong>站长担保：</strong>我是本站站长 <strong>' . htmlspecialchars($devName) . '</strong>（QQ：1740443398，邮箱：1740443398@qq.com），本人实名注册并使用本站。为防止「盗号/诈骗」的疑虑，以下是我的公开账号信息（取自本站实时数据）：'
-                . '<pre style="background:#F6F8FA;border:1px solid #E2E8F0;border-radius:6px;padding:10px;font-size:12px;line-height:1.5;max-height:220px;overflow:auto;margin:8px 0;">' . $devSnippet . '</pre>'
+            // 展示后台真实存储的完整用户记录 JSON，向用户证明「数据就是这样明文 JSON 存储」。
+            // 敏感字段（密码哈希、会话/安全戳、2FA密钥）保留键名以展示结构，但隐藏真实值。
+            $pub = $dev;
+            foreach (['password_hash', 'security_stamp', 'twofa_secret'] as $_sf) {
+                if (isset($pub[$_sf]) && $pub[$_sf] !== '') {
+                    $pub[$_sf] = '(已隐藏，前端展示结构)';
+                }
+            }
+            $devSnippet = htmlspecialchars(json_encode($pub, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $devHtmlBlock = '<li><strong>站长担保：</strong>我是本站站长 <strong>' . htmlspecialchars($devName) . '</strong>（QQ：1740443398，邮箱：1740443398@qq.com），本人实名注册并使用本站。为防止「盗号/诈骗」的疑虑，以下是我在后台数据库里的<strong>完整账号数据（真实存储样式，敏感字段已打码）</strong>，可供懂的编程的同学核对存储格式：'
+                . '<pre style="background:#F6F8FA;border:1px solid #E2E8F0;border-radius:6px;padding:10px;font-size:11px;line-height:1.5;max-height:260px;overflow:auto;margin:8px 0;">' . $devSnippet . '</pre>'
                 . '任何关于密码或账号的可疑情况，都可随时通过上方的联系方式找我本人核实。</li>';
         } else {
             $devHtmlBlock = '<li><strong>站长担保：</strong>本站站长本人实名注册并使用本站，遇到任何密码或账号的可疑情况，都可联系站长核实（QQ：1740443398）。</li>';
