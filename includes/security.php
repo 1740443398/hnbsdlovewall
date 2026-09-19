@@ -759,6 +759,7 @@ function getAllPermissionDefinitions() {
             'view_2fa_status' => '查看用户2FA状态',
             'reset_user_2fa' => '重置用户2FA密钥',
             'reset_user_password' => '重置用户密码',
+            'delete_user' => '删除用户及其内容',
         ],
         '内容与信息安全' => [
             'view_anonymous_author' => '查看匿名/不公开动态的发布者身份（请保密，勿泄露他人隐私）',
