@@ -710,7 +710,7 @@ $tabs = [
                             <?php endif; ?>
                         </div>
                         <div class="uc-form-group">
-                            <label for="nickname">昵称 <span class="uc-label-hint">（2-20个字符，让大家认识你）</span></label>
+                            <label for="nickname">昵称 <span class="uc-label-hint">（不能为空、不能与他人重复）</span></label>
                             <input type="text" id="nickname" name="nickname" class="uc-form-input" value="<?= xss_clean($user['nickname']) ?>" maxlength="50" placeholder="起个好听的名字吧">
                             <div class="uc-char-count"><span id="nicknameCount"><?= mb_strlen($user['nickname'] ?? '') ?></span>/50</div>
                             <div class="uc-error-msg" id="nicknameError"><span id="nicknameErrorText"></span></div>
@@ -1007,6 +1007,11 @@ $tabs = [
                 document.getElementById('bioError').classList.remove('show');
 
                 let valid = true;
+                if (nickname.length === 0) {
+                    document.getElementById('nicknameErrorText').textContent = '昵称不能为空';
+                    document.getElementById('nicknameError').classList.add('show');
+                    valid = false;
+                }
                 if (nickname.length > 50) {
                     document.getElementById('nicknameErrorText').textContent = '昵称不能超过50个字符';
                     document.getElementById('nicknameError').classList.add('show');
