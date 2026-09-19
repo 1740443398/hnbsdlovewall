@@ -1,0 +1,78 @@
+/*
+ * enhancements.css
+ * 全站增强样式（配合 assets/js/enhancements.js 的按需功能使用）。
+ * 核心布局/主题样式见 style.css，此处仅放增强衍生样式，避免重复定义。
+ * 本文件保持非空，确保以 text/css 正确返回并参与静态资源缓存版本号计算。
+ */
+
+/* 头像可点击进入私聊（enhancements.js 懒加载绑定） */
+.sidebar-avatar,
+.avatar-link,
+.avatar-clickable {
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.sidebar-avatar:hover,
+.avatar-clickable:hover {
+    transform: translateY(-1px);
+}
+
+/* 卡片式沉浸阅读等按需增强的过渡 */
+.app-card {
+    transition: box-shadow .25s ease, transform .2s ease;
+}
+
+/* 通知未读红点（enhancements.js 懒加载渲染，若组件未启用则不影响布局） */
+.nav-bell-flag {
+    position: relative;
+}
+.nav-bell-flag .unread-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: var(--danger, #e74c3c);
+    border: 2px solid var(--bg, #fff);
+    box-sizing: content-box;
+    pointer-events: none;
+}
+
+/* 帖子分享/复制链接按钮（懒加载，仅在用户点击时创建） */
+.post-share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-secondary, #5f7080);
+    font-size: .78rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-family: inherit;
+    transition: color .2s;
+}
+.post-share-btn:hover {
+    color: var(--primary, #4a90d9);
+}
+
+/* 骨架屏 / 懒加载占位（enhancements.js 的 SkeletonLoader 使用） */
+.skeleton-block {
+    border-radius: var(--radius, 12px);
+    background: linear-gradient(90deg,
+        var(--bg-secondary, #eceef1) 25%,
+        var(--bg, #fff) 37%,
+        var(--bg-secondary, #eceef1) 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+
+/* 低帧率/低端机降低动画开销 */
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-block { animation: none; }
+}
