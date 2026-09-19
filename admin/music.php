@@ -18,7 +18,7 @@ if (!is_dir($musicDir)) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'CSRF验证失败，请刷新页面重试。';
     } else {
         if ($_POST['action'] === 'upload' && isset($_FILES['music_file'])) {
@@ -121,7 +121,7 @@ $autoPlay = getSetting('music_autoplay', '1') === '1';
 $musicVolume = getSetting('music_volume', '0.3');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
-    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'CSRF验证失败。';
     } else {
         updateSetting('music_autoplay', isset($_POST['autoplay']) ? '1' : '0');
