@@ -15,9 +15,10 @@ if (!checkRateLimit($ip, 'reset_password', 5, 300)) {
     jsonError('请求过于频繁，请稍后再试', 429);
 }
 
-$token = sanitizeInput($_POST['token'] ?? '');
+$token = sanitizeInput($_POST['token'] ?? $_POST['reset_token'] ?? '');
 $password = $_POST['password'] ?? '';
 $confirmPassword = $_POST['confirm_password'] ?? '';
+$code = sanitizeInput($_POST['code'] ?? '');
 
 $pwdCheck = validatePasswordStrength($password);
 if ($pwdCheck !== true) {
@@ -47,6 +48,12 @@ if (!$user) {
 
 $user = checkBanned($user);
 
+// 校验邮件验证码（qq + code，used=0 且未过期）
+$resetCode = $fs->findOne('password_reset_codes', ['qq' => $user['qq'], 'code' => $code]);
+if (!$resetCode || !empty($resetCode['used']) || (int)($resetCode['expires_at'] ?? 0) < time()) {
+    jsonError('验证码错误或已过期');
+}
+
 $hashedPassword = hashPassword($password);
 $newStamp = generateSecurityStamp();
 
@@ -54,6 +61,9 @@ $fs->update('users', $user['id'], [
     'password_hash' => $hashedPassword,
     'security_stamp' => $newStamp
 ]);
+
+// 一次性验证码，使用后标记已用
+$fs->update('password_reset_codes', $resetCode['id'], ['used' => 1]);
 
 $fs->delete('password_reset_tokens', $resetToken['id']);
 
