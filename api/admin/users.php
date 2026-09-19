@@ -9,6 +9,53 @@ if ($admin['is_banned']) {
 
 $fs = getFS();
 
+/**
+ * 删除指定用户及其关联内容。
+ * 覆盖：用户、该用户的帖子（含其帖子下的评论/点赞/收藏）、该用户的评论（含子回复）、
+ * 通知、点赞/收藏记录、关注关系、管理员权限分配。
+ */
+function deleteUserData($fs, $userId, $userQq) {
+    // 1. 用户本身
+    $fs->delete('users', $userId);
+
+    // 2. 帖子：先收集该用户发布的帖子 id，连同其下的评论/点赞/收藏一起清理
+    $posts = $fs->getAll('posts');
+    $userPostIds = [];
+    foreach ($posts as $p) {
+        if (isset($p['user_id']) && (int)$p['user_id'] === (int)$userId) {
+            $userPostIds[] = (int)$p['id'];
+        }
+    }
+    foreach ($userPostIds as $pid) {
+        $fs->delete('posts', $pid);
+        $fs->delete('post_likes', $pid);
+        $fs->delete('post_favorites', $pid);
+        // 该帖子下所有评论（含子回复）
+        $comments = $fs->getAll('comments');
+        foreach ($comments as $c) {
+            if (
+                (isset($c['post_id']) && (int)$c['post_id'] === $pid) ||
+                (isset($c['user_id']) && (int)$c['user_id'] === (int)$userId)
+            ) {
+                $fs->delete('comments', $c['id']);
+            }
+        }
+    }
+
+    // 3. 其余独立关联表：通知、点赞、收藏、关注、权限
+    foreach (['notifications', 'post_likes', 'post_favorites', 'follows', 'admin_permissions'] as $relTable) {
+        $rows = $fs->getAll($relTable);
+        foreach ($rows as $row) {
+            foreach (['user_id', 'follower_id', 'followed_id', 'from_id', 'to_id', 'target_user_id'] as $fkey) {
+                if (isset($row[$fkey]) && (int)$row[$fkey] === (int)$userId) {
+                    $fs->delete($relTable, $row['id']);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 $action = $_POST['action'] ?? 'list';
 
 if ($action === 'list') {
@@ -297,6 +344,33 @@ if ($action === 'view_post_author') {
         'author_nickname' => $author['nickname'],
         'author_avatar' => $author['avatar'],
     ]);
+}
+
+if ($action === 'delete_user') {
+    if (!checkPermission($admin, 'delete_user')) {
+        jsonError('无权限执行此操作', 403);
+    }
+
+    $userId = intval($_POST['user_id'] ?? 0);
+    if (!$userId) {
+        jsonError('用户ID无效');
+    }
+
+    $target = $fs->findById('users', $userId);
+    if (!$target) {
+        jsonError('用户不存在');
+    }
+    if ($target['role'] === 'super_admin') {
+        jsonError('无法删除超级管理员', 403);
+    }
+    if ((int)$admin['id'] === $userId) {
+        jsonError('不能删除自己当前登录的账号', 403);
+    }
+
+    deleteUserData($fs, $userId, $target['qq']);
+
+    logOperation($admin['id'], $admin['qq'], 'delete_user', 'user', $userId, '删除用户：' . $target['qq'] . ' / ' . $target['nickname']);
+    jsonSuccess([], '用户及其内容已删除');
 }
 
 if ($action === 'batch') {
