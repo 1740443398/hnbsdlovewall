@@ -20,6 +20,7 @@ $hasReset2fa = checkPermission($adminUser, 'reset_user_2fa');
 $hasResetPassword = checkPermission($adminUser, 'reset_user_password');
 $hasViewDetail = checkPermission($adminUser, 'view_user_detail');
 $hasChangeUsername = checkPermission($adminUser, 'change_username');
+$hasDeleteUser = checkPermission($adminUser, 'delete_user');
 
 adminHeader('用户管理', $adminUser, $csrfToken);
 ?>
@@ -345,6 +346,11 @@ function loadUsers() {
                         actions.push('<button class="btn btn-outline btn-sm" onclick="openResetPassword(' + u.id + ')">重置密码</button>');
                     }
                     <?php endif; ?>
+                    <?php if ($hasDeleteUser): ?>
+                    if (u.role !== 'super_admin' && u.role !== 'admin') {
+                        actions.push('<button class="btn btn-danger btn-sm" onclick="confirmDeleteUser(' + u.id + ', ' + esc(JSON.stringify(u.nickname || u.qq)) + ')">删除</button>');
+                    }
+                    <?php endif; ?>
 
                     var titleBadge = '-';
                     if (u.title_text) {
@@ -511,6 +517,26 @@ function confirmAction(action, userId) {
     document.getElementById('confirmMessage').textContent = messages[action] || '确定要执行此操作吗？';
     document.getElementById('confirmBtn').onclick = executePendingAction;
     openModal('confirmModal');
+}
+
+function confirmDeleteUser(userId, name) {
+    if (!confirm('确定要删除用户「' + name + '」吗？\n该用户及其全部内容（帖子、评论、通知等）将被永久删除，此操作不可恢复！')) return;
+
+    fetch(SITE_URL + '/api/admin/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            csrf_token: CSRF_TOKEN,
+            action: 'delete_user',
+            user_id: userId
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) { showToast('用户已删除'); loadUsers(); }
+        else { showToast(data.message || '操作失败', 'error'); }
+    })
+    .catch(function() { showToast('网络错误', 'error'); });
 }
 
 function executePendingAction() {
