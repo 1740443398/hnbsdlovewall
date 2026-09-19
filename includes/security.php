@@ -751,6 +751,7 @@ function getAllPermissionDefinitions() {
             'view_users' => '查看全部注册用户',
             'view_user_detail' => '查看用户个人信息（姓名/班级/年级）',
             'change_username' => '更改用户用户名',
+            'review_qq_change' => '审核QQ号修改申请',
             'ban_user' => '临时封禁用户',
             'permanent_ban' => '永久封禁用户',
             'unban_user' => '解除用户封禁',
