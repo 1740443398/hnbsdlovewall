@@ -20,9 +20,16 @@ if ($user['is_banned']) {
 $nickname = sanitizeInput($_POST['nickname'] ?? '');
 $bio = sanitizeInput($_POST['bio'] ?? '');
 
-if (mb_strlen($nickname) < 2 || mb_strlen($nickname) > 50) {
-    jsonError('昵称长度应在2-50字符之间');
+$trimmedNickname = trim($nickname);
+if ($trimmedNickname === '') {
+    jsonError('昵称不能为空');
 }
+// 不重名
+$duplicateNick = getFS()->findOne('users', ['nickname' => $trimmedNickname]);
+if ($duplicateNick !== null && (int)$duplicateNick['id'] !== (int)$user['id']) {
+    jsonError('该昵称已被他人使用');
+}
+$nickname = $trimmedNickname;
 
 $update = ['nickname' => $nickname, 'bio' => $bio];
 
