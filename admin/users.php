@@ -21,6 +21,7 @@ $hasResetPassword = checkPermission($adminUser, 'reset_user_password');
 $hasViewDetail = checkPermission($adminUser, 'view_user_detail');
 $hasChangeUsername = checkPermission($adminUser, 'change_username');
 $hasDeleteUser = checkPermission($adminUser, 'delete_user');
+$isSuperAdmin = ($adminUser['role'] ?? '') === 'super_admin';
 
 adminHeader('用户管理', $adminUser, $csrfToken);
 ?>
@@ -347,7 +348,8 @@ function loadUsers() {
                     }
                     <?php endif; ?>
                     <?php if ($hasDeleteUser): ?>
-                    if (u.role !== 'super_admin' && u.role !== 'admin') {
+                    // 超管可删除普通管理员；所有操作者都不能删除超级管理员
+                    if (u.role !== 'super_admin' && (<?= $isSuperAdmin ? 'true' : 'false' ?> || u.role !== 'admin')) {
                         actions.push('<button class="btn btn-danger btn-sm" onclick="confirmDeleteUser(' + u.id + ', ' + esc(JSON.stringify(u.nickname || u.qq)) + ')">删除</button>');
                     }
                     <?php endif; ?>
