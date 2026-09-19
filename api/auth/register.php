@@ -170,6 +170,32 @@ $_SESSION['security_stamp'] = $user['security_stamp'];
 $_SESSION['user_role'] = $user['role'];
 session_regenerate_id(true);
 
+// 注册成功，尝试发送欢迎邮件（不影响注册结果；失败仅记入日志）
+try {
+    if (QQMailer::isConfigured()) {
+        $nick = htmlspecialchars($nickname, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $siteName = htmlspecialchars(SITE_NAME, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $welcomeMailHtml = '<div style="font-family:Arial,\'Microsoft YaHei\',sans-serif;line-height:1.8;color:#1B2A3A;">'
+            . '<h2 style="color:#1B3A5C;">欢迎加入「' . $siteName . '」</h2>'
+            . '<p>您好，' . $nick . '（QQ：' . htmlspecialchars($qq) . '）：</p>'
+            . '<p>欢迎加入『' . $siteName . '』！</p>'
+            . '<p>在开始之前，我们想郑重向您说明以下事项，请务必留意：</p>'
+            . '<p style="background:#FAECEE;padding:12px 16px;border-radius:6px;"><strong>这不是盗号或诈骗网站。</strong>本平台是学生自发搭建的校园交流平台（<strong>非官方</strong>）。网站托管在免费主机服务商提供的空间上，因此网址看起来可能不像普通的学校官方域名，请放心，这是正常的。</p>'
+            . '<ul>'
+            . '<li><strong>完全开源：</strong>本站全部代码可在 GitHub 公开审计：<a href="' . GITHUB_REPO_URL . '">' . GITHUB_REPO_NAME . '</a>。您（或任何懂技术的同学）都可以亲自核对代码，确认它是否安全。</li>'
+            . '<li><strong>站长担保：</strong>我是本站的站长/开发者 Slate（QQ：1740443398，邮箱：1740443398@qq.com）。我本人就实名注册并使用这个网站，任何关于密码或账号的可疑情况，您都可以随时通过上述联系方式找我核实。</li>'
+            . '<li><strong>安全感：</strong>本站<strong>绝不会索取</strong>您的 QQ 登录密码、短信验证码或邮箱验证码。请您也切勿向任何个人或所谓「客服」透露自己的密码。</li>'
+            . '</ul>'
+            . '<p>如果在使用中有任何疑问，欢迎随时联系站长。祝您使用愉快！</p>'
+            . '<hr style="border:none;border-top:1px solid #eee;">'
+            . '<p style="color:#888;">校园交流墙 站长：Slate</p>'
+            . '</div>';
+        QQMailer::send($qq . '@qq.com', '欢迎加入' . SITE_NAME, $welcomeMailHtml);
+    }
+} catch (\Exception $e) {
+    error_log('welcome mail failed: ' . $e->getMessage());
+}
+
 jsonSuccess(['user' => [
     'id' => $user['id'],
     'qq' => $user['qq'],
