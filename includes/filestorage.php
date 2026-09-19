@@ -92,7 +92,7 @@ class FileStorage {
             }
         }
         // 紧凑格式写入，显著减小磁盘占用（5GB 服务器）；读取不依赖排版。
-        $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
             error_log('FileStorage write: json_encode failed for table ' . $table . ' error: ' . json_last_error_msg());
             $this->releaseLock($table);
@@ -192,7 +192,7 @@ class FileStorage {
     private function writeUnlocked($table, $data) {
         $file = $this->getFilePath($table);
         // 紧凑格式写入，显著减小磁盘占用（5GB 服务器）；读取不依赖排版。
-        $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
             return false;
         }
