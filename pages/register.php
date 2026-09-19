@@ -378,10 +378,27 @@ $csrfToken = generateCSRFToken();
             line-height: 1.5;
         }
 
+        .opt-group-hint {
+            margin: 6px 0 12px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #7a6a1f;
+            background: rgba(184, 134, 11, 0.08);
+            border: 1px dashed rgba(184, 134, 11, 0.4);
+            border-radius: var(--radius, 10px);
+        }
+
         .opt-mark {
-            font-size: 12px;
-            font-weight: 400;
-            color: var(--text-secondary);
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #B8860B;
+            background: rgba(184, 134, 11, 0.12);
+            border: 1px solid rgba(184, 134, 11, 0.35);
+            border-radius: 9999px;
+            vertical-align: middle;
         }
 
         .subject-grid {
@@ -623,7 +640,7 @@ $csrfToken = generateCSRFToken();
                 <div class="form-group">
                     <label class="form-label" for="username">用户名</label>
                     <div class="input-wrapper">
-                        <input type="text" id="username" name="username" class="form-input" placeholder="给自己起个好记的名字（2-20字）" maxlength="20" autocomplete="off">
+                        <input type="text" id="username" name="username" class="form-input" placeholder="给自己起个好记的名字" autocomplete="off">
                     </div>
                     <div class="error-message" id="usernameError">
                         <span id="usernameErrorText"></span>
@@ -647,8 +664,9 @@ $csrfToken = generateCSRFToken();
                     </div>
                 </div>
 
+                <div class="opt-group-hint">以下信息选填，可暂时跳过，注册后随时也能补充</div>
                 <div class="form-group" id="gradeGroup">
-                    <label class="form-label" for="grade">年级 <span class="opt-mark">（选填）</span></label>
+                    <label class="form-label" for="grade">年级 <span class="opt-mark">选填</span></label>
                     <select id="grade" name="grade" class="form-select">
                         <option value="">请选择年级</option>
                         <?php for ($gi = 0; $gi <= 3; $gi++): ?>
@@ -659,7 +677,7 @@ $csrfToken = generateCSRFToken();
                 </div>
 
                 <div class="form-group" id="classGroup">
-                    <label class="form-label" for="classNum">班级 <span class="opt-mark">（选填）</span></label>
+                    <label class="form-label" for="classNum">班级 <span class="opt-mark">选填</span></label>
                     <select id="classNum" name="class_num" class="form-select">
                         <option value="0">请选择班级</option>
                         <?php for ($ci = 1; $ci <= 20; $ci++): ?>
@@ -669,7 +687,7 @@ $csrfToken = generateCSRFToken();
                 </div>
 
                 <div class="form-group" id="realNameGroup">
-                    <label class="form-label" for="realName">真实姓名 <span class="opt-mark">（选填）</span></label>
+                    <label class="form-label" for="realName">真实姓名 <span class="opt-mark">选填</span></label>
                     <div class="input-wrapper">
                         <input type="text" id="realName" name="real_name" class="form-input" placeholder="仅本人可见，用于证明身份" maxlength="20" autocomplete="off">
                     </div>
@@ -830,17 +848,8 @@ $csrfToken = generateCSRFToken();
             usernameSuccess.classList.remove('show');
             usernameInput.classList.remove('input-error', 'input-success');
 
-            if (name.length === 0) return true;
-
-            if (name.length < 2) {
-                usernameErrorText.textContent = '用户名至少2个字符';
-                usernameError.classList.add('show');
-                usernameInput.classList.add('input-error');
-                return false;
-            }
-
-            if (!/^[\u4e00-\u9fa5a-zA-Z0-9_-]+$/.test(name)) {
-                usernameErrorText.textContent = '仅支持中文、字母、数字、下划线和短横线';
+            if (name.length === 0) {
+                usernameErrorText.textContent = '请输入用户名';
                 usernameError.classList.add('show');
                 usernameInput.classList.add('input-error');
                 return false;
