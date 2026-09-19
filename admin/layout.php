@@ -745,6 +745,11 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <a href="/admin/title_requests.php" class="<?= $page === 'title_requests.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26L21 9.27l-4.5 4.38.94 6.35L12 17.42l-5.44 2.58.94-6.35L3 9.27l6.1-1.01z"/></svg></span> 头衔申请
             </a>
+            <?php if (checkPermission($adminUser, 'review_qq_change')): ?>
+            <a href="/admin/qq_changes.php" class="<?= $page === 'qq_changes.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></span> QQ修改审核
+            </a>
+            <?php endif; ?>
             <?php endif; ?>
             <?php if (checkPermission($adminUser, 'view_posts')): ?>
             <a href="/admin/posts.php" class="<?= $page === 'posts.php' ? 'active' : '' ?>">
