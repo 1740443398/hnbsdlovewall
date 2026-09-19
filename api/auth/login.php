@@ -85,6 +85,8 @@ session_regenerate_id(true);
 
 logUserActivity($user['id'], 'login', '登录成功');
 
+markDeviceKnown();
+
 if ($remember) {
     $token = generateRandomString(64);
     $fs->insert('remember_tokens', [

@@ -163,6 +163,8 @@ $_SESSION['security_stamp'] = $user['security_stamp'];
 $_SESSION['user_role'] = $user['role'];
 session_regenerate_id(true);
 
+markDeviceKnown();
+
 // 注册成功，尝试发送欢迎邮件（不影响注册结果；失败仅记入日志）
 try {
     if (QQMailer::isConfigured()) {
