@@ -11,8 +11,10 @@ A full-featured campus social platform built with PHP, featuring a JSON file-bas
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).  
-You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.  
+This project is licensed under the [Love Wall Custom License — Source Available](LICENSE).
+
+**Free for personal, learning, and non-profit campus use.** Any **commercial use requires the prior written authorization of the Licensor.** Any **redistribution must retain the author attribution** (余灏明 / 蕭遞 / QQ 1740443398) and include the original LICENSE. This license has **no Change Date and does not convert to a permissive license** (no auto MIT conversion).
+
 See the [LICENSE](LICENSE) file for full terms.
 
 ## Features

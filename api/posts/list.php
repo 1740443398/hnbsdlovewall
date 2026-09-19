@@ -34,9 +34,10 @@ if ($sort === 'hot') {
         $aAnnounce = ($a['category'] ?? '') === 'announcement' ? 1 : 0;
         $bAnnounce = ($b['category'] ?? '') === 'announcement' ? 1 : 0;
         if ($aAnnounce !== $bAnnounce) return $bAnnounce - $aAnnounce;
-        $scoreA = ($a['likes'] ?? 0) + (($a['comments'] ?? 0) * 2);
-        $scoreB = ($b['likes'] ?? 0) + (($b['comments'] ?? 0) * 2);
-        return $scoreB - $scoreA;
+        $likeA = intval($a['likes'] ?? 0);
+        $likeB = intval($b['likes'] ?? 0);
+        if ($likeA !== $likeB) return $likeB - $likeA;
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
 } else {
     usort($posts, function($a, $b) {
@@ -100,6 +101,7 @@ foreach ($posts as $post) {
     if (!$isAnonymous && $postUser) {
         $author = [
             'id' => $postUser['id'],
+            'qq' => $postUser['qq'] ?? '',
             'nickname' => $postUser['nickname'] ?? '',
             'avatar' => $postUser['avatar'] ?? '/assets/images/default-avatar.svg',
             'title_text' => $postUser['title_text'] ?? '',
@@ -112,6 +114,7 @@ foreach ($posts as $post) {
     } else {
         $author = [
             'id' => 0,
+            'qq' => '',
             'nickname' => '匿名用户',
             'avatar' => '/assets/images/default-avatar.svg',
             'title_text' => '',

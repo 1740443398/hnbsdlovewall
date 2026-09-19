@@ -71,6 +71,7 @@ foreach ($comments as $c) {
     $commentList[] = [
         'id' => $c['id'],
         'content' => $c['content'],
+        'parent_id' => intval($c['parent_id'] ?? 0),
         'is_anonymous' => $cIsAnonymous,
         'author_nickname' => $cIsAnonymous ? '匿名用户' : ($cUser['nickname'] ?? ''),
         'author_avatar' => $cIsAnonymous ? '/assets/images/default-avatar.svg' : ($cUser['avatar'] ?? ''),
