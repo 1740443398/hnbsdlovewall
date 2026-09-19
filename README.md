@@ -6,7 +6,7 @@ A full-featured campus social platform built with PHP, featuring a JSON file-bas
 
 ## Author
 
-- **Name**: Slate
+- **Name**: HaoMing Yu (高一四班 / Class 1-4, Senior 1; online handle 蕭遞)
 - **QQ**: 1740443398
 
 ## License
@@ -30,10 +30,12 @@ See the [LICENSE](LICENSE) file for full terms.
 - In-site private messaging (server-stored, multi-device sync; with chat record reporting)
 - Report system for posts and private messages (with chat record selection)
 - External URL risk warning in private messages
+- Email notifications (welcome email for new users, password-reset verification code email; both clarify this is NOT a phishing/scam site, include the open-source repo link and the developer's real identity as a guarantee)
 - User-customizable title application (apply, admin review)
 
 ### User System
 - QQ-based registration and login
+- QQ number change request (submitted in user center, approved by admin) and admin review panel
 - Remembered login (15 days auto-login)
 - Relaxed password rule (min 6 chars, strength hint only)
 - Registration without subject-selection options
