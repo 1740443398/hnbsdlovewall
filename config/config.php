@@ -92,7 +92,7 @@ function antiCrawlerCheck() {
     $hackerPattern = '/(\.(sql|db|bak|backup|old|save|config|env|git|svn|hg)(\b|\/|\?|$))|' .
         '(\b(union\s+select|insert\s+into|drop\s+table|alter\s+table)\b)|' .
         '(\b(eval|exec|system|passthru|shell_exec|popen)\s*\()|' .
-        '(\b\.\.\/|\b\.\.\\\)|' .
+        '(\b\.\.\/|\b\.\.\\\\)|' .
         '(\/wp-admin|\/wp-login|\/wp-content|\/wp-includes)|' .
         '(\/phpmyadmin|\/pma|\/mysql|\/adminer)|' .
         '(\/\.env|\/\.git\/|\/\.svn\/|\/\.hg\/)|' .

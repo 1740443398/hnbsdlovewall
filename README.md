@@ -42,6 +42,8 @@ See the [LICENSE](LICENSE) file for full terms.
 - Relaxed password rule (min 6 chars, strength hint only)
 - Registration without subject-selection options
 - First-time registration skips sponsor popup
+- Landing page introducing the site & open-source repo (also an official-entry anti-phishing notice)
+- Automatically guides first-time new devices to registration (Cookie + IP double check)
 - Two-factor authentication (2FA) with TOTP
 - Password reset and recovery
 - User profile management (nickname, avatar, bio)
@@ -65,7 +67,9 @@ See the [LICENSE](LICENSE) file for full terms.
 - Site statistics dashboard (with visit tracking)
 - Operation logs and illegal access logs
 - IP blacklist management
-- Data export / import (full backup, super admin only) for maintenance
+- Data export / import (full backup) for maintenance
+- Public download requests (any registered user may apply; a verification code is emailed to their registered QQ address before download; requests visible in the admin panel)
+- "Search + dropdown" target-user picker in the admin panel (no need to type a QQ number)
 - Music management (upload, delete, playback settings)
 - Sponsor management
 
