@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/constants.php';
+// 邮件发送类（SMTP，QQ 邮箱配置见 config/mail_config.php；该配置已 .gitignore 不入开源版）
+require_once __DIR__ . '/../includes/qqmail.php';
 
 // 静态资源版本号：基于文件最后修改时间，避免浏览器缓存旧版本导致样式/脚本失效
 function asset_ver($file) {
