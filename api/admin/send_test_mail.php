@@ -16,14 +16,18 @@ if ($admin['is_banned']) {
     jsonError('账号已被封禁');
 }
 
-// 与用户管理/审核同权限：超管恒有，普通管理员需该权限
-if (!checkPermission($admin, 'review_qq_change')) {
-    jsonError('权限不足', 403);
+// 权限收紧为仅超管：后台「SMTP 邮件测试」按钮本就仅超管可见，接口口径需保持一致
+if (($admin['role'] ?? '') !== 'super_admin') {
+    jsonError('权限不足，仅站长可发送测试邮件', 403);
 }
 
-$to = sanitizeInput($_POST['to'] ?? '');
-if ($to === '' || strpos($to, '@') === false) {
+// 收件人注入防护：严格校验为标准邮箱，杜绝把任意含 @ 内容拼进 SMTP 命令/邮件头
+$to = trim($_POST['to'] ?? '');
+if ($to === '') {
     $to = '3908368402@qq.com';
+}
+if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+    jsonError('收件邮箱格式不正确', 400);
 }
 
 $html = '<div style="font-family:Arial,\'Microsoft YaHei\',sans-serif;line-height:1.8;color:#1B2A3A;">'
