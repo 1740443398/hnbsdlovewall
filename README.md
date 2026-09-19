@@ -6,7 +6,7 @@ A full-featured campus social platform built with PHP, featuring a JSON file-bas
 
 ## Author
 
-- **Name**: 網名 蕭遞 (online handle 蕭遞)
+- **Name**: 蕭遞 (online handle)
 - **QQ**: 1740443398
 
 ## License
