@@ -28,3 +28,7 @@ define('EXPECTED_HOSTS', ['hnbsd.ct.ws', 'www.hnbsd.ct.ws', '127.0.0.1', 'localh
 // GitHub 开源仓库地址
 define('GITHUB_REPO_URL', 'https://github.com/1740443398/hnbsdlovewall');
 define('GITHUB_REPO_NAME', 'hnbsdlovewall');
+
+// 站长/开发者公开账号 QQ（用于欢迎邮件中的身份担保，从 users 表动态读取其真实信息）
+define('DEV_QQ', '1740443398');
+define('DEV_EMAIL', '1740443398@qq.com');
