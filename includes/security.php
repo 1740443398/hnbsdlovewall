@@ -556,7 +556,7 @@ function schoolAcademicYear() {
 }
 
 /**
- * 是否处于暑假（7~8月）——用于“新高一/新高二”的前缀展示。
+ * 是否处于暑假（7~8月）——用于"新高一/新高二"的前缀展示。
  */
 function isSummerHoliday() {
     $m = (int)date('n');
@@ -576,7 +576,7 @@ function currentGradeIndex($entranceYear) {
 }
 
 /**
- * 年级显示文案，暑假期间对未毕业者加“新”前缀（新高一/新高二/新高三）。
+ * 年级显示文案，暑假期间对未毕业者加"新"前缀（新高一/新高二/新高三）。
  */
 function gradeLabel($entranceYear, $withNew = true) {
     $idx = currentGradeIndex($entranceYear);
@@ -592,7 +592,7 @@ function gradeLabel($entranceYear, $withNew = true) {
 }
 
 /**
- * “已毕业”起始年：用于某届学生高一那一年（A-3，即今年夏季刚毕业那一届）。
+ * "已毕业"起始年：用于某届学生高一那一年（A-3，即今年夏季刚毕业那一届）。
  */
 function graduatedEntranceYear() {
     return schoolAcademicYear() - 3;
@@ -1160,4 +1160,48 @@ function detectContentScraping() {
             'message' => '检测到异常访问模式，请稍后再试',
         ], JSON_UNESCAPED_UNICODE));
     }
+}
+
+/**
+ * 前置安全声明页（gateway）：进入登录/注册/找回密码之前，先确认"本站为官方入口，谨防钓鱼"。
+ * 是否已确认过（cookie 记忆，避免每次打扰）。
+ */
+function hasAcceptedGateway() {
+    return !empty($_COOKIE['lw_gate']);
+}
+
+/**
+ * 用户在前置安全声明页点击"我已了解，继续"后调用，写入确认 cookie。
+ */
+function acceptGateway() {
+    setcookie('lw_gate', '1', time() + 180 * 24 * 3600, '/', '', IS_SECURE, false);
+}
+
+/**
+ * 判断本设备是否"首次访问且未注册"，用于引导新访客直接注册。
+ * Cookie + IP 双保险：本机已有识别 cookie，或该 IP 此前出现过（已访问/已注册设备），
+ * 都不视为首访，避免打断正常登录用户。
+ */
+function isFirstVisitUnregistered() {
+    if (!empty($_COOKIE['lw_known'])) {
+        return false;
+    }
+    $ip = getClientIP();
+    $fs = getFS();
+    $prev = $fs->find('device_ips', ['ip' => $ip]);
+    if (!empty($prev)) {
+        markDeviceKnown();
+        return false;
+    }
+    // 真正首访：记录 IP 来源，并写入本机 cookie
+    $fs->insert('device_ips', ['ip' => $ip, 'first_seen' => date('Y-m-d H:i:s')]);
+    markDeviceKnown();
+    return true;
+}
+
+/**
+ * 将本设备标记为"已知"，后续不再被视为首访。
+ */
+function markDeviceKnown() {
+    setcookie('lw_known', '1', time() + 180 * 24 * 3600, '/', '', IS_SECURE, false);
 }
