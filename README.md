@@ -6,7 +6,7 @@ A full-featured campus social platform built with PHP, featuring a JSON file-bas
 
 ## Author
 
-- **Name**: HaoMing Yu (高一四班 / Class 1-4, Senior 1; online handle 蕭遞)
+- **Name**: 網名 蕭遞 (online handle 蕭遞)
 - **QQ**: 1740443398
 
 ## License
