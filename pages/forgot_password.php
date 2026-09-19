@@ -482,6 +482,17 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label" for="resetCode">邮箱验证码</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="resetCode" name="code" class="form-input" placeholder="请输入发送到QQ邮箱的6位验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                        <button type="button" class="input-icon-btn" id="getCodeBtn">获取验证码</button>
+                    </div>
+                    <div class="error-message" id="codeError">
+                        <span id="codeErrorText"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label class="form-label" for="newPassword">新密码</label>
                     <div class="input-wrapper">
                         <input type="password" id="newPassword" name="new_password" class="form-input" placeholder="至少8位，包含字母和数字" autocomplete="new-password">
@@ -645,6 +656,64 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
                 this.textContent = confirmNewInput.type === 'password' ? '显示' : '隐藏';
             });
 
+            // 「获取验证码」：校验已填QQ后发送，成功后倒计时 60s
+            var getCodeBtn = document.getElementById('getCodeBtn');
+            var resetQQInput = document.getElementById('resetQQ');
+            var resetCodeInput = document.getElementById('resetCode');
+            var codeError = document.getElementById('codeError');
+            var codeErrorText = document.getElementById('codeErrorText');
+            var COOLDOWN = 60;
+            getCodeBtn.addEventListener('click', function() {
+                var qq = resetQQInput.value.trim();
+                if (this.disabled) return;
+                if (!/^[1-9][0-9]{4,14}$/.test(qq)) {
+                    showAlert('请先填写正确的QQ号');
+                    return;
+                }
+                var btn = this;
+                var originalText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = '发送中...';
+                var fd = new FormData();
+                fd.append('csrf_token', CSRF_TOKEN);
+                fd.append('qq', qq);
+                fetch(SITE_URL + '/api/auth/forgot_password.php', { method: 'POST', body: fd })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            resetCodeInput.value = '';
+                            showInfo(data.message || '验证码已发送');
+                            showSuccess('');
+                            var count = COOLDOWN;
+                            btn.textContent = count + 's';
+                            var timer = setInterval(function() {
+                                count--;
+                                if (count <= 0) {
+                                    clearInterval(timer);
+                                    btn.textContent = originalText;
+                                    btn.disabled = false;
+                                } else {
+                                    btn.textContent = count + 's';
+                                }
+                            }, 1000);
+                        } else {
+                            btn.textContent = originalText;
+                            btn.disabled = false;
+                            showAlert(data.message || '验证码发送失败');
+                        }
+                    })
+                    .catch(function() {
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                        showAlert('网络错误，请重试');
+                    });
+            });
+
+            resetCodeInput.addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, '').slice(0, 6);
+                codeError.classList.remove('show');
+            });
+
             newPasswordInput.addEventListener('input', function() {
                 var pwd = this.value;
                 passwordError.classList.remove('show');
@@ -701,7 +770,9 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
 
                 var pwd = newPasswordInput.value;
                 var cpwd = confirmNewInput.value;
+                var code = resetCodeInput.value.trim();
 
+                if (!code || !/^\d{6}$/.test(code)) { showAlert('请输入正确的6位验证码'); resetCodeInput.focus(); return; }
                 if (pwd.length < 8) { showAlert('密码长度不能少于8位'); newPasswordInput.focus(); return; }
                 if (!/[a-zA-Z]/.test(pwd) || !/[0-9]/.test(pwd)) { showAlert('密码必须包含字母和数字'); newPasswordInput.focus(); return; }
                 if (pwd !== cpwd) { showAlert('两次输入的密码不一致'); confirmNewInput.focus(); return; }
