@@ -290,16 +290,9 @@ if ($action === 'change_username') {
     if (!$userId) {
         jsonError('用户ID无效');
     }
+    $newUsername = trim($newUsername);
     if ($newUsername === '') {
         jsonError('请输入新用户名');
-    }
-
-    $nickLen = mb_strlen($newUsername);
-    if ($nickLen < 2 || $nickLen > 20) {
-        jsonError('用户名长度需在2-20个字符之间');
-    }
-    if (preg_match('/[\r\n<>\/\\\"\'`]/', $newUsername)) {
-        jsonError('用户名包含不允许的特殊字符');
     }
 
     $duplicate = $fs->findOne('users', ['nickname' => $newUsername]);
