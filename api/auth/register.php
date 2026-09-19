@@ -175,6 +175,39 @@ try {
     if (QQMailer::isConfigured()) {
         $nick = htmlspecialchars($nickname, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $siteName = htmlspecialchars(SITE_NAME, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // 站长（开发者）公开身份与账号数据，作为「非盗号/诈骗」担保。
+        // 从本站 users 表按 DEV_QQ 动态读取；开源版（data 为空）自动退化为通用说明，
+        // 因此真实姓名/班级只存在于服务器数据里，不会写死进代码、也不会出现在开源仓库。
+        $devName = '';
+        $devSnippet = '';
+        $devHtmlBlock = '';
+        $dev = defined('DEV_QQ') ? getFS()->findOne('users', ['qq' => DEV_QQ]) : null;
+        if ($dev && !empty($dev['real_name'])) {
+            $nowYear = (int)date('Y');
+            $entryYear = (int)($dev['entrance_year'] ?? $nowYear);
+            $gradeIdx = max(0, min(3, $nowYear - $entryYear));
+            $gMap = ['高一', '高二', '高三', '资深学长'];
+            $cnClass = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+            $cn = (int)($dev['class_num'] ?? 0);
+            $clsTxt = ($cn > 0 && $cn <= 10) ? ($cnClass[$cn] . '班') : ($cn . '班');
+            $devGrade = ($gMap[$gradeIdx] ?? '高一') . $clsTxt;
+            $devName = $devGrade . ' ' . $dev['real_name'];
+            $pub = [
+                'QQ'     => $dev['qq'],
+                '昵称'     => $dev['nickname'] ?? '',
+                '身份'     => '站长 / 开发者',
+                '班级'     => $devGrade,
+                '真实姓名' => $dev['real_name'],
+                '注册时间' => $dev['created_at'] ?? '',
+            ];
+            $devSnippet = htmlspecialchars(json_encode($pub, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $devHtmlBlock = '<li><strong>站长担保：</strong>我是本站站长 <strong>' . htmlspecialchars($devName) . '</strong>（QQ：1740443398，邮箱：1740443398@qq.com），本人实名注册并使用本站。为防止「盗号/诈骗」的疑虑，以下是我的公开账号信息（取自本站实时数据）：'
+                . '<pre style="background:#F6F8FA;border:1px solid #E2E8F0;border-radius:6px;padding:10px;font-size:12px;line-height:1.5;max-height:220px;overflow:auto;margin:8px 0;">' . $devSnippet . '</pre>'
+                . '任何关于密码或账号的可疑情况，都可随时通过上方的联系方式找我本人核实。</li>';
+        } else {
+            $devHtmlBlock = '<li><strong>站长担保：</strong>本站站长本人实名注册并使用本站，遇到任何密码或账号的可疑情况，都可联系站长核实（QQ：1740443398）。</li>';
+        }
         $welcomeMailHtml = '<div style="font-family:Arial,\'Microsoft YaHei\',sans-serif;line-height:1.8;color:#1B2A3A;">'
             . '<h2 style="color:#1B3A5C;">欢迎加入「' . $siteName . '」</h2>'
             . '<p>您好，' . $nick . '（QQ：' . htmlspecialchars($qq) . '）：</p>'
@@ -183,7 +216,7 @@ try {
             . '<p style="background:#FAECEE;padding:12px 16px;border-radius:6px;"><strong>这不是盗号或诈骗网站。</strong>本平台是学生自发搭建的校园交流平台（<strong>非官方</strong>）。网站托管在免费主机服务商提供的空间上，因此网址看起来可能不像普通的学校官方域名，请放心，这是正常的。</p>'
             . '<ul>'
             . '<li><strong>完全开源：</strong>本站全部代码可在 GitHub 公开审计：<a href="' . GITHUB_REPO_URL . '">' . GITHUB_REPO_NAME . '</a>。您（或任何懂技术的同学）都可以亲自核对代码，确认它是否安全。</li>'
-            . '<li><strong>站长担保：</strong>我是本站的站长/开发者 Slate（QQ：1740443398，邮箱：1740443398@qq.com）。我本人就实名注册并使用这个网站，任何关于密码或账号的可疑情况，您都可以随时通过上述联系方式找我核实。</li>'
+            . $devHtmlBlock
             . '<li><strong>安全感：</strong>本站<strong>绝不会索取</strong>您的 QQ 登录密码、短信验证码或邮箱验证码。请您也切勿向任何个人或所谓「客服」透露自己的密码。</li>'
             . '</ul>'
             . '<p>如果在使用中有任何疑问，欢迎随时联系站长。祝您使用愉快！</p>'
