@@ -205,7 +205,7 @@ class WAF {
         $uri = $_SERVER['REQUEST_URI'] ?? '';
         $queryString = $_SERVER['QUERY_STRING'] ?? '';
 
-        if (preg_match('/\.\.(\/|\\\)/', $uri) || strpos($uri, "\0") !== false) {
+        if (preg_match('/\.\.(\/|\\\\)/', $uri) || strpos($uri, "\0") !== false) {
             self::logAndBlock('path_traversal', $uri);
         }
 
