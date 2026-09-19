@@ -36,7 +36,6 @@ if (!$post) {
     jsonError('帖子不存在');
 }
 
-// 公告为官方通知，只读展示，不支持评论
 if (($post['category'] ?? '') === 'announcement') {
     jsonError('公告为官方通知，暂不支持评论', 403);
 }
@@ -67,11 +66,24 @@ if (!empty($sensitiveWords)) {
     jsonError('评论包含敏感词汇：' . implode(', ', $sensitiveWords));
 }
 
+// 楼中楼回复：parent_id>0 表示回复某条顶层评论（禁止回复再回复，拉平为一层）
+$parentId = intval($_POST['parent_id'] ?? 0);
+if ($parentId > 0) {
+    $parentComment = $fs->findById('comments', $parentId);
+    if (!$parentComment || (int)($parentComment['post_id'] ?? 0) !== $postId) {
+        jsonError('回复的评论不存在');
+    }
+    if (!empty($parentComment['parent_id'])) {
+        jsonError('暂不支持回复二层以上评论', 400);
+    }
+}
+
 $comment = $fs->insert('comments', [
     'post_id' => $postId,
     'user_id' => $user['id'],
     'content' => $content,
-    'is_anonymous' => $isAnonymous ? 1 : 0
+    'is_anonymous' => $isAnonymous ? 1 : 0,
+    'parent_id' => $parentId
 ]);
 
 $fs->update('posts', $postId, ['comments' => ($post['comments'] ?? 0) + 1]);
@@ -102,6 +114,7 @@ jsonSuccess([
     'comment' => [
         'id' => $comment['id'],
         'content' => $comment['content'],
+        'parent_id' => $parentId,
         'is_anonymous' => $cIsAnonymous,
         'author' => [
             'id' => $cIsAnonymous ? 0 : ($cUser['id'] ?? 0),
