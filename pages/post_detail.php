@@ -102,6 +102,14 @@ function renderUserTitleHTML($u) {
         .follow-link b{font-weight:700;color:var(--text);}
         .follow-link:hover b{color:var(--primary);}
         @media (max-width:480px){.post-follow-meta{width:100%;margin-left:0;margin-top:8px;}}
+        .comment-floor{color:var(--text-tertiary);font-size:0.75rem;margin-right:6px;opacity:.8;font-family:monospace;}
+        .comment-children{margin-left:38px;padding-left:12px;border-left:2px solid var(--border-color);}
+        .comment-reply{margin-top:8px !important;}
+        .comment-replyto{color:var(--text-tertiary);font-size:0.82em;margin-left:4px;}
+        .comment-actions{display:flex;gap:12px;margin-top:6px;align-items:center;}
+        .comment-reply-btn,.comment-delete-btn{background:none;border:none;color:var(--text-secondary);font-size:0.78rem;cursor:pointer;padding:0;font-family:inherit;display:inline-flex;align-items:center;gap:3px;transition:color .2s;}
+        .comment-reply-btn:hover{color:var(--primary);}
+        .comment-delete-btn:hover{color:#e74c3c;}
     </style>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
@@ -249,30 +257,51 @@ $themeClass = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : $userTheme;
                     评论 <span class="comment-total">(<?= intval($post['comments'] ?? 0) ?>)</span>
                 </h3>
                 <div class="comments-list" id="commentsList">
-                    <?php foreach ($comments as $c): ?>
-                    <?php $cAnonymous = !empty($c['is_anonymous']); ?>
-                    <?php $cUser = $cAnonymous ? null : $fs->findById('users', $c['user_id']); ?>
+                    <?php
+                    // 懒加载：仅渲染顶层评论；各顶层评论的子回复数统计在此计入，
+                    // 实际回复内容一律等用户点击「回复/展开」时再通过接口取数渲染。
+                    $commentChildren = [];
+                    foreach ($comments as $c) {
+                        $pid = intval($c['parent_id'] ?? 0);
+                        if ($pid > 0) {
+                            $commentChildren[$pid][] = $c;
+                        }
+                    }
+                    $floor = 1;
+                    foreach ($comments as $c):
+                        $pid = intval($c['parent_id'] ?? 0);
+                        if ($pid > 0) continue; // 子回复不在此渲染
+                        $cAnonymous = !empty($c['is_anonymous']);
+                        $cUser = $cAnonymous ? null : $fs->findById('users', $c['user_id']);
+                        $cNick = !$cAnonymous && $cUser ? ($cUser['nickname'] ?? '匿名用户') : '匿名用户';
+                        $replyCount = count($commentChildren[$c['id']] ?? []);
+                    ?>
                     <div class="comment-item" id="comment-<?= $c['id'] ?>">
                         <img src="<?= $cAnonymous || empty($cUser['avatar']) ? '/assets/images/default-avatar.svg' : htmlspecialchars($cUser['avatar']) ?>" class="comment-avatar avatar-sm" alt="评论头像" onerror="this.src='/assets/images/default-avatar.svg'">
                         <div class="comment-body">
                             <div class="comment-header">
+                                <span class="comment-floor">#<?= $floor ?></span>
                                 <span class="comment-author"><?= $cAnonymous ? '匿名用户' : htmlspecialchars($cUser['nickname'] ?? '匿名用户') ?></span>
-                                <?php
-                                if (!$cAnonymous && $cUser) {
-                                    echo renderUserTitleHTML($cUser);
-                                }
-                                ?>
+                                <?php if (!$cAnonymous && $cUser) { echo renderUserTitleHTML($cUser); } ?>
                                 <span class="comment-time"><?= htmlspecialchars(timeAgo($c['created_at'])) ?></span>
                             </div>
                             <p class="comment-text"><?= nl2br(htmlspecialchars($c['content'])) ?></p>
-                            <?php if ($user && ($user['id'] == $c['user_id'] || $user['role'] === 'admin' || $user['role'] === 'super_admin')): ?>
-                            <button class="comment-delete-btn" onclick="deleteComment(<?= $c['id'] ?>)" aria-label="删除评论">
-                                <span id="delCommentIcon<?= $c['id'] ?>"></span>
-                                <span>删除</span>
-                            </button>
-                            <?php endif; ?>
+                            <div class="comment-actions">
+                                <button class="comment-reply-btn" onclick="setReplyTarget(<?= $c['id'] ?>, '<?= htmlspecialchars($cNick, ENT_QUOTES) ?>')">回复</button>
+                                <?php if ($replyCount > 0): ?>
+                                <button class="comment-replies-toggle" id="repliesToggle<?= $c['id'] ?>" onclick="loadReplies(<?= $c['id'] ?>)">查看 <?= $replyCount ?> 条回复</button>
+                                <?php endif; ?>
+                                <?php if ($user && ($user['id'] == $c['user_id'] || $user['role'] === 'admin' || $user['role'] === 'super_admin')): ?>
+                                <button class="comment-delete-btn" onclick="deleteComment(<?= $c['id'] ?>)" aria-label="删除评论">
+                                    <span id="delCommentIcon<?= $c['id'] ?>"></span>
+                                    <span>删除</span>
+                                </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
+                    <div class="comment-children" id="children-<?= $c['id'] ?>" data-loaded="0" style="display:none;"></div>
+                    <?php $floor++; ?>
                     <?php endforeach; ?>
                     <?php if (empty($comments)): ?>
                     <div class="empty-state">
@@ -366,6 +395,78 @@ $themeClass = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : $userTheme;
         let _pollTimer = null;
         let _lastPollTime = new Date().toISOString();
         let _confirmCallback = null;
+        // 楼中楼回复：replyTarget.id 为要回复到的顶层评论 id（0 表示正常评论）
+        let replyTarget = { id: 0, name: '' };
+
+        function setReplyTarget(parentId, name) {
+            replyTarget = { id: parentId, name: name || '' };
+            var ta = document.getElementById('commentInput');
+            if (ta) {
+                ta.placeholder = replyTarget.id ? ('回复 @' + replyTarget.name + '：…') : '写下你的评论... (Ctrl+Enter 发送)';
+                ta.focus();
+            }
+        }
+
+        // 懒加载：展开某顶层评论的回复时才取数渲染
+        async function loadReplies(parentId) {
+            var container = document.getElementById('children-' + parentId);
+            var toggle = document.getElementById('repliesToggle' + parentId);
+            if (!container) return;
+            if (container.getAttribute('data-loaded') === '1') {
+                container.style.display = container.style.display === 'none' ? 'block' : 'none';
+                if (toggle) toggle.textContent = (container.style.display === 'none') ? ((toggle.getAttribute('data-count') || '1 条回复')) : '收起回复';
+                return;
+            }
+            try {
+                var res = await App.fetchAPI('/api/posts/comment_replies.php?post_id=<?= $postId ?>&parent_id=' + parentId);
+                var replies = res.data.comments || [];
+                container.innerHTML = '';
+                replies.forEach(function(rc) { container.appendChild(buildReplyEl(parentId, rc)); });
+                container.setAttribute('data-loaded', '1');
+                container.style.display = 'block';
+                if (toggle) {
+                    toggle.textContent = '收起回复';
+                    toggle.setAttribute('data-count', replies.length + ' 条回复');
+                }
+            } catch(e) { App.showToast(e.message || '加载回复失败', 'error'); }
+        }
+
+        function buildReplyEl(parentId, rc) {
+            var el = document.createElement('div');
+            el.className = 'comment-item comment-reply';
+            el.id = 'comment-' + rc.id;
+            var avatarSrc = rc.is_anonymous ? '/assets/images/default-avatar.svg' : (rc.author_avatar || '/assets/images/default-avatar.svg');
+            var authorName = rc.is_anonymous ? '匿名用户' : App.escapeHtml(rc.author_nickname || '匿名用户');
+            var replyName = rc.reply_to_name || '';
+            var delBtn = rc.is_author ? '<button class="comment-delete-btn" onclick="deleteComment(' + rc.id + ')"><span id="delCommentIcon' + rc.id + '"></span><span>删除</span></button>' : '';
+            var titleHtml = '';
+            if (!rc.is_anonymous && rc.author_title_text) {
+                var tStyle = 'display:inline-block;padding:2px 10px;border-radius:5px;font-size:11px;font-weight:600;line-height:1.4;vertical-align:middle;margin-left:6px;white-space:nowrap;background:' + (rc.author_title_bg_color || '#4A90D9') + ';color:' + (rc.author_title_color || '#ffffff') + ';';
+                titleHtml = '<span class="user-title" style="' + tStyle + '">' + App.escapeHtml(rc.author_title_text) + '</span>';
+            }
+            el.innerHTML = '<img src="' + App.escapeHtml(avatarSrc) + '" class="comment-avatar avatar-sm" alt="头像" onerror="this.src=\'/assets/images/default-avatar.svg\'">' +
+                '<div class="comment-body"><div class="comment-header">' +
+                '<span class="comment-author">' + authorName + '</span>' + titleHtml +
+                '<span class="comment-time">' + (rc.time_ago || '') + '</span></div>' +
+                '<p class="comment-text">' + App.escapeHtml(rc.content).replace(/\n/g, '<br>') + (replyName ? '<span class="comment-replyto"> @' + App.escapeHtml(replyName) + '</span>' : '') + '</p>' +
+                '<div class="comment-actions">' +
+                '<button class="comment-reply-btn" onclick="setReplyTarget(' + parentId + ', \'' + authorName.replace(/'/g, "\\'") + '\')">回复</button>' + delBtn +
+                '</div></div>';
+            setTimeout(function() {
+                var ic = document.getElementById('delCommentIcon' + rc.id);
+                if (ic && typeof App !== 'undefined' && typeof App.svgIcon === 'function') ic.innerHTML = App.svgIcon('trash', 14);
+            }, 100);
+            return el;
+        }
+
+        function refreshReplyToggle(parentId) {
+            var container = document.getElementById('children-' + parentId);
+            var toggle = document.getElementById('repliesToggle' + parentId);
+            if (!container || !toggle) return;
+            if (container.getAttribute('data-loaded') !== '1') return;
+            var n = container.children.length;
+            toggle.textContent = n > 0 ? (n + ' 条回复') : '收起回复';
+        }
 
         function showConfirm(title, msg, callback) {
             document.getElementById('confirmTitle').textContent = title;
@@ -501,16 +602,18 @@ $themeClass = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : $userTheme;
             try {
                 var res = await App.fetchAPI('/api/posts/comment.php', {
                     method: 'POST',
-                    body: 'post_id=<?= $postId ?>&content=' + encodeURIComponent(content)
+                    body: 'post_id=<?= $postId ?>&content=' + encodeURIComponent(content) + '&parent_id=' + (replyTarget.id || 0)
                 });
                 var comment = res.data.comment;
+                var isReply = replyTarget.id > 0;
+                var replyName = replyTarget.name || '';
 
                 var commentsList = document.getElementById('commentsList');
 
                 var emptyState = commentsList.querySelector('.empty-state');
                 if (emptyState) emptyState.remove();
                 var commentEl = document.createElement('div');
-                commentEl.className = 'comment-item';
+                commentEl.className = 'comment-item' + (isReply ? ' comment-reply' : '');
                 commentEl.id = 'comment-' + comment.id;
                 var avatarSrc = comment.is_anonymous ? '/assets/images/default-avatar.svg' : (comment.author_avatar || '/assets/images/default-avatar.svg');
                 var authorName = comment.is_anonymous ? '匿名用户' : App.escapeHtml(comment.author_nickname || '匿名用户');
@@ -527,15 +630,59 @@ $themeClass = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : $userTheme;
                     }
                     titleHtml = '<span class="user-title" style="' + titleStyle + '">' + App.escapeHtml(comment.author_title_text) + '</span>';
                 }
+                var replyPrefix = (isReply && replyName) ? '<span class="comment-replyto"> @' + App.escapeHtml(replyName) + '</span>' : '';
+                var replyForBtn = isReply ? replyTarget.id : comment.id;
                 commentEl.innerHTML = '<img src="' + App.escapeHtml(avatarSrc) + '" class="comment-avatar avatar-sm" alt="评论头像" onerror="this.src=\'/assets/images/default-avatar.svg\'">' +
                     '<div class="comment-body"><div class="comment-header">' +
                     '<span class="comment-author">' + authorName + '</span>' + titleHtml +
                     '<span class="comment-time">刚刚</span></div>' +
-                    '<p class="comment-text">' + App.escapeHtml(comment.content).replace(/\n/g, '<br>') + '</p>' +
+                    '<p class="comment-text">' + App.escapeHtml(comment.content).replace(/\n/g, '<br>') + replyPrefix + '</p>' +
+                    '<div class="comment-actions">' +
+                    '<button class="comment-reply-btn" onclick="setReplyTarget(' + replyForBtn + ', \'' + authorName.replace(/'/g, "\\'") + '\')">回复</button>' +
                     '<button class="comment-delete-btn" onclick="deleteComment(' + comment.id + ')" aria-label="删除评论">' +
                     '<span id="delCommentIcon' + comment.id + '"></span><span>删除</span></button>' +
-                    '</div>';
-                commentsList.appendChild(commentEl);
+                    '</div></div>';
+
+                var targetContainer;
+                if (isReply) {
+                    targetContainer = document.getElementById('children-' + replyTarget.id);
+                    if (!targetContainer) {
+                        targetContainer = document.createElement('div');
+                        targetContainer.className = 'comment-children';
+                        targetContainer.id = 'children-' + replyTarget.id;
+                        var parentEl = document.getElementById('comment-' + replyTarget.id);
+                        if (parentEl && parentEl.parentNode) {
+                            parentEl.insertAdjacentElement('afterend', targetContainer);
+                        } else {
+                            commentsList.appendChild(targetContainer);
+                        }
+                    }
+                } else {
+                    targetContainer = commentsList;
+                }
+                targetContainer.appendChild(commentEl);
+
+                // 回复子区懒加载：回复后即时亮出对应父评论的子区与「查看回复」切换钮
+                if (isReply) {
+                    if (targetContainer.style) targetContainer.style.display = 'block';
+                    var rToggle = document.getElementById('repliesToggle' + replyTarget.id);
+                    if (!rToggle) {
+                        rToggle = document.createElement('button');
+                        rToggle.className = 'comment-replies-toggle';
+                        rToggle.id = 'repliesToggle' + replyTarget.id;
+                        rToggle.setAttribute('onclick', 'loadReplies(' + replyTarget.id + ')');
+                        var parentEl = document.getElementById('comment-' + replyTarget.id);
+                        var pActions = parentEl ? parentEl.querySelector('.comment-actions') : null;
+                        if (pActions) pActions.appendChild(rToggle);
+                    }
+                    refreshReplyToggle(replyTarget.id);
+                }
+
+                // 回复发送后复位回复目标与 placeholder
+                replyTarget = { id: 0, name: '' };
+                if (textarea) {
+                    textarea.placeholder = '写下你的评论... (Ctrl+Enter 发送)';
+                }
 
                 setTimeout(function() {
                     var delIcon = document.getElementById('delCommentIcon' + comment.id);
