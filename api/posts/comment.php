@@ -36,6 +36,7 @@ if (!$post) {
     jsonError('帖子不存在');
 }
 
+// 公告为官方通知，只读展示，不支持评论
 if (($post['category'] ?? '') === 'announcement') {
     jsonError('公告为官方通知，暂不支持评论', 403);
 }
