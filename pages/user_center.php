@@ -8,6 +8,9 @@ $user = requireLogin();
 $user = checkBanned($user);
 
 $csrfToken = generateCSRFToken();
+
+// 是否存在待审核的 QQ 修改申请（用于按钮区域展示「待审核中」）
+$pendingQqChange = getFS()->findOne('qq_change_requests', ['user_id' => $user['id'], 'status' => 'pending']);
 $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
 
 $validTabs = ['profile', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme'];
@@ -698,8 +701,13 @@ $tabs = [
                     <form id="profileForm" autocomplete="off">
                         <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                         <div class="uc-form-group">
-                            <label>QQ号 <span class="uc-label-hint">（注册时绑定，不可修改）</span></label>
+                            <label>QQ号 <span class="uc-label-hint">（注册时绑定）</span></label>
                             <input type="text" class="uc-form-input" value="<?= xss_clean($user['qq']) ?>" disabled>
+                            <?php if (!empty($pendingQqChange)): ?>
+                            <div class="uc-change-qq-status" id="qqChangeStatus">待审核中</div>
+                            <?php else: ?>
+                            <button type="button" class="btn btn-outline btn-sm" id="btnChangeQQ" style="margin-top:8px;background:transparent;">申请修改</button>
+                            <?php endif; ?>
                         </div>
                         <div class="uc-form-group">
                             <label for="nickname">昵称 <span class="uc-label-hint">（2-20个字符，让大家认识你）</span></label>
@@ -1073,6 +1081,43 @@ $tabs = [
                         setLoading(document.getElementById('profileSaveBtn'), document.getElementById('profileBtnText'), document.getElementById('profileBtnSpinner'), false);
                         showToast('网络错误', 'error');
                     });
+            });
+        }
+
+        // 「申请修改」QQ：prompt 输入 → 校验格式 → 提交后台
+        const btnChangeQQ = document.getElementById('btnChangeQQ');
+        if (btnChangeQQ) {
+            btnChangeQQ.addEventListener('click', function() {
+                const newQq = (prompt('请输入新的QQ号：') || '').trim();
+                if (!newQq) return;
+                if (!/^[1-9][0-9]{4,14}$/.test(newQq)) {
+                    showToast('QQ号格式不正确', 'error');
+                    return;
+                }
+                const reason = (prompt('请填写变更原因（选填，可不填）：', '') || '').trim();
+                const fd = new FormData();
+                fd.append('csrf_token', CSRF_TOKEN);
+                fd.append('action', 'request');
+                fd.append('new_qq', newQq);
+                fd.append('reason', reason);
+                fetch(SITE_URL + '/api/user/change_qq.php', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.success) {
+                            showToast(d.message, 'success');
+                            const btn = document.getElementById('btnChangeQQ');
+                            if (btn) {
+                                const status = document.createElement('div');
+                                status.className = 'uc-change-qq-status';
+                                status.id = 'qqChangeStatus';
+                                status.textContent = '待审核中';
+                                btn.parentNode.replaceChild(status, btn);
+                            }
+                        } else {
+                            showToast(d.message || '提交失败', 'error');
+                        }
+                    })
+                    .catch(() => showToast('网络错误', 'error'));
             });
         }
 
