@@ -9,8 +9,9 @@ uploads/
 music/
 *.log
 
-# ===== 本机专属配置（含SMTP授权码，绝不进入开源版）=====
+# ===== 本机专属配置（含SMTP授权码 / 同步密钥，绝不进入开源版）=====
 config/mail_config.php
+config/sync_config.php
 
 # ===== 系统 / 编辑器 =====
 Thumbs.db
