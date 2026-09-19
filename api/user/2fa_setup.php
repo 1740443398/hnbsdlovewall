@@ -21,20 +21,25 @@ $password = $_POST['password'] ?? '';
 $code = trim($_POST['code'] ?? '');
 $action = $_POST['action'] ?? '';
 
-if (!verifyPassword($password, $user['password_hash'])) {
-    jsonError('密码验证失败');
-}
-
 if (!empty($user['twofa_enabled'])) {
     jsonError('2FA已启用');
 }
 
 require_once __DIR__ . '/../../includes/totp.php';
 
+// 生成密钥不需要密码校验，只需登录态与CSRF；仅「验证并启用」时才要求密码+验证码
 if ($action === 'generate' || empty($code)) {
     $secret = TOTP::generateSecret();
     $_SESSION['twofa_temp_secret'] = $secret;
-    jsonSuccess(['secret' => $secret]);
+    $totp = new TOTP($secret);
+    jsonSuccess([
+        'secret' => $secret,
+        'qr_code_url' => $totp->getQRCodeUrl($user['qq'] ?? 'user', SITE_NAME),
+    ]);
+}
+
+if (!verifyPassword($password, $user['password_hash'])) {
+    jsonError('密码验证失败');
 }
 
 $secret = $_SESSION['twofa_temp_secret'] ?? '';
