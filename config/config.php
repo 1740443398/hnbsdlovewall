@@ -34,7 +34,11 @@ ini_set('session.cookie_secure', $isSecure ? 1 : 0);
 ini_set('session.cookie_httponly', 1);
 ini_set('session.cookie_samesite', 'Lax');
 ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
-ini_set('session.use_strict_mode', 1);
+// 注意：关闭 use_strict_mode。部分共享虚拟主机对 session.id 长度/存储有限制，
+// strict_mode=1 会丢弃不认可的 cookie 导致每次请求都新建 session，
+// 表现为登录/注册等提交时 CSRF_token 永远不匹配（403「CSRF验证失败」）。
+// httpOnly/SameSite/secure 等主要防护仍保留。
+ini_set('session.use_strict_mode', 0);
 ini_set('session.sid_length', 48);
 ini_set('session.sid_bits_per_character', 6);
 
