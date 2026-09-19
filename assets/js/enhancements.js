@@ -4444,6 +4444,46 @@
       });
     },
 
+    // 点击头像等场景：直接打开与某位同学的私信会话（懒加载，点击才初始化）
+    openWith: function (peerQq, peerInfo) {
+      var me = this._getMe();
+      if (!window.IS_LOGGED_IN || !me || !me.qq) { App.showToast('请先登录', 'warning'); return; }
+      if (!peerQq || peerQq === me.qq) return;
+      this._me = me;
+      // 预置对方昵称/头像，便于会话标题与头像即时展示
+      this._users = this._users || [];
+      var hasPeer = false;
+      for (var i = 0; i < this._users.length; i++) {
+        if (this._users[i].qq === peerQq) { hasPeer = true; break; }
+      }
+      if (!hasPeer && peerInfo && peerInfo.qq === peerQq) {
+        this._users.push({ qq: peerInfo.qq, nickname: peerInfo.nickname, avatar: peerInfo.avatar || '' });
+      }
+      if (this._modal) this._modal.remove();
+      var modal = document.createElement('div');
+      modal.className = 'modal-overlay show';
+      modal.innerHTML =
+        '<div class="modal pm-modal">' +
+          '<div class="modal-header">' +
+            '<h3>✉️ 站内私信</h3>' +
+            '<button type="button" class="modal-close pm-close" aria-label="关闭">×</button>' +
+          '</div>' +
+          '<div class="pm-body" id="pmBody"><div class="pm-loading">加载中...</div></div>' +
+          '<div class="pm-footer-tip">私信内容已保存到服务器，可多设备同步</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      var self = this;
+      modal.querySelector('.pm-close').addEventListener('click', function () { modal.remove(); });
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+      this._modal = modal;
+      this._loadFromServer().then(function () {
+        self._openChat(modal, peerQq);
+      }).catch(function () {
+        var box = modal.querySelector('#pmBody');
+        if (box) box.innerHTML = '<div class="pm-empty">私信加载失败，请刷新重试</div>';
+      });
+    },
+
     _renderList: function (modal) {
       var self = this;
       var data = this._getData();
