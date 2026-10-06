@@ -1,0 +1,30 @@
+# 校园交流墙 · 爬虫规则
+# 各页面均带 canonical，这里只需声明「哪些不该抓」
+
+User-agent: *
+
+# 后台与接口不需要收录
+Disallow: /admin/
+Disallow: /api/
+
+# 带查询串的功能页（登录、注册、找回密码、双因素）不需要收录
+Disallow: /pages/login.php
+Disallow: /pages/register.php
+Disallow: /pages/forgot_password.php
+Disallow: /pages/2fa_setup.php
+Disallow: /pages/gateway.php
+Disallow: /pages/download_backup.php
+
+# 用户中心与个人页属于隐私内容
+Disallow: /pages/user_center.php
+Disallow: /pages/u.php
+
+# 运行时数据与上传内容
+Disallow: /data/
+Disallow: /uploads/
+
+# 静态资源允许抓取（利于渲染与图片收录）
+Allow: /assets/
+
+# 站点地图
+Sitemap: /sitemap

@@ -1,0 +1,96 @@
+RewriteEngine On
+
+# 移除.php扩展名
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# 禁止直接访问敏感配置目录
+RewriteRule ^(config|includes|sql|data)/ - [F,L]
+
+# 禁止外网访问浏览器缓存目录 Default/（服务器文件虽无法删除，但需确保不可被外网读取）
+RewriteRule ^Default(/|$) - [F,L]
+RewriteRule ^(Default|Path|Code%20Cache|Session%20Storage|Local%20Storage|Service%20Worker|Share%20Data)/ - [F,L]
+
+# 禁止外网访问以点开头的隐藏目录（如 .edbg 等编辑器/调试残留）
+RewriteRule ^\.[^/]+(/|$) - [F,L]
+
+# 允许访问uploads目录下的图片
+RewriteRule ^uploads/images/ - [L]
+
+# F7 上传目录禁止执行任何脚本：用户可上传图片，但绝不能让上传的 .php 被当成脚本执行。
+# 必须放在「允许图片」规则之前，否则 php 文件会先命中 uploads/images/ 的 [L] 而绕过本规则。
+RewriteRule ^uploads/.*\.(php|phtml|ph[345]|pht|phar|cgi|pl|py|asp|aspx|jsp|sh|bat)$ - [F,L]
+
+# 自定义错误页面
+ErrorDocument 403 /pages/403.php
+ErrorDocument 404 /pages/404.php
+ErrorDocument 500 /pages/500.php
+
+# 禁止目录列表
+Options -Indexes
+
+# ============================================================
+# 静态资源缓存（减少手机服务器带宽消耗）
+# 版本控制：页面用 asset_ver() 给 css/js 拼上文件修改时间，改文件即自动击穿缓存。
+#
+# 优化点（相比旧配置）：
+#   1) 加 immutable —— 告诉浏览器「这个 URL 的内容在有效期内**绝不会变**」，
+#      于是二次访问连 If-Modified-Since 协商请求都不会发，直接走本地缓存。
+#      安全性由 asset_ver() 保证：文件一改 URL 就变，不存在拿到旧版的问题。
+#      少掉的那一次往返，对手机网络上的首屏是实打实的提速。
+#   2) 补 Vary: Accept-Encoding —— 没有它，某些中间代理会把 gzip 版本
+#      发给不支持压缩的客户端，后者解不开就白屏。这是正确性问题，不只是性能。
+#   3) 字体加 cross-origin 相关的缓存头，避免字体被重复下载。
+# ============================================================
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|ico|woff2?|ttf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
+
+# Service Worker 是唯一**不能**长期缓存的脚本：浏览器下次启动时会拿它去比对更新，
+# 若被缓存 30 天，站内改了逻辑也推不出去（用户一直跑旧版本）。必须每次回源校验。
+# 注意：这段要放在上面 css|js 规则之后，Apache 同名 Header 后写的覆盖先写的。
+<IfModule mod_headers.c>
+    <FilesMatch "^sw\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    </FilesMatch>
+</IfModule>
+
+# 带版本号的清单文件同样需要每次校验（PWA 图标/名称更新靠它）
+<IfModule mod_headers.c>
+    <FilesMatch "manifest\.webmanifest$">
+        Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+    </FilesMatch>
+</IfModule>
+
+# Gzip压缩（若mod_deflate可用）
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json text/plain text/xml image/svg+xml application/manifest+json
+</IfModule>
+
+# E15 Brotli 压缩（若主机启用了 mod_brotli 则优先于 gzip，体积更小）。
+# 用 <IfModule> 包裹：未启用的主机直接忽略，零风险。
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/css text/javascript application/javascript application/json text/plain text/xml image/svg+xml application/manifest+json
+</IfModule>
+
+# 关键：告诉缓存层「压缩内容只发给声明支持 gzip 的客户端」。
+# 漏掉这条，配合上面的 DEFLATE 会出现「代理把 gzip 版本发给不支持压缩的浏览器」。
+<IfModule mod_headers.c>
+    Header always append Vary "Accept-Encoding"
+</IfModule>
+
+# 「添加到主屏幕」用到的 Web App Manifest：默认不被识别，需显式声明 MIME 类型
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+# ── 早期提示（Early Hints）────────────────────────────────────────────
+# 103 Early Hints 能让浏览器在 PHP 还在算数据时就开始下载 CSS。
+# 兼容该特性的服务器/CDN 会用上，不兼容则忽略，零风险。
+<IfModule mod_headers.c>
+    Header always set Timing-Allow-Origin "*"
+</IfModule>

@@ -1,0 +1,20 @@
+<IfModule mod_mime.c>
+    AddType application/vnd.android.package-archive .apk
+</IfModule>
+
+<FilesMatch "\.apk$">
+    <IfModule mod_headers.c>
+        # 强制下载：手机上点「安装应用」直接进下载/安装流程，而不是在页面里打开
+        Header set Content-Disposition "attachment"
+    </IfModule>
+</FilesMatch>
+
+# 本目录只放安装包，禁止任何脚本在此执行
+<FilesMatch "\.(php|phtml|php5|php7|phar|cgi|pl|py|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>

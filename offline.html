@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>暂时离线 - 校园交流墙</title>
+    <meta name="theme-color" content="#2F5B9A">
+    <link rel="icon" href="/icon.ico" type="image/x-icon">
+    <style>
+        /* 离线页必须完全自包含：断网时任何外部资源都取不到 */
+        :root {
+            --bg: #F6F7F9;
+            --card: #FFFFFF;
+            --text: #1C2733;
+            --text-secondary: #5B6B7B;
+            --border: #E3E7EC;
+            --primary: #2F5B9A;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0F1520;
+                --card: #161D29;
+                --text: #E6EBF2;
+                --text-secondary: #9AA7B6;
+                --border: #232C3A;
+                --primary: #6E9BD8;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+        }
+        .card {
+            width: 100%;
+            max-width: 372px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px 26px;
+            text-align: center;
+            box-shadow: 0 12px 32px -18px rgba(16, 24, 40, 0.28);
+        }
+        .icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(47, 91, 154, 0.10);
+        }
+        h1 { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; }
+        p { font-size: 0.88rem; line-height: 1.75; color: var(--text-secondary); }
+        button {
+            margin-top: 20px;
+            width: 100%;
+            min-height: 46px;
+            border: none;
+            border-radius: 9999px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        button:active { opacity: 0.82; }
+        .hint { margin-top: 12px; font-size: 0.75rem; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F5B9A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                <line x1="12" y1="20" x2="12.01" y2="20"/>
+                <line x1="3" y1="3" x2="21" y2="21"/>
+            </svg>
+        </div>
+        <h1>当前处于离线状态</h1>
+        <p>网络连接似乎断了。本站数据都在服务器上，恢复网络后就能继续浏览、发帖和私信。</p>
+        <button onclick="location.reload()">重新加载</button>
+        <div class="hint">已安装到桌面的同学，联网后直接打开即可</div>
+    </div>
+</body>
+</html>

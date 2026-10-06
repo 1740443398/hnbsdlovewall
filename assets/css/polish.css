@@ -1,0 +1,299 @@
+/* ==========================================================================
+   polish.css —— 体验增强模块样式
+   与 polish.js 配套：返回顶部 / 阅读进度 / 字号调节 / 快捷键面板 / 图片灯箱。
+   全部为「渐进增强」：JS 加载失败时这些元素根本不会被创建，页面照常工作。
+   ========================================================================== */
+
+/* ---------- 1. 阅读进度条（帖子详情页顶部） ---------- */
+.lw-readbar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: 100%;
+  z-index: 1001;              /* 高于顶栏(--z-header:100)，低于模态 */
+  pointer-events: none;
+  background: transparent;
+  opacity: 0;
+  transition: opacity var(--lw-dur-base, 200ms) var(--lw-ease-standard, ease);
+}
+.lw-readbar.is-visible { opacity: 1; }
+.lw-readbar > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--primary, #2F5B9A), var(--accent, #C9A96E));
+  border-radius: 0 999px 999px 0;
+  transition: width 80ms linear;      /* 读进度要跟手，时长必须极短 */
+}
+
+/* ---------- 2. 统一浮动操作按钮（全站唯一的右下角浮动入口） ----------
+   点开才展开「AI 小助手 / 随便看看 / 字号 / 回到顶部」。
+   站内其余浮动件（enhancements.js 的 5 图标竖条、快捷操作面板 QAP、
+   两套各自独立的「回到顶部」、polish.js 旧的返回顶部与字号组、
+   ai_widget.js 自带的 AI FAB）已全部移除，统一收敛到这里，不要再各自加回来。 */
+.lw-fab {
+  position: fixed;
+  right: clamp(12px, 3vw, 24px);
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));   /* 避开移动端底部导航 */
+  z-index: var(--z-fab, 80);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.lw-fab-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary, #2F5B9A), var(--primary-dark, #1E3A63));
+  box-shadow: 0 6px 18px -6px rgba(47, 91, 154, .65);
+  display: grid;
+  place-items: center;
+  transition: transform var(--lw-dur-base, 200ms) var(--lw-ease-spring, ease),
+              box-shadow var(--lw-dur-base, 200ms) ease;
+}
+.lw-fab-btn svg {
+  width: 22px;
+  height: 22px;
+  transition: transform var(--lw-dur-base, 200ms) var(--lw-ease-spring, ease);
+}
+.lw-fab.is-open .lw-fab-btn svg { transform: rotate(135deg); }   /* ＋ → × */
+.lw-fab-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(47, 91, 154, .8); }
+.lw-fab-btn:active { transform: scale(.94); }
+
+.lw-fab-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity var(--lw-dur-base, 200ms) ease,
+              transform var(--lw-dur-base, 200ms) ease,
+              visibility 0s linear var(--lw-dur-base, 200ms);
+}
+.lw-fab.is-open .lw-fab-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity var(--lw-dur-base, 200ms) ease,
+              transform var(--lw-dur-base, 200ms) var(--lw-ease-spring, ease);
+}
+.lw-fab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px 8px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glass, rgba(226,232,240,.72));
+  background: var(--glass-bg, rgba(255,255,255,.9));
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  color: var(--text, #2D3748);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: var(--lw-shadow-low, 0 1px 3px rgba(16,24,40,.10));
+  transition: transform var(--lw-dur-fast, 150ms) ease,
+              background-color var(--lw-dur-fast, 150ms) ease;
+}
+.lw-fab-item[hidden] { display: none; }
+.lw-fab-item:hover { background: var(--primary-light, #E7EEF7); transform: translateX(-2px); }
+.lw-fab-item:active { transform: scale(.96); }
+/* 主操作（发帖）：主色实底 + 白字，一眼可辨 */
+.lw-fab-item--primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--primary, #2F5B9A), var(--primary-dark, #1E3A63));
+  color: #fff;
+  box-shadow: 0 6px 16px -6px rgba(47, 91, 154, .7);
+}
+.lw-fab-item--primary:hover {
+  background: linear-gradient(135deg, var(--primary-hover, #3A6BB0), var(--primary, #2F5B9A));
+  color: #fff;
+}
+.lw-fab-ico { display: grid; place-items: center; width: 18px; height: 18px; }
+.lw-fab-ico svg { width: 18px; height: 18px; }
+.lw-fab-txt { line-height: 1; }
+
+/* 桌面端不需要避开底部导航，贴近右下角 */
+@media (min-width: 769px) {
+  .lw-fab { bottom: 28px; }
+}
+/* 打印时不输出浮动件与阅读进度条 */
+@media print { .lw-fab, .lw-readbar { display: none !important; } }
+
+/* AI 助手已并入上面的统一浮动按钮：隐藏它自带的圆形 FAB。
+   它的面板 .lw-ai-panel 是独立的 fixed 定位，不受影响；
+   polish.js 通过点击 #lwAiFab 触发，逻辑完全不动。 */
+.lw-ai-fab { display: none !important; }
+
+/* 字号档位：通过 html 上的 class 全局生效 */
+html.lw-fs-lg  { font-size: 106.25%; }   /* 17px 基准 */
+html.lw-fs-xl  { font-size: 112.5%; }    /* 18px 基准 */
+
+/* ---------- 4. 键盘快捷键面板 ---------- */
+.lw-kbd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10030;                     /* 高于 AI 面板(10020) */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15,23,42,.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.lw-kbd-overlay.is-open { display: flex; }
+.lw-kbd-panel {
+  width: min(440px, 100%);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-lg, 1.5rem);
+  box-shadow: var(--lw-shadow-high, 0 20px 24px rgba(16,24,40,.12));
+  padding: var(--lw-sp-5, 20px);
+  animation: lw-kbd-in var(--lw-dur-base, 200ms) var(--lw-ease-emphasized, ease);
+}
+@keyframes lw-kbd-in {
+  from { opacity: 0; transform: translateY(12px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.lw-kbd-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #2D3748);
+  margin: 0 0 var(--lw-sp-4, 16px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lw-kbd-title button {
+  border: 0; background: none; cursor: pointer;
+  color: var(--text-secondary, #718096);
+  font-size: 20px; line-height: 1;
+  padding: 4px 8px; border-radius: 8px;
+}
+.lw-kbd-title button:hover { background: var(--bg-secondary, #EDF1F5); }
+.lw-kbd-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lw-sp-3, 12px);
+  padding: 7px 0;
+  font-size: 13.5px;
+  color: var(--text, #2D3748);
+  border-bottom: 1px dashed var(--border, #E9EEF4);
+}
+.lw-kbd-row:last-child { border-bottom: 0; }
+.lw-kbd-row kbd {
+  display: inline-block;
+  min-width: 24px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #E9EEF4);
+  border-bottom-width: 2px;
+  background: var(--bg-secondary, #F4F6F9);
+  font-family: var(--font-num, monospace);
+  font-size: 12px;
+  text-align: center;
+  color: var(--text, #2D3748);
+}
+
+/* ---------- 5. 图片灯箱 ---------- */
+.lw-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 3vw, 32px);
+  background: rgba(8,12,20,.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: zoom-out;
+}
+.lw-lightbox.is-open { display: flex; }
+.lw-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+  box-shadow: 0 24px 48px rgba(0,0,0,.5);
+  animation: lw-lb-in var(--lw-dur-base, 200ms) var(--lw-ease-emphasized, ease);
+}
+@keyframes lw-lb-in {
+  from { opacity: 0; transform: scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+.lw-lightbox-hint {
+  position: absolute;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  left: 0; right: 0;
+  text-align: center;
+  color: rgba(255,255,255,.75);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+.lw-lightbox-close {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: 14px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.lw-lightbox-close:hover { background: rgba(255,255,255,.24); }
+
+/* 可点击放大的图片给出视觉暗示 */
+
+
+/* ---------- 6. 复制链接按钮（帖子卡片右上角浮现） ---------- */
+.lw-copy-link {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #718096);
+  cursor: pointer;
+  display: grid; place-items: center;
+  opacity: 0;
+  transition: opacity var(--lw-dur-fast, 120ms) ease,
+              background-color var(--lw-dur-fast) ease,
+              color var(--lw-dur-fast) ease;
+  z-index: 2;
+}
+.post-card { position: relative; }     /* 原本可能没定位，复制按钮需要定位上下文 */
+.post-card:hover .lw-copy-link,
+.post-card:focus-within .lw-copy-link { opacity: 1; }
+.lw-copy-link:hover { background: var(--bg-secondary, #EDF1F5); color: var(--primary, #2F5B9A); }
+.lw-copy-link.is-copied { color: var(--lw-ok, #2E8B57); }
+/* 触屏没有 hover：一直显示，但要低调不抢内容 */
+@media (hover: none) {
+  .lw-copy-link { opacity: .45; }
+}
+
+/* ---------- 7. 顶部滚动阴影的过渡已由设计系统 v2 定义 ---------- */
+
+/* ---------- 8. 减少动效时全部退化为静态 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .lw-readbar > i { transition: none; }
+  .lw-fab-btn, .lw-fab-btn svg, .lw-fab-menu, .lw-fab-item,
+  .lw-kbd-panel, .lw-lightbox img { animation: none !important; transition: none !important; }
+}
