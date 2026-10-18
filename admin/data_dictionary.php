@@ -45,7 +45,12 @@ $dataDir = __DIR__ . '/../data';
 $tables = [];
 foreach (glob($dataDir . '/*.json') as $f) {
     $name = basename($f, '.json');
-    $rows = json_decode(file_get_contents($f), true);
+    // 读失败（共享主机上偶发 errno=13 Permission denied，写入方 rename 的瞬间也会撞上）
+    // 不能吐 PHP Notice 把本机绝对路径写进错误日志，更不能把它当成「空表」显示成 0 条 ——
+    // 那是让站长误判「数据没了」的假警报。直接跳过这张表，下次刷新即恢复。
+    $raw = @file_get_contents($f);
+    if ($raw === false) { continue; }
+    $rows = json_decode($raw, true);
     if (!is_array($rows)) { $rows = []; }
     $fields = [];
     if (!empty($rows) && is_array($rows) && ($first = reset($rows)) !== null && is_array($first)) {

@@ -117,11 +117,41 @@ function lwProjectRows($rows, ?array $fields, array $allowed, array $required = 
     }
 
     $keepSet = array_fill_keys($keep, true);
+
+    // 键必须分两种情形对待：顺序列表（0..n-1）重建索引无所谓，但**关联数组不能重建**
+    // —— `api/pm.php` 的 `conversations` 的键就是会话标识（`qqA|qqB`），重建后前端按 key
+    // 取会话会全部落空。列表走 `$out[]`、映射走 `$out[$k]`，两条路径的恒等性都不受影响。
+    $isList = ($rows === []) || (array_keys($rows) === range(0, count($rows) - 1));
     $out = [];
-    foreach ($rows as $row) {
-        $out[] = is_array($row) ? array_intersect_key($row, $keepSet) : $row;
+    foreach ($rows as $k => $row) {
+        $val = is_array($row) ? array_intersect_key($row, $keepSet) : $row;
+        if ($isList) {
+            $out[] = $val;
+        } else {
+            $out[$k] = $val;
+        }
     }
     return $out;
+}
+
+/**
+ * 投影**单个对象**（如详情接口里的 `post`）。
+ *
+ * 与 {@see lwProjectRows()} 完全同一套语义：不传 / 空数组 / 非数组一律原样返回。
+ *
+ * @param mixed      $row
+ * @param array|null $fields   {@see lwFieldsRequest()} 的结果
+ * @param string[]   $allowed
+ * @param string[]   $required
+ * @return mixed
+ */
+function lwProjectRow($row, ?array $fields, array $allowed, array $required = ['id'])
+{
+    if (!is_array($row) || $fields === null || $fields === []) {
+        return $row;
+    }
+    $out = lwProjectRows([$row], $fields, $allowed, $required);
+    return (is_array($out) && array_key_exists(0, $out)) ? $out[0] : $row;
 }
 
 /**

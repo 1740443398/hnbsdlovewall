@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/fields.php';
 
 $user = requireLogin();
 
@@ -43,12 +44,18 @@ foreach ($logs as $log) {
     ];
 }
 
-jsonSuccess([
-    'logs' => $result,
-    'pagination' => [
-        'total' => $total,
-        'page' => $page,
-        'limit' => $limit,
-        'total_pages' => ceil($total / $limit)
-    ]
-]);
+// 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+jsonSuccess(lwProjectTop(
+    [
+        'logs' => lwProjectRows($result, lwFieldsRequest(),
+            ['action', 'details', 'ip', 'created_at'], ['action']),
+        'pagination' => [
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => ceil($total / $limit)
+        ],
+    ],
+    lwTopRequest(),
+    ['logs']
+));

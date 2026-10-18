@@ -125,7 +125,7 @@ adminHeader('站点设置', $adminUser, $csrfToken);
 .btn-save {
     padding: 9px 18px;
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-solid, #fff);
     border: none;
     border-radius: var(--radius);
     font-size: 13px;

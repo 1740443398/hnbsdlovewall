@@ -1,5 +1,16 @@
 RewriteEngine On
 
+# ── PWA manifest 的兼容别名（历史地址 → 新地址）────────────────────────────
+# 为什么 manifest 不能叫 .webmanifest：主机商的反爬挑战**按扩展名白名单放行**
+#   （.css / .png 直通；.webmanifest / .js / .json 一律先返回 200 + HTML 挑战页）。
+#   而浏览器取 manifest 是**不带凭据**的请求（实测：同一 URL 带 cookie 得 JSON、
+#   不带 cookie 得挑战页），于是它把挑战 HTML 当 JSON 解析，控制台必报
+#   "Manifest: Line: 1, column: 1, Syntax error"，且 PWA 不再可安装。
+#   对策：把清单文件改名为 manifest.css（内容仍是 JSON，浏览器**不看 MIME 只看
+#   body 是否为合法 JSON**，已本地实测确认），以此绕过扩展名拦截。
+#   本规则只服务「旧页面/旧缓存里写死的 /manifest.webmanifest」，保留一层兼容。
+RewriteRule ^manifest\.webmanifest$ /manifest.css [L]
+
 # 移除.php扩展名
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}\.php -f
@@ -15,12 +26,18 @@ RewriteRule ^(Default|Path|Code%20Cache|Session%20Storage|Local%20Storage|Servic
 # 禁止外网访问以点开头的隐藏目录（如 .edbg 等编辑器/调试残留）
 RewriteRule ^\.[^/]+(/|$) - [F,L]
 
-# 允许访问uploads目录下的图片
-RewriteRule ^uploads/images/ - [L]
-
 # F7 上传目录禁止执行任何脚本：用户可上传图片，但绝不能让上传的 .php 被当成脚本执行。
-# 必须放在「允许图片」规则之前，否则 php 文件会先命中 uploads/images/ 的 [L] 而绕过本规则。
+# **必须放在「允许图片」规则之前**，否则 php 文件会先命中 uploads/*/ 的 [L] 而绕过本规则。
+# （原文件顺序写反了，2026-10-17 修正。）
 RewriteRule ^uploads/.*\.(php|phtml|ph[345]|pht|phar|cgi|pl|py|asp|aspx|jsp|sh|bat)$ - [F,L]
+
+# 允许访问 uploads 下的图片（帖子图片 images/ 与公共聊天室 lobby/）
+RewriteRule ^uploads/images/ - [L]
+RewriteRule ^uploads/lobby/ - [L]
+
+# 允许访问 uploads 下的非可读类文件（课件/压缩包/文档等，需求一、6）。
+# 只放行文档与压缩包类别；可执行脚本已在上面的规则里全部拒绝。
+RewriteRule ^uploads/files/ - [L]
 
 # 自定义错误页面
 ErrorDocument 403 /pages/403.php

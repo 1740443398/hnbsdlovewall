@@ -18,18 +18,25 @@ require_once __DIR__ . '/ai_actions.php';
 require_once __DIR__ . '/ai_persona.php';
 require_once __DIR__ . '/ai_client.php';
 require_once __DIR__ . '/user_ai_config.php';
+require_once __DIR__ . '/site_ai_config.php';
 
 /**
  * @return array 成功时 ok=true 并带齐上下文；失败时函数内部已 jsonError 终止。
  */
 function aiChatPrepare() {
     $AICFG = [];
-    $aiCfgFile = dirname(__DIR__) . '/config/ai_config.php';
-    if (is_file($aiCfgFile)) {
-        require $aiCfgFile;
-    }
-    $apiKeys = aiResolveApiKeys($AICFG);
-    $model   = isset($AICFG['model']) ? trim((string)$AICFG['model']) : '';
+    // 站点默认 AI：后台「AI 设置」优先，config/ai_config.php 兜底（见 site_ai_config.php）。
+    // 组装成 aiChatCompletion() 认识的形状（api_keys/model/base_url/max_tokens）。
+    $siteAi = lwSiteAiEffective();
+    $AICFG = [
+        'api_keys'   => $siteAi['api_keys'],
+        'model'      => $siteAi['model'],
+        'base_url'   => $siteAi['base_url'],
+        'max_tokens' => $siteAi['max_tokens'],
+    ];
+    $siteAiEnabled = !empty($siteAi['enabled']);
+    $apiKeys = $siteAi['api_keys'];
+    $model   = trim((string)$siteAi['model']);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonError('仅支持 POST 请求', 405);
@@ -118,7 +125,10 @@ function aiChatPrepare() {
             // 自带模型却解析不出 Key：通常是配置损坏，引导用户去「高级选项」重填
             jsonError('你的自定义 AI 配置无效，请到「高级选项」里重新填写或一键还原', 503);
         }
-        error_log('AI 助手：config/ai_config.php 未配置 api_keys / model');
+        if (!$siteAiEnabled) {
+            jsonError('站内 AI 助手当前已暂停服务，请稍后再试', 503);
+        }
+        error_log('AI 助手：站点 AI 未配置 api_keys / model（后台「AI 设置」与 config/ai_config.php 均无有效配置）');
         jsonError('AI 服务未配置，请联系管理员', 503);
     }
 
@@ -144,8 +154,27 @@ function aiChatPrepare() {
             continue;
         }
         $content = isset($m['content']) ? trim((string)$m['content']) : '';
-        if ($content === '') {
+        // 多模态：用户消息可携带站内图片（先经 api/ai_upload.php 落盘，这里只收相对路径）。
+        // 只放行 /uploads/ai/ 下、无 .. 无外链的路径，杜绝把日志/上下文当成 SSRF 跳板。
+        $images = [];
+        if ($role === 'user' && !empty($m['images']) && is_array($m['images'])) {
+            foreach (array_slice($m['images'], 0, 4) as $u) {
+                $u = (string)$u;
+                if ($u !== ''
+                    && strpos($u, '/uploads/ai/') === 0
+                    && strpos($u, '..') === false
+                    && strpos($u, '//') === false
+                    && preg_match('#^/uploads/ai/[A-Za-z0-9_\-]+\.(jpg|jpeg|png|gif|webp)$#', $u)) {
+                    $images[] = $u;
+                }
+            }
+        }
+        if ($content === '' && empty($images)) {
             jsonError('消息内容不能为空', 400);
+        }
+        // 纯图片提问：给一个占位文本，避免下游把空内容当异常
+        if ($content === '') {
+            $content = '[用户上传了图片]';
         }
         if (mb_strlen($content) > 4000) {
             jsonError('单条消息过长（最多 4000 字）', 400);
@@ -155,7 +184,7 @@ function aiChatPrepare() {
             $content = str_replace(['<lw-action>', '</lw-action>'], '［lw-action］', $content);
         }
         $totalLen += mb_strlen($content);
-        $messages[] = ['role' => $role, 'content' => $content];
+        $messages[] = ['role' => $role, 'content' => $content, 'images' => $images];
     }
     if (empty($messages)) {
         jsonError('没有可发送的消息', 400);
@@ -207,6 +236,25 @@ function aiChatPrepare() {
     $messagesWithSystem = $messages;
     array_unshift($messagesWithSystem, ['role' => 'system', 'content' => $systemPrompt]);
 
+    // ---- 多模态：把带图片的用户消息转成模型要的 content 分段数组 ----
+    // 站点给模型传的是绝对地址（智谱需要能公网抓取），因此用 SITE_URL 拼全。
+    // 没有图片的消息保持纯字符串，完全不增加 token 开销。
+    $modelMessages = [];
+    foreach ($messagesWithSystem as $m) {
+        if (($m['role'] ?? '') === 'user' && !empty($m['images'])) {
+            $parts = [];
+            if (($m['content'] ?? '') !== '') {
+                $parts[] = ['type' => 'text', 'text' => (string)$m['content']];
+            }
+            foreach ($m['images'] as $rel) {
+                $parts[] = ['type' => 'image_url', 'image_url' => ['url' => SITE_URL . $rel]];
+            }
+            $modelMessages[] = ['role' => 'user', 'content' => $parts];
+        } else {
+            $modelMessages[] = ['role' => $m['role'], 'content' => $m['content']];
+        }
+    }
+
     return [
         'ok'           => true,
         'cfg'          => $AICFG,
@@ -219,6 +267,7 @@ function aiChatPrepare() {
         'isGuest'      => $isGuest,
         'nickname'     => $nickName,
         'messages'     => $messagesWithSystem,
+        'modelMessages' => $modelMessages,
         'siteCtx'      => $siteCtx,
         'currentPage'  => $currentPage,
         'lastUserText' => $lastUserText,
@@ -245,6 +294,21 @@ function aiChatFinalize(array $ctx, $content, $reasoning, array $aiResult, $elap
     $siteCtx      = $ctx['siteCtx'];
     $messages     = $ctx['messages'];
 
+    // 落库存「完整会话」：把带 system 的 messages 还原成 user/assistant 轮流，
+    // 末尾追加本轮 AI 回复，这样后台点开详情就能看到用户与模型的完整往来。
+    $auditConv = [];
+    foreach ($messages as $m) {
+        if (!is_array($m) || ($m['role'] ?? '') === 'system') continue;
+        $auditConv[] = [
+            'role'    => $m['role'],
+            'content' => (string)($m['content'] ?? ''),
+            'images'  => isset($m['images']) && is_array($m['images']) ? $m['images'] : [],
+        ];
+    }
+    if ($content !== '' && trim((string)$content) !== '') {
+        $auditConv[] = ['role' => 'assistant', 'content' => (string)$content, 'images' => []];
+    }
+
     logAiCall([
         'user_id'     => $user ? (int)$user['id'] : 0,
         'nickname'    => $user ? $ctx['nickname'] : '',
@@ -256,10 +320,17 @@ function aiChatFinalize(array $ctx, $content, $reasoning, array $aiResult, $elap
         'elapsed_ms'  => $elapsedMs,
         'key_tries'   => (int)($aiResult['key_tries'] ?? 0),
         'key_owner'   => $ctx['key_owner'] ?? 'site',
+        // 实际使用的模型名（用户自带模型时与站点默认不同，后台要能分清）
+        'model'       => (string)($ctx['model'] ?? ''),
+        // token 用量：来自上游 usage，后台按用户/时间汇总消耗
+        'usage'       => isset($aiResult['usage']) && is_array($aiResult['usage']) ? $aiResult['usage'] : [],
+        // AI 回答正文（详情弹窗单独高亮用）
+        'answer'      => (string)$content,
         'sources'     => $siteCtx['sources'],
         'intent'      => implode(',', $siteCtx['intents'] ?? []),
         'question'    => $ctx['lastUserText'],
         'page'        => $ctx['currentPage'],
+        'conversation' => $auditConv,
     ]);
 
     // error_log 只记状态、条数与失败原因（更完整的审计已由上面的 logAiCall 落库）。

@@ -17,6 +17,8 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/post_visibility.php';
 require_once __DIR__ . '/../includes/text_linkify.php';
 require_once __DIR__ . '/../includes/user_title.php';
+require_once __DIR__ . '/../includes/achievements.php';
+require_once __DIR__ . '/../includes/widget_render.php';
 
 $user = requireLoginOrGuest();
 if ($user) {
@@ -56,6 +58,13 @@ $stats = ['posts' => 0, 'comments' => 0, 'followers' => 0, 'following' => 0];
 
 if ($target) {
     $targetId = (int)$target['id'];
+    // 装扮（头像框 / 气泡 / 徽章 / 成就）—— 一次性取出，避免模板里逐项查库
+    $decor = lwUserDecorBundle($targetId);
+} else {
+    $decor = ['frame' => null, 'bubble' => null, 'badge' => null, 'badges' => []];
+}
+
+if ($target) {
 
     // 帖子：公开列表只看「别人能看到的那部分」，本人看自己的全部（与个人中心一致）
     $all = $fs->find('posts', ['user_id' => $targetId]);
@@ -91,6 +100,7 @@ if ($target) {
         'role'       => (string)($target['role'] ?? 'user'),
         'created_at' => (string)($target['created_at'] ?? ''),
         'title'      => $target,
+        'user'       => $target,
         // 班级/年级属于更细的个人信息，只给已登录用户看
         'grade'      => (!$isGuest && $entranceYear > 0 && function_exists('gradeLabel')) ? gradeLabel($entranceYear) : '',
         'class_num'  => !$isGuest ? (int)($target['class_num'] ?? 0) : 0,
@@ -136,6 +146,7 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
     <meta name="robots" content="noindex">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
@@ -154,6 +165,9 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
         .u-body{padding:0 1.375rem 1.25rem;}
         .u-top{display:flex;align-items:flex-end;gap:1rem;margin-top:-2.25rem;}
         .u-avatar{width:4.5rem;height:4.5rem;border-radius:50%;object-fit:cover;border:3px solid var(--surface,#fff);background:var(--bg-secondary,#F4F7FA);flex:0 0 auto;box-shadow:0 2px 10px rgba(20,40,80,.08);}
+        /* 头像槽位：只覆盖槽位尺寸变量，不动槽位布局规则（widgets.css 的契约依然生效） */
+        .u-avatar-wrap{flex:0 0 auto;display:inline-flex;}
+        .u-avatar-slot{--lw-slot-avatar:4.5rem;--lw-slot-avatar-pad:0.1875rem;box-shadow:0 2px 10px rgba(20,40,80,.08);background:var(--surface,#fff);}
         .u-headline{flex:1;min-width:0;padding-bottom:.25rem;}
         .u-nick{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:1.25rem;font-weight:800;color:var(--text);line-height:1.3;word-break:break-all;}
         .u-role{font-size:.68rem;font-weight:700;padding:.125rem .5rem;border-radius:9999px;background:var(--primary-light,#EEF3FB);color:var(--primary);}
@@ -212,7 +226,9 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
                 <div class="u-cover"></div>
                 <div class="u-body">
                     <div class="u-top">
-                        <img class="u-avatar" src="<?= htmlspecialchars($info['avatar'] !== '' ? $info['avatar'] : '/assets/images/default-avatar.svg') ?>" alt="<?= t('pd.author_avatar') ?>" onerror="this.src='/assets/images/default-avatar.svg'">
+                        <?php /* 头像走全站唯一复合件：头像框 + 等级环 + 勋章，同心刚性布局 */ ?>
+                        <?php require_once __DIR__ . '/../includes/avatar.php'; ?>
+                        <span class="u-avatar-wrap"><?= lwAvatarComposite($info['user'] ?? ['id' => $info['id'] ?? 0, 'avatar' => $info['avatar'] ?? '', 'nickname' => $info['nickname'] ?? ''], 'lg', ['badges' => true]) ?></span>
                         <div class="u-headline">
                             <div class="u-nick">
                                 <span><?= htmlspecialchars($info['nickname']) ?></span>
@@ -221,6 +237,8 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
                                 <?php if ($info['role'] === 'admin' || $info['role'] === 'super_admin'): ?>
                                 <span class="u-role"><?= $info['role'] === 'super_admin' ? t('user.role_super_admin') : t('user.role_admin') ?></span>
                                 <?php endif; ?>
+                                <?php /* 昵称旁不再挂「买来的标签」：勋章一律由成长体系的成就决定，
+                                          在下面的成就行里统一展示（见 lwBadgeRow 那一段）。 */ ?>
                             </div>
                             <div class="u-sub">
                                 <?php if ($info['created_at'] !== ''): ?>
@@ -232,6 +250,10 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
                             </div>
                         </div>
                     </div>
+
+                    <?php /* 成长体系勋章行（需求二、1）：固定高度、自动换行、永不溢出。
+                            数据源是 lwUserBadges() —— 只认真实解锁的成就，买不到。 */ ?>
+                    <?= lwBadgeRow($decor['badges'], 12) ?>
 
                     <?php if ($info['bio'] !== ''): ?>
                     <div class="u-bio"><?= lwRichText($info['bio']) ?></div>

@@ -87,6 +87,58 @@
     .lang-label { display: none; }
 }
 
+/* 「安装应用」下载面板：安卓客户端版本列表（enhancements.js 的 PWAInstall 渲染） */
+.apk-version-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+}
+.apk-version-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: var(--radius-sm, 0.75rem);
+    background: var(--bg-secondary, rgba(255,255,255,.5));
+}
+.apk-version-main { min-width: 0; }
+.apk-version-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text, #2D3748);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+.apk-version-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+    margin-top: 0.125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.apk-latest-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--on-solid, #fff);
+    background: var(--primary, #4a90d9);
+    border-radius: 9999px;
+    padding: 0.0625rem 0.4375rem;
+    line-height: 1.5;
+}
+.apk-dl-btn { flex-shrink: 0; }
+@media (max-width: 480px) {
+    .apk-version-item {
+        flex-direction: row;
+        align-items: center;
+    }
+    .apk-version-meta { max-width: 9rem; }
+}
+
 /* ============================================================
    手机端再优化（追加，纯增量，桌面端不受影响）
    仅新增窄屏规则 / 安全区适配，不改动既有桌面布局
@@ -120,7 +172,7 @@
 @media (max-width: 768px) {
     .mobile-nav-item.active {
         background: var(--primary, #2F5B9A);
-        color: #fff;
+        color: var(--on-solid, #fff);
         font-weight: 600;
     }
     .mobile-nav-item.active:active { color: #fff; }
@@ -201,21 +253,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
     background: var(--ut-bg, #4A90D9);
-    color: var(--ut-fg, #fff);
+    /* 兜底前景用近黑而不是白：默认底色 #4A90D9 配白字只有 3.34:1（配近黑 5.43:1）。
+       正常情况下 --ut-fg 已由渲染端按底色自动选好（lwReadableFg / pickReadableFg）。 */
+    color: var(--ut-fg, #10161F);
 }
-.user-title.is-rainbow {
-    background: linear-gradient(90deg,
-        var(--ut-gs, #ff4757),
-        var(--ut-ge, #a55eea),
-        var(--ut-gs, #ff4757));
-    background-size: 200% 100%;
-    animation: titleRainbow 2s linear infinite;
-    color: var(--ut-fg, #fff);
-}
-@keyframes titleRainbow {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 300% 50%; }
-}
+/* 彩虹头衔：128 阶离散色带。
+ *
+ * 这里只留一行占位符，真正的 128 组色标由 tools/lw_rainbow_gen.py 在
+ * 构建时展开（见 tools_build_assets.sh）。原因：
+ *   1. 128 组手写必然会数错一格，错一格整条渐变就断，而且肉眼很难发现；
+ *   2. 以后想改成 64 / 256 阶，改这个数字就行，不用手工增删一百多行；
+ *   3. 源码保持可读，展开只发生在产物里。
+ *
+ * 离散而不是平滑插值：普通渐变只有两三个色标，浏览器会在中间自动补间，
+ * 整条头衔看起来像一块糊开的糖纸；离散色阶每格跳变一次，128 格够密，
+ * 看到的是稳定清晰的彩虹条。
+ */
+/*@lw-rainbow:128*/
+
 @media (prefers-reduced-motion: reduce) {
     .user-title.is-rainbow { animation: none; }
 }
@@ -348,7 +403,17 @@
         /* 兜底：结构非标准的弹窗（如 .pm-url-modal 没有 .modal-body）整体仍可滚动 */
         overflow-y: auto;
     }
-    .modal-header { flex-shrink: 0; }
+    /* 头部与底部吸顶/吸底时都必须盖住滚动正文。
+       --card-bg / --glass-bg 都是半透明的，直接当底纹会让正文透出来，
+       所以统一用「实心兜底色」--modal-solid-bg（见 style.css 主题令牌），
+       末尾再兜一个硬编码白色，即使旧版主题未定义该令牌也不会透明。 */
+    .modal-header {
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--modal-solid-bg, var(--bg-secondary, #FFFFFF));
+    }
     .modal-body {
         /* 允许在 flex 列中收缩，滚动条才会落在正文上而不是整个弹窗，
            这样标题与底部按钮区不会随内容滚走 */
@@ -361,8 +426,8 @@
         flex-shrink: 0;
         position: sticky;
         bottom: 0;
-        /* 吸底后遮住滚上来的正文 */
-        background: var(--card-bg);
+        z-index: 2;
+        background: var(--modal-solid-bg, var(--bg-secondary, #FFFFFF));
     }
 }
 

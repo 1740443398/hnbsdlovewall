@@ -101,7 +101,7 @@ $onDelta = function (string $type, string $text) {
     lwSseEmit('delta', ['type' => $type, 'text' => $text]);
 };
 
-$aiResult = aiStreamCompletion($ctx['cfg'], $ctx['messages'], $timeout, $onDelta);
+$aiResult = aiStreamCompletion($ctx['cfg'], $ctx['modelMessages'], $timeout, $onDelta);
 $aiElapsedMs = (int)round((microtime(true) - $aiT0) * 1000);
 
 // ---- 收尾：把会话加回来，否则确认卡片（写 $_SESSION）无法落盘 ----

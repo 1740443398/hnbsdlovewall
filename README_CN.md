@@ -261,7 +261,7 @@
 
 ### 部署到线上站点时，**不要**上传这些内容
 
-只上传程序代码（`admin/`、`api/`、`assets/`、`config/*.php`（不含密钥的那几个）、`includes/`、`lang/`、`pages/`、`licenses/`、`tools/`、`index.php`、`init.php`、`sitemap.php`、`sw.js`、`offline.html`、`manifest.webmanifest`、`.htaccess`、`robots.txt`），下列内容属于本机数据或敏感凭据：
+只上传程序代码（`admin/`、`api/`、`assets/`、`config/*.php`（不含密钥的那几个）、`includes/`、`lang/`、`pages/`、`licenses/`、`tools/`、`index.php`、`init.php`、`sitemap.php`、`sw.js`、`offline.html`、`manifest.css`、`.htaccess`、`robots.txt`），下列内容属于本机数据或敏感凭据：
 
 - `data/`（全站 JSON 数据：用户、帖子、私信、日志）
 - `uploads/`（用户上传的图片）
@@ -277,15 +277,22 @@
 
 ## 安卓客户端
 
-站点配套一个安卓 App（WebView 壳 + 原生能力增强），版本信息集中在 `config/app_config.php`，站点「用户菜单 → 安装应用」与 App 内「检查更新」都以它为准。
+站点配套一个安卓 App。**它不是一层 WebView 壳**：WebView 只负责内容层，底部导航、通知、版本检查、下载、拍照等交互全部由原生承担。**安装包版本现在自动扫描 `/download/` 目录**：把任意 `lovewall-v<版本号>.apk` 放进该目录即被识别，无需改配置；`config/app_config.php` 用于指定「推荐版本」及其说明文案。
 
-**当前版本：1.7.0（version_code 8）**
+**当前版本：2.1.0（version_code 12）**
 
-- **安装包体积下降约 58%**（2.66 MB → 1.11 MB）：开启 R8 混淆 + 资源收缩（用 keep 规则精准保护 13 个 `@JavascriptInterface` 桥接方法），启动图标由 5 套密度 PNG 换成 1 个矢量 XML，语言资源只保留 `zh`/`en`
+- **原生「液态玻璃」底部 Dock**：手机竖屏下不再交给网页的 `backdrop-filter`，改由 App 自己绘制底栏。它真实取样**紧邻上方**的画面（`PixelCopy`，滚动时节流到 180ms 一次），在 GPU 上一次性模糊，按实测平均亮度决定玻璃深浅，再叠 45° 高光与 1dp 描边。模糊由 GPU 一次完成而非逐帧合成，共享主机上也照样顺滑；网页侧只需隐藏自带的 `.mobile-bottom-nav`（App 注入 `html.lw-native-dock`），所以「到什么宽度该出现底栏」在 App 与浏览器里完全一致
+- **装机上报**：首次启动即上报安装，之后最多每 5 分钟一次心跳，登录后自动绑定 QQ 账号。后台因此可以看到累计装机数、当前活跃设备、日/周活跃、版本与系统分布，以及每台设备属于哪个账号
+- **手动系统通知**：站长可在后台向全体设备或指定用户推送带标题、可带跳转链接的通知。App 在回到前台时以及周期任务（≥15 分钟）中领取，再以独立渠道弹出本地通知 —— 共享主机上没有 FCM/APNs 凭据也能用
+- **历史版本列表**：站点「用户菜单 → 安装应用」弹窗会列出 `/download/` 下的全部版本（自动按版本号从高到低排序，标注「最新」），可任选下载
+- **桌面端也能下载 APK**：Windows / macOS / Linux 点击「安装应用」后即可下载安装包（含 SHA-256 前 12 位便于核对），下载后传到手机或安卓子系统安装
+- **安装包体积下降约 58%**（2.66 MB → 1.11 MB）：开启 R8 混淆 + 资源收缩（用 keep 规则精准保护 15 个 `@JavascriptInterface` 桥接方法），启动图标由 5 套密度 PNG 换成 1 个矢量 XML，语言资源只保留 `zh`/`en`
 - 桌面版排版、正式发布签名、更新下载后 SHA-256 校验、后台未读消息省电优化（1.6.0 起延续）
-- 13 个原生桥接方法（`LoveWallApp.*`）经 `dexdump` 实测在最终 DEX 中按原名保留，R8 后 JS 桥接不失效
+- 15 个原生桥接方法（`LoveWallApp.*`）经 `dexdump` 实测在最终 DEX 中按原名保留，R8 后 JS 桥接不失效
 
-> ⚠️ **1.6.0 更换了签名**：由于 Android 不允许签名不同的安装包互相覆盖，**已安装旧版本的用户请先卸载旧版，再安装 1.6.0+**；之后 1.7.0 即可正常覆盖升级。
+> 版本发布：把打包好的 APK 放进 `/download/`（文件名形如 `lovewall-v2.1.0.apk`）即被 `/api/app_version.php` 自动识别；如需指定推荐版本与更新说明，再修改 `config/app_config.php`。
+
+> ⚠️ **1.6.0 更换了签名**：由于 Android 不允许签名不同的安装包互相覆盖，**已安装旧版本的用户请先卸载旧版，再安装 1.6.0+**；之后即可正常覆盖升级。
 
 ## 数据同步工具（`tools/`）
 
@@ -383,7 +390,7 @@ love_wall/
 └── zanzhu/         # 赞助图片
 ```
 
-顶层还有：`index.php`（入口）、`init.php`（初始化）、`sitemap.php`（动态站点地图）、`sw.js`（Service Worker）、`offline.html`（离线页）、`manifest.webmanifest`（PWA 清单）、`robots.txt`、`.htaccess`、`启动.bat`、`tools_build_assets.sh`。
+顶层还有：`index.php`（入口）、`init.php`（初始化）、`sitemap.php`（动态站点地图）、`sw.js`（Service Worker）、`offline.html`（离线页）、`manifest.css`（PWA 清单，内容为 JSON —— 主机商反爬按扩展名放行，详见 `.htaccess` 说明）、`robots.txt`、`.htaccess`、`启动.bat`、`tools_build_assets.sh`。
 
 ## 配置说明
 

@@ -90,6 +90,37 @@ if ($firstSub === '' && empty($secondSub)) {
     $update['subject_second'] = implode(',', array_slice($secondSub, 0, 2));
 }
 
+// ---- 个性头衔（商城装扮，不是开放填写）----
+// 规则（站长口径）：头衔是**购买**得到的装扮，没买过就没有填写资格。
+//   · 已有头衔但槽位过期：保留旧文字不清空（用户只是不能再改），避免"付费内容被收回"的观感；
+//   · 想改 / 想设新头衔：必须有至少 1 个有效槽位，否则直接拒绝并提示去商城；
+//   · 内容只做两件事：长度上限 + 违规词拦截（checkSensitiveWords 是唯一词库入口）。
+if (isset($_POST['title_text'])) {
+    $titleText = trim(sanitizeInput($_POST['title_text']));
+    $currentTitle = (string)($user['title_text'] ?? '');
+
+    if ($titleText !== $currentTitle) {
+        if (!function_exists('lwUserTitleSlots')) {
+            require_once __DIR__ . '/../../includes/widgets.php';
+        }
+        if (lwUserTitleSlots((int)$user['id']) < 1) {
+            jsonError('自定义头衔需先在装扮商城购买「头衔」类装扮');
+        }
+        if ($titleText === '') {
+            $update['title_text'] = '';
+        } else {
+            if (mb_strlen($titleText) > 12) {
+                jsonError('头衔最多 12 个字');
+            }
+            $hits = checkSensitiveWords($titleText);
+            if (!empty($hits)) {
+                jsonError('头衔包含违规词：' . implode('、', array_slice($hits, 0, 3)));
+            }
+            $update['title_text'] = $titleText;
+        }
+    }
+}
+
 $fs = getFS();
 $fs->update('users', $user['id'], $update);
 

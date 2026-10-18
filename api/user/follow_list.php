@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/fields.php';
 
 $user = requireLogin();
 $user = checkBanned($user);
@@ -43,4 +44,9 @@ if ($type === 'followers') {
     }
 }
 
-jsonSuccess(['data' => $list]);
+// 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+jsonSuccess(lwProjectTop(
+    ['data' => lwProjectRows($list, lwFieldsRequest(), ['id', 'username', 'bio'], ['id'])],
+    lwTopRequest(),
+    ['data']
+));

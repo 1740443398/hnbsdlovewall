@@ -15,7 +15,7 @@ $csrfToken = generateCSRFToken();
 $pendingQqChange = getFS()->findOne('qq_change_requests', ['user_id' => $user['id'], 'status' => 'pending']);
 $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
 
-$validTabs = ['profile', 'stats', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'invite'];
+$validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'appearance', 'backup', 'invite'];
 if (!in_array($tab, $validTabs)) {
     $tab = 'profile';
 }
@@ -35,6 +35,9 @@ function ucSvgIcon($name) {
         'activity' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8E44AD"/><stop offset="100%" stop-color="#6C3483"/></linearGradient></defs><circle cx="12" cy="12" r="9" fill="url(#' . $uid . 'a)"/><path d="M12 7v5l3 2" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         'theme' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F39C12"/><stop offset="100%" stop-color="#D68910"/></linearGradient></defs><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="url(#' . $uid . 'a)"/></svg>',
         'invite' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#E2574C"/><stop offset="100%" stop-color="#B8943E"/></linearGradient></defs><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" fill="url(#' . $uid . 'a)"/><rect x="2" y="7" width="20" height="5" rx="1" fill="url(#' . $uid . 'a)"/><path d="M12 7v14" stroke="#fff" stroke-width="1.6"/><path d="M12 7S10.5 3 8.5 3 5.5 5 7 7h5zM12 7s1.5-4 3.5-4S18.5 5 17 7h-5z" fill="#fff" opacity=".85"/></svg>',
+        'appearance' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FB2FF"/><stop offset="100%" stop-color="#5B7BD5"/></linearGradient></defs><path d="M12 21c-5 0-9-3.6-9-8 0-3.6 3.6-9 9-9s9 5.4 9 9c0 1.4-1.1 2.4-2.4 2.4h-1.7c-.8 0-1.4.6-1.4 1.4 0 .3.1.6.3.9.2.3.3.6.3 1 0 1.1-1.1 2.3-3.1 2.3z" fill="url(#' . $uid . 'a)"/><circle cx="8" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="7.5" r="1.4" fill="#fff"/><circle cx="16" cy="10" r="1.4" fill="#fff"/></svg>',
+        'medals' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F3D384"/><stop offset="100%" stop-color="#C9A24E"/></linearGradient></defs><circle cx="12" cy="9" r="6" fill="url(#' . $uid . 'a)"/><path d="M8 14l-2 7 6-3 6 3-2-7" fill="url(#' . $uid . 'a)"/><path d="M10 9l1.6 1.6L14.5 7.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        'decor' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#7EE8FA"/></linearGradient></defs><circle cx="12" cy="12" r="4" fill="url(#' . $uid . 'a)"/><circle cx="12" cy="12" r="8.5" stroke="url(#' . $uid . 'a)" stroke-width="2" fill="none" stroke-dasharray="4 3"/></svg>',
     ];
     return isset($icons[$name]) ? $icons[$name] : '';
 }
@@ -42,12 +45,19 @@ function ucSvgIcon($name) {
 $tabs = [
     'profile' => ['name' => t('uc.tab.profile'), 'icon' => ucSvgIcon('profile')],
     'stats' => ['name' => t('uc.tab.stats'), 'icon' => ucSvgIcon('stats')],
+    // 勋章：直接展示成就体系（20 枚），不走商城、不做装饰商品
+    'medals' => ['name' => '我的勋章', 'icon' => ucSvgIcon('medals')],
+    // 装扮：头像框 / 气泡 / 标签，与商城同一份数据，就地试穿
+    'decor' => ['name' => '个性装扮', 'icon' => ucSvgIcon('decor')],
     'security' => ['name' => t('uc.tab.security'), 'icon' => ucSvgIcon('security')],
     'posts' => ['name' => t('uc.tab.posts'), 'icon' => ucSvgIcon('posts')],
     'comments' => ['name' => t('uc.tab.comments'), 'icon' => ucSvgIcon('comments')],
     'favorites' => ['name' => t('uc.tab.favorites'), 'icon' => ucSvgIcon('favorites')],
     'activity' => ['name' => t('uc.tab.activity'), 'icon' => ucSvgIcon('activity')],
     'theme' => ['name' => t('uc.tab.theme'), 'icon' => ucSvgIcon('theme')],
+    'appearance' => ['name' => '外观特效', 'icon' => ucSvgIcon('appearance')],
+    // 需求二、6：用户自助备份与恢复（只导出本人数据，恢复只写回本人名下）
+    'backup' => ['name' => '数据备份', 'icon' => ucSvgIcon('security')],
 ];
 
 // 邀请好友页签：仅当邀请功能开启时展示（后台可一键关闭）
@@ -74,6 +84,7 @@ if ($inviteEnabled && $tab === 'invite') {
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= t('uc.page_title') ?> - <?= SITE_NAME ?></title>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
@@ -220,29 +231,74 @@ if ($inviteEnabled && $tab === 'invite') {
             border-radius: var(--radius-sm);
             margin-bottom: 1.25rem;
         }
-        .uc-avatar-wrap { position: relative; display: inline-block; flex-shrink: 0; }
-        .uc-avatar-wrap .lw-level-ring {
-            position: absolute; top: -8px; left: -8px;
-            color: var(--primary, #E2574C); pointer-events: none;
-        }
-        .uc-avatar-wrap .lw-level-ring-label {
-            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            font-size: 0.625rem; font-weight: 700; color: var(--primary, #E2574C);
-            background: var(--bg); border-radius: 50%; width: 1.6rem; height: 1.6rem;
-            top: auto; bottom: -2px; right: -2px; left: auto;
-            box-shadow: 0 1px 4px rgba(0,0,0,.15);
-        }
-        .uc-avatar {
-            width: 4.5rem;
-            height: 4.5rem;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--primary-light);
-            background: var(--bg-secondary);
+        /* 头像位：复合件自己就是 96×96，这里只负责占位与纵向对齐，
+           不再有任何尺寸/定位规则 —— 尺寸真源在 .lw-av 的 --lw-av 变量上。 */
+        .uc-avatar-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
         }
         .uc-profile-info h3 {
             font-size: 1.1rem;
             margin-bottom: 0.25rem;
+        }
+
+        /* ---------- 我的勋章 ---------- */
+        .uc-medal-hero {
+            display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+            padding: 1rem 1.125rem; margin-bottom: 1.125rem;
+            background: linear-gradient(135deg, rgba(243,211,132,.18), rgba(201,162,78,.08));
+            border: 1px solid rgba(201,162,78,.22); border-radius: 0.875rem;
+        }
+        .uc-medal-count b { font-size: 1.6rem; font-weight: 800; color: #B8860B; }
+        .uc-medal-count span { font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.25rem; }
+        .uc-medal-bar { flex: 1 1 8rem; height: 6px; border-radius: 9999px; background: rgba(201,162,78,.18); overflow: hidden; }
+        .uc-medal-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #F3D384, #C9A24E); }
+        .uc-medal-more { font-size: 0.8rem; color: var(--primary); text-decoration: none; font-weight: 600; }
+        .uc-medal-group { margin-bottom: 1.25rem; }
+        .uc-medal-group-title { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.625rem; }
+        .uc-medal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.625rem; }
+        .uc-medal {
+            position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+            padding: 0.875rem 0.625rem; border-radius: 0.75rem; text-align: center;
+            background: var(--bg-secondary, #F7F9FC); border: 1px solid var(--border-light, #E4E9F0);
+        }
+        .uc-medal.locked { opacity: 0.5; filter: grayscale(1); }
+        .uc-medal-ico { font-size: 1.5rem; line-height: 1.2; }
+        .uc-medal-name { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+        .uc-medal-desc { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.45; }
+        .uc-medal-prog { width: 80%; height: 4px; border-radius: 9999px; background: rgba(0,0,0,.08); overflow: hidden; }
+        .uc-medal-prog i { display: block; height: 100%; background: var(--primary); }
+        .uc-medal-lock { font-size: 0.65rem; color: var(--text-tertiary, #9AA7B8); }
+
+        /* ---------- 个性装扮 ---------- */
+        .uc-decor-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+            font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; }
+        .uc-decor-head b { color: var(--primary); font-size: 1rem; }
+        .uc-decor-head a { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.82rem; }
+        .uc-decor-block { margin-bottom: 1.5rem; }
+        .uc-decor-title { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 0.625rem;
+            display: flex; align-items: baseline; gap: 0.5rem; }
+        .uc-decor-eq { font-size: 0.72rem; font-weight: 500; color: #2E8B57; }
+        .uc-decor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: 0.5rem; }
+        .uc-decor-card {
+            display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
+            padding: 0.625rem 0.375rem; border-radius: 0.75rem; cursor: pointer;
+            background: var(--surface, #fff); border: 1.5px solid var(--border-light, #E4E9F0);
+            font-family: inherit; transition: border-color .16s, transform .16s;
+        }
+        .uc-decor-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+        .uc-decor-card.on { border-color: #2E8B57; background: rgba(46,139,87,.06); }
+        .uc-decor-card.unowned { opacity: .78; }
+        .uc-decor-name { font-size: 0.72rem; color: var(--text); font-weight: 600;
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .uc-decor-price { font-size: 0.66rem; color: var(--text-secondary); }
+        .uc-decor-card.on .uc-decor-price { color: #2E8B57; font-weight: 700; }
+        @media (max-width: 640px) {
+            .uc-decor-grid { grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr)); }
+            .uc-medal-grid { grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); }
         }
         .uc-profile-info .uc-qq {
             font-size: 0.8rem;
@@ -317,7 +373,7 @@ if ($inviteEnabled && $tab === 'invite') {
         .uc-subject-tag input:checked + span {
             border-color: var(--primary);
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             box-shadow: 0 2px 8px rgba(74,144,217,0.25);
         }
         .uc-subject-tag input:focus-visible + span { box-shadow: 0 0 0 3px rgba(74,144,217,0.2); }
@@ -338,12 +394,12 @@ if ($inviteEnabled && $tab === 'invite') {
         }
         .uc-btn-primary {
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
         }
         .uc-btn-primary:hover { background: var(--primary-hover); }
         .uc-btn-danger {
             background: var(--danger);
-            color: #fff;
+            color: var(--on-solid, #fff);
         }
         .uc-btn-danger:hover { background: var(--accent-pink-dark); }
         .uc-btn-outline {
@@ -426,15 +482,15 @@ if ($inviteEnabled && $tab === 'invite') {
             transform: translateX(-50%);
             padding: 0.75rem 1.5rem;
             border-radius: var(--radius-sm);
-            color: #fff;
+            color: var(--toast-fg, #fff);
             font-size: 0.875rem;
             z-index: 2000;
             animation: toastIn 0.3s ease;
             box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
-        .uc-toast-error { background: var(--danger); }
-        .uc-toast-success { background: var(--success); }
-        .uc-toast-info { background: var(--primary); }
+        .uc-toast-error { background: var(--toast-danger, #A9312B); }
+        .uc-toast-success { background: var(--toast-success, #1E7A4C); }
+        .uc-toast-info { background: var(--toast-info, #1D5A9E); }
         @keyframes toastIn {
             from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -456,7 +512,7 @@ if ($inviteEnabled && $tab === 'invite') {
             width: 2rem;
             height: 2rem;
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -503,7 +559,7 @@ if ($inviteEnabled && $tab === 'invite') {
             background: transparent;
             padding: 2px 0.5rem;
         }
-        .uc-recovery-item button:hover { background: var(--primary); color: #fff; }
+        .uc-recovery-item button:hover { background: var(--primary); color: var(--on-solid, #fff); }
         .uc-manual-key {
             background: var(--bg);
             padding: 0.625rem 0.875rem;
@@ -587,7 +643,7 @@ if ($inviteEnabled && $tab === 'invite') {
             min-height: 2.25rem;
         }
         .uc-pagination button:hover { background: var(--bg); }
-        .uc-pagination button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .uc-pagination button.active { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); }
         .uc-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
         .uc-empty {
             text-align: center;
@@ -812,9 +868,10 @@ if ($inviteEnabled && $tab === 'invite') {
         .uc-share-btn { border: 1px solid var(--border, #e5e5e5); background: #fff; color: var(--text); border-radius: 999px; padding: 0.375rem 1rem; font-size: 0.8125rem; cursor: pointer; transition: all .18s ease; }
         .uc-share-btn:hover { transform: translateY(-1px); }
         .uc-share-btn.wechat { color: #07C160; border-color: rgba(7,193,96,.35); }
-        .uc-share-btn.wechat:hover { background: #07C160; color: #fff; }
+        /* 品牌色实底：微信绿/QQ蓝偏亮，白字仅 2.38/2.30:1 → 与全站语义实底同规矩，改用墨字（7.61/7.88） */
+        .uc-share-btn.wechat:hover { background: #07C160; color: var(--on-accent, #10161F); }
         .uc-share-btn.qq { color: #12B7F5; border-color: rgba(18,183,245,.35); }
-        .uc-share-btn.qq:hover { background: #12B7F5; color: #fff; }
+        .uc-share-btn.qq:hover { background: #12B7F5; color: var(--on-accent, #10161F); }
         .uc-share-btn.weibo { color: #E6162D; border-color: rgba(230,22,45,.35); }
         .uc-share-btn.weibo:hover { background: #E6162D; color: #fff; }
         .uc-invite-poster-wrap { text-align: center; margin-top: 0.75rem; }
@@ -825,6 +882,18 @@ if ($inviteEnabled && $tab === 'invite') {
             .uc-invite-actions { flex-direction: column; }
             .uc-invite-actions .uc-btn { width: 100%; }
         }
+
+        /* 数据备份（需求二、6）：两栏卡片，手机上单列堆叠 */
+        .uc-backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.875rem; }
+        .uc-backup-card {
+            display: flex; flex-direction: column; gap: 0.625rem;
+            padding: 1rem; border-radius: var(--card-radius, 16px);
+            background: var(--surface, #fff); border: 1px solid var(--border, #eef1f6);
+        }
+        .uc-backup-title { font-weight: 600; color: var(--text); }
+        .uc-backup-desc { font-size: 0.8125rem; line-height: 1.6; color: var(--text-secondary); flex: 1 1 auto; }
+        .uc-backup-file { font-size: 0.75rem; color: var(--success, #2e8b57); word-break: break-all; min-height: 1em; }
+        .uc-backup-card .uc-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -852,10 +921,10 @@ if ($inviteEnabled && $tab === 'invite') {
                     <h2><?= t('uc.tab.profile') ?></h2>
                     <div class="uc-profile-card">
                         <div class="uc-avatar-wrap">
-                            <img src="<?= xss_clean($user['avatar']) ?: getQQAvatar($user['qq']) ?>" alt="<?= t('uc.avatar_alt') ?>" class="uc-avatar" id="profileAvatar" onerror="this.src='<?= SITE_URL ?>/assets/images/default-avatar.svg'">
                             <?php
-                            $levelInfo = lwLevelRow((int)$user['id']);
-                            echo lwLevelRingHTML($levelInfo, 88);
+                            // 头像 + 头像框 + 等级环：全站唯一复合件，内部同心刚性布局
+                            require_once __DIR__ . '/../includes/avatar.php';
+                            echo lwAvatarComposite($user, 'xl', ['badges' => true]);
                             ?>
                         </div>
                         <div class="uc-profile-info">
@@ -876,6 +945,29 @@ if ($inviteEnabled && $tab === 'invite') {
                             <?php else: ?>
                             <button type="button" class="btn btn-outline btn-sm" id="btnChangeQQ" style="margin-top:0.5rem;background:transparent;"><?= t('uc.qq_change') ?></button>
                             <?php endif; ?>
+                        </div>
+                        <?php
+                        // 头衔是商城装扮：没买槽位就只能看，不能改
+                        require_once __DIR__ . '/../includes/widgets.php';
+                        $titleSlots = lwUserTitleSlots((int)$user['id']);
+                        ?>
+                        <div class="uc-form-group">
+                            <label for="titleText">个性头衔
+                                <?php if ($titleSlots > 0): ?>
+                                <span class="uc-label-hint">已拥有 <?= (int)$titleSlots ?> 个头衔槽位，最多 12 字；留空即取消</span>
+                                <?php else: ?>
+                                <span class="uc-label-hint">未拥有 —— 需在装扮商城购买「头衔」后解锁</span>
+                                <?php endif; ?>
+                            </label>
+                            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                                <input type="text" id="titleText" name="title_text" class="uc-form-input"
+                                       value="<?= xss_clean($user['title_text'] ?? '') ?>" maxlength="12"
+                                       placeholder="<?= $titleSlots > 0 ? '例如：摸鱼达人' : '购买头衔装扮后可自定义' ?>"
+                                       <?= $titleSlots > 0 ? '' : 'disabled' ?>>
+                                <?php if ($titleSlots < 1): ?>
+                                <a class="btn btn-outline btn-sm" href="<?= SITE_URL ?>/pages/shop.php">去商城解锁</a>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <div class="uc-form-group">
                             <label for="nickname"><?= t('uc.nickname') ?> <span class="uc-label-hint"><?= t('uc.nickname_hint') ?></span></label>
@@ -1088,6 +1180,147 @@ if ($inviteEnabled && $tab === 'invite') {
                     <div class="uc-pagination" id="myPostsPagination"></div>
                 </div>
 
+                <?php
+                // ================= 我的勋章（成就体系，展示而非售卖） =================
+                // 数据源与成长中心的成就墙完全一致（includes/achievements.php），
+                // 这里只是换一个入口：个人中心里一眼看到自己拿到了什么、差多少。
+                $medalGroups = [];
+                $medalSummary = ['unlocked' => 0, 'total' => 0, 'percent' => 0];
+                if ($tab === 'medals') {
+                    require_once __DIR__ . '/../includes/achievements.php';
+                    $medalState = lwAchievementSummary((int)$user['id']);
+                    foreach (($medalState['items'] ?? []) as $it) {
+                        $medalGroups[$it['group'] ?? '其他'][] = [
+                            'name'     => $it['name'] ?? '',
+                            'desc'     => $it['desc'] ?? '',
+                            'icon'     => $it['icon'] ?? '🏅',
+                            'unlocked' => !empty($it['unlocked']),
+                            'current'  => (int)($it['current'] ?? 0),
+                            'need'     => (int)($it['need'] ?? 1),
+                            'percent'  => (float)($it['percent'] ?? 0),
+                        ];
+                    }
+                    $medalSummary = [
+                        'unlocked' => (int)($medalState['unlocked'] ?? 0),
+                        'total'    => (int)($medalState['total'] ?? 0),
+                        'percent'  => (float)($medalState['percent'] ?? 0),
+                    ];
+                }
+                ?>
+                <div class="uc-section" id="tab-medals" <?= $tab !== 'medals' ? 'style="display:none"' : '' ?>>
+                    <h2>我的勋章</h2>
+                    <div class="uc-medal-hero">
+                        <div class="uc-medal-count">
+                            <b><?= $medalSummary['unlocked'] ?></b>
+                            <span>/ <?= $medalSummary['total'] ?> 枚已获得</span>
+                        </div>
+                        <div class="uc-medal-bar"><i style="width:<?= (int)$medalSummary['percent'] ?>%"></i></div>
+                        <a class="uc-medal-more" href="<?= SITE_URL ?>/pages/growth.php">去成长中心看进度 →</a>
+                    </div>
+                    <?php foreach ($medalGroups as $groupName => $items): ?>
+                    <div class="uc-medal-group">
+                        <div class="uc-medal-group-title"><?= xss_clean($groupName) ?></div>
+                        <div class="uc-medal-grid">
+                            <?php foreach ($items as $m): ?>
+                            <div class="uc-medal<?= $m['unlocked'] ? '' : ' locked' ?>" title="<?= xss_clean($m['desc']) ?>">
+                                <div class="uc-medal-ico"><?= $m['icon'] ?></div>
+                                <div class="uc-medal-name"><?= xss_clean($m['name']) ?></div>
+                                <div class="uc-medal-desc"><?= xss_clean($m['desc']) ?></div>
+                                <?php if (!$m['unlocked'] && $m['need'] > 1): ?>
+                                <div class="uc-medal-prog"><i style="width:<?= (int)$m['percent'] ?>%"></i></div>
+                                <div class="uc-medal-desc"><?= (int)$m['current'] ?> / <?= (int)$m['need'] ?></div>
+                                <?php elseif (!$m['unlocked']): ?>
+                                <span class="uc-medal-lock">未获得</span>
+                                <?php endif; ?>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if (!$medalGroups): ?>
+                    <p class="uc-label-hint">勋章数据计算中，请稍后刷新。</p>
+                    <?php endif; ?>
+                </div>
+
+                <?php
+                // ================= 个性装扮（就地试穿） =================
+                // 与商城共用同一份商品表与同一套装配接口，只是入口不同：
+                // 用户不用跳页就能换框，换完回到任何页面都是新样子。
+                $decorItems = ['avatar_frame' => [], 'bubble' => [], 'badge' => [], 'title' => []];
+                $decorOwned = [];
+                $decorEquipped = [];
+                $decorPoints = 0;
+                if ($tab === 'decor') {
+                    require_once __DIR__ . '/../includes/widgets.php';
+                    require_once __DIR__ . '/../includes/widget_render.php';
+                    foreach (lwWidgetCatalog() as $w) {
+                        $decorItems[$w['slot']][] = $w;
+                    }
+                    $decorOwned = lwUserOwnedWidgets((int)$user['id']);
+                    $decorEquipped = lwUserWidgets((int)$user['id']);
+                    $decorPoints = lwUserPoints((int)$user['id']);
+                }
+                ?>
+                <div class="uc-section" id="tab-decor" <?= $tab !== 'decor' ? 'style="display:none"' : '' ?>>
+                    <h2>个性装扮</h2>
+                    <div class="uc-decor-head">
+                        <span>我的积分 <b id="decorPoints"><?= (int)$decorPoints ?></b></span>
+                        <a href="<?= SITE_URL ?>/pages/shop.php">进入装扮商城 →</a>
+                    </div>
+                    <?php
+                    $decorSlots = [
+                        'avatar_frame' => '头像框',
+                        'bubble'       => '聊天气泡',
+                        'title'        => '自定义头衔',
+                        'badge'        => '个性标签',
+                    ];
+                    foreach ($decorSlots as $slotKey => $slotName):
+                        $eqId = (int)($decorEquipped[$slotKey]['id'] ?? 0);
+                    ?>
+                    <div class="uc-decor-block">
+                        <div class="uc-decor-title"><?= $slotName ?>
+                            <?php if ($eqId > 0): ?>
+                            <span class="uc-decor-eq">使用中：<?= xss_clean($decorEquipped[$slotKey]['name'] ?? '') ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="uc-decor-grid">
+                            <?php foreach ($decorItems[$slotKey] as $w):
+                                $owned = isset($decorOwned[$w['id']]);
+                                $isEq = ((int)$w['id'] === $eqId);
+                            ?>
+                            <button type="button"
+                                    class="uc-decor-card<?= $isEq ? ' on' : '' ?><?= $owned ? '' : ' unowned' ?>"
+                                    data-wid="<?= (int)$w['id'] ?>"
+                                    data-owned="<?= $owned ? '1' : '0' ?>"
+                                    data-slot="<?= xss_clean($slotKey) ?>">
+                                <?php if ($slotKey === 'avatar_frame'): ?>
+                                <span class="lw-av" style="--lw-av:56px;width:56px;height:56px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%">
+                                    <?php if (!empty($w['asset'])): ?>
+                                    <span class="lw-widget lw-widget-frame lw-frame-img" style="background-image:url('<?= xss_clean($w['asset']) ?>')"></span>
+                                    <?php else: ?>
+                                    <span class="lw-widget lw-widget-frame <?= xss_clean($w['css_class']) ?>"></span>
+                                    <?php endif; ?>
+                                    <img class="lw-av-img" width="49" height="49" style="position:absolute;left:3px;top:3px;width:49px;height:49px;border-radius:50%;object-fit:cover" src="<?= xss_clean(lwAvatarUrl($user['avatar'] ?? '')) ?>" alt="">
+                                </span>
+                                <?php elseif ($slotKey === 'bubble'): ?>
+                                <span class="lw-bubble-slot <?= xss_clean($w['css_class']) ?>" style="font-size:.72rem;">你好呀</span>
+                                <?php elseif ($slotKey === 'title'): ?>
+                                <span class="user-title" style="--ut-bg:#4A90D9;--ut-fg:#fff;">头衔</span>
+                                <?php else: ?>
+                                <span class="lw-badge-slot"><?= xss_clean($w['name']) ?></span>
+                                <?php endif; ?>
+                                <span class="uc-decor-name"><?= xss_clean($w['name']) ?></span>
+                                <span class="uc-decor-price"><?= $slotKey === 'title' ? ((int)$w['price'] . ' 积分 / ' . (int)$w['days'] . ' 天') : ($owned ? ($isEq ? '已装备' : '点击装备') : ((int)$w['price'] . ' 积分')) ?></span>
+                            </button>
+                            <?php endforeach; ?>
+                            <?php if (!$decorItems[$slotKey]): ?>
+                            <p class="uc-label-hint">暂无商品</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
                 <div class="uc-section" id="tab-comments" <?= $tab !== 'comments' ? 'style="display:none"' : '' ?>>
                     <h2><?= t('uc.tab.comments') ?></h2>
                     <div id="myCommentsList"></div>
@@ -1138,7 +1371,7 @@ if ($inviteEnabled && $tab === 'invite') {
                         <div class="uc-invite-people">
                             <?php foreach ($inviteData['list'] as $p): ?>
                             <div class="uc-invite-person">
-                                <img src="<?= htmlspecialchars($p['avatar'] !== '' ? $p['avatar'] : (SITE_URL . '/assets/images/default-avatar.svg')) ?>" alt="" loading="lazy" onerror="this.src='<?= SITE_URL ?>/assets/images/default-avatar.svg'">
+                                <?= lwAvatarOf((int)$p['id'], 'sm', ['frame' => true]) ?>
                                 <span class="name"><?= htmlspecialchars($p['nickname'] !== '' ? $p['nickname'] : ('用户' . $p['id'])) ?></span>
                                 <span class="time"><?= htmlspecialchars(substr((string)$p['time'], 0, 10)) ?></span>
                             </div>
@@ -1156,7 +1389,7 @@ if ($inviteEnabled && $tab === 'invite') {
                             <?php foreach ($inviteBoard as $i => $row): $rk = $i + 1; ?>
                             <div class="uc-invite-rank-row <?= $rk <= 3 ? 'top' . $rk : '' ?> <?= (int)$row['user_id'] === (int)$user['id'] ? 'me' : '' ?>">
                                 <span class="rank-no"><?= $rk ?></span>
-                                <img src="<?= htmlspecialchars($row['avatar'] !== '' ? $row['avatar'] : (SITE_URL . '/assets/images/default-avatar.svg')) ?>" alt="" loading="lazy" onerror="this.src='<?= SITE_URL ?>/assets/images/default-avatar.svg'">
+                                <?= lwAvatarOf((int)$row['user_id'], 'sm', ['frame' => true]) ?>
                                 <span class="name"><?= htmlspecialchars($row['nickname'] !== '' ? $row['nickname'] : ('用户' . $row['user_id'])) ?></span>
                                 <span class="cnt"><?= (int)$row['count'] ?></span>
                             </div>
@@ -1200,6 +1433,66 @@ if ($inviteEnabled && $tab === 'invite') {
                             <div class="uc-font-value" id="ucFontValue">16px</div>
                         </div>
                         <input type="range" class="uc-font-range" id="ucFontRange" min="12" max="48" step="1" value="16" aria-label="<?= t('uc.font_size') ?>">
+                    </div>
+                </div>
+
+                <div class="uc-section" id="tab-appearance" <?= $tab !== 'appearance' ? 'style="display:none"' : '' ?>>
+                    <h2>外观特效 · 液态玻璃</h2>
+                    <p style="margin-bottom:1rem;color:var(--text-secondary);">开启后全站启用 Canvas 流体背景、组件玻璃材质；桌面端额外显示可拖拽 Dock 栏。关闭总开关将回退 MIUIX 主题并释放渲染资源。</p>
+                    <div class="lw-lg-panel" id="lwLgPanel">
+                        <div class="lw-lg-row">
+                            <div class="lw-lg-row-main">
+                                <div class="lw-lg-row-title">全局液态玻璃效果</div>
+                                <div class="lw-lg-row-desc">总开关，关闭后恢复原始基础界面（MIUIX 主题）</div>
+                            </div>
+                            <button type="button" class="lw-lg-switch" data-lg-key="master" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
+                        </div>
+                        <div class="lw-lg-sub" id="lwLgSub">
+                            <div class="lw-lg-row">
+                                <div class="lw-lg-row-main">
+                                    <div class="lw-lg-row-title">背景流体</div>
+                                    <div class="lw-lg-row-desc">Canvas 动态流体背景层</div>
+                                </div>
+                                <button type="button" class="lw-lg-switch" data-lg-key="bgFluid" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
+                            </div>
+                            <div class="lw-lg-row">
+                                <div class="lw-lg-row-main">
+                                    <div class="lw-lg-row-title">Dock 流体光</div>
+                                    <div class="lw-lg-row-desc">桌面 Dock 的流光与拖拽形变（移动端不显示 Dock）</div>
+                                </div>
+                                <button type="button" class="lw-lg-switch" data-lg-key="dockFluid" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
+                            </div>
+                            <div class="lw-lg-row">
+                                <div class="lw-lg-row-main">
+                                    <div class="lw-lg-row-title">组件玻璃材质</div>
+                                    <div class="lw-lg-row-desc">卡片、面板、模态的磨砂玻璃质感</div>
+                                </div>
+                                <button type="button" class="lw-lg-switch" data-lg-key="gloss" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="uc-section" id="tab-backup" <?= $tab !== 'backup' ? 'style="display:none"' : '' ?>>
+                    <h2>数据备份与恢复</h2>
+                    <p style="color:var(--text-secondary);line-height:1.7;margin-bottom:1rem;">
+                        备份包含你的帖子、评论、点赞与收藏、通知、私信、签到与已购装扮，以及昵称/头像/签名等展示资料。
+                        图片与附件只记录引用，不随包下载 —— 服务端文件仍在，恢复后原链接照常显示。
+                    </p>
+                    <div class="uc-backup-grid">
+                        <div class="uc-backup-card">
+                            <div class="uc-backup-title">导出我的数据</div>
+                            <div class="uc-backup-desc">生成一个 JSON 备份文件，自己保存留档，可随时恢复到本账号。</div>
+                            <button type="button" class="uc-btn uc-btn-primary" id="ubExportBtn">下载备份</button>
+                        </div>
+                        <div class="uc-backup-card">
+                            <div class="uc-backup-title">从备份恢复</div>
+                            <div class="uc-backup-desc">只能恢复<b>本账号</b>导出的备份；不会覆盖密码、角色、封禁状态与积分。</div>
+                            <input type="file" id="ubFile" accept=".json,application/json" style="display:none">
+                            <button type="button" class="uc-btn" id="ubPickBtn">选择备份文件</button>
+                            <div class="uc-backup-file" id="ubFileName"></div>
+                            <button type="button" class="uc-btn uc-btn-primary" id="ubRestoreBtn" disabled>开始恢复</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1247,6 +1540,14 @@ if ($inviteEnabled && $tab === 'invite') {
             btn.disabled = loading;
             textEl.style.display = loading ? 'none' : '';
             spinnerEl.style.display = loading ? 'inline-block' : 'none';
+        }
+
+        // lang_ui.php 在 </body> 前才定义 window.__t，本段脚本执行时它还不存在。
+        // 直接写 __t(...) 会抛 ReferenceError（不是 undefined 调用，是标识符未声明），
+        // 而这里处在 2000+ 行的 IIFE 顶层，一抛就意味着后面所有事件绑定全部没跑 ——
+        // 表现就是「选项点着没反应」。统一走这个延迟代理：调用时才去读 window.__t。
+        function __t(key) {
+            return (typeof window.__t === 'function') ? window.__t(key) : key;
         }
 
         const profileForm = document.getElementById('profileForm');
@@ -1317,6 +1618,11 @@ if ($inviteEnabled && $tab === 'invite') {
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('nickname', nickname);
                 formData.append('bio', bio);
+                // 头衔：商城购买后解锁；未购买时输入框是 disabled，不提交即可（提交了服务端也会拒绝）
+                var titleEl = document.getElementById('titleText');
+                if (titleEl && !titleEl.disabled) {
+                    formData.append('title_text', (titleEl.value || '').trim());
+                }
                 formData.append('grade', document.getElementById('grade').value);
                 formData.append('class_num', document.getElementById('classNum').value);
                 formData.append('real_name', realName);
@@ -2081,6 +2387,154 @@ if ($inviteEnabled && $tab === 'invite') {
                 });
             });
         })();
+    })();
+
+    // ── 个性装扮：就地购买 / 装备 ──────────────────────────────────
+    // 为什么复用 /api/widgets.php 而不是新开接口：
+    //   商城和个人中心是同一笔交易，两个入口两套逻辑迟早会一套能买一套不能。
+    //   这里只做「点击 → 调同一个接口 → 刷新本页」，规则全部在服务端。
+    (function () {
+        var grid = document.getElementById('tab-decor');
+        if (!grid) return;
+
+        grid.querySelectorAll('.uc-decor-card').forEach(function (card) {
+            card.addEventListener('click', function () {
+                var wid = card.dataset.wid;
+                var owned = card.dataset.owned === '1';
+                var isOn = card.classList.contains('on');
+                // 头衔槽位是消耗品：即使已拥有也要能再买一个
+                var isTitle = card.dataset.slot === 'title';
+                if (isOn && !isTitle) return;
+
+                card.disabled = true;
+                var body = new URLSearchParams();
+                body.append('csrf_token', CSRF_TOKEN);
+                body.append('action', (owned && !isTitle) ? 'equip' : 'buy');
+                body.append('widget_id', wid);
+                if (owned && !isTitle) body.append('equip', '1');
+
+                fetch(SITE_URL + '/api/widgets.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: body
+                }).then(function (r) { return r.json(); })
+                  .then(function (res) {
+                      card.disabled = false;
+                      if (!res.success) { showToast(res.message || '操作失败', 'error'); return; }
+                      showToast(res.message || '成功', 'success');
+                      // 换装后整页重载：头像框要重新渲染，局部改 DOM 容易漏掉头衔/勋章
+                      setTimeout(function () { location.reload(); }, 400);
+                  })
+                  .catch(function () {
+                      card.disabled = false;
+                      showToast('网络错误', 'error');
+                  });
+            });
+        });
+    })();
+
+    (function () {
+        var panel = document.getElementById('lwLgPanel');
+        if (!panel || !window.LWLiquidGlass) return;
+        var sub = document.getElementById('lwLgSub');
+        var switches = panel.querySelectorAll('.lw-lg-switch');
+
+        function render() {
+            var s = window.LWLiquidGlass.get();
+            switches.forEach(function (sw) {
+                var key = sw.getAttribute('data-lg-key');
+                var on = !!s[key];
+                sw.setAttribute('aria-checked', on ? 'true' : 'false');
+                sw.classList.toggle('is-off', !on);
+                // 总开关关闭时，分项禁用
+                if (key !== 'master') sw.classList.toggle('is-disabled', !s.master);
+                // 视觉：复用 html.lw-lg-on 决定轨道颜色，分项单独标记
+                sw.dataset.state = on ? '1' : '0';
+                var track = sw.querySelector('.lw-lg-switch-track');
+                var knob = sw.querySelector('.lw-lg-switch-knob');
+                if (track) track.style.background = on
+                    ? 'color-mix(in srgb, var(--primary, #2F5B9A) 78%, transparent)'
+                    : 'color-mix(in srgb, var(--border, #cbd5e1) 80%, transparent)';
+                if (knob) knob.style.transform = on ? 'translateX(20px)' : 'translateX(0)';
+            });
+            if (sub) sub.classList.toggle('is-off', !s.master);
+        }
+
+        panel.addEventListener('click', function (e) {
+            var sw = e.target.closest('.lw-lg-switch');
+            if (!sw) return;
+            var key = sw.getAttribute('data-lg-key');
+            var cur = window.LWLiquidGlass.get();
+            if (key !== 'master' && !cur.master) return;
+            var patch = {}; patch[key] = !cur[key];
+            window.LWLiquidGlass.set(patch);
+            render();
+        });
+
+        // 其它端（流体云）或其它标签修改后同步刷新
+        window.addEventListener('lw:liquidglass', render);
+        render();
+    })();
+
+    // ── 数据备份与恢复（需求二、6）────────────────────────────────────
+    (function () {
+        var expBtn = document.getElementById('ubExportBtn');
+        var pickBtn = document.getElementById('ubPickBtn');
+        var fileEl = document.getElementById('ubFile');
+        var nameEl = document.getElementById('ubFileName');
+        var resBtn = document.getElementById('ubRestoreBtn');
+        if (!expBtn || !pickBtn) return;
+
+        expBtn.addEventListener('click', function () {
+            // 用隐藏 form 触发浏览器原生「下载」，避免 fetch 把整个 JSON 读进内存再拼 blob
+            var f = document.createElement('form');
+            f.method = 'POST';
+            f.action = SITE_URL + '/api/user_data.php?action=export';
+            var t = document.createElement('input');
+            t.type = 'hidden'; t.name = 'csrf_token'; t.value = CSRF_TOKEN;
+            f.appendChild(t);
+            document.body.appendChild(f);
+            f.submit();
+            setTimeout(function () { f.remove(); }, 500);
+        });
+
+        pickBtn.addEventListener('click', function () { fileEl.click(); });
+
+        fileEl.addEventListener('change', function () {
+            var f = fileEl.files && fileEl.files[0];
+            nameEl.textContent = f ? ('已选择：' + f.name) : '';
+            resBtn.disabled = !f;
+        });
+
+        resBtn.addEventListener('click', function () {
+            var f = fileEl.files && fileEl.files[0];
+            if (!f) { return; }
+            var ok = window.confirm('确认用该备份补齐你的数据？不会覆盖密码、角色与积分，也不会删除服务端现有内容。');
+            if (!ok) { return; }
+            var fd = new FormData();
+            fd.append('csrf_token', CSRF_TOKEN);
+            fd.append('file', f);
+            resBtn.disabled = true;
+            resBtn.textContent = '恢复中…';
+            fetch(SITE_URL + '/api/user_data.php?action=restore', { method: 'POST', body: fd })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d && d.success) {
+                        var n = 0;
+                        if (d.data && d.data.imported) {
+                            Object.keys(d.data.imported).forEach(function (k) { n += d.data.imported[k]; });
+                        }
+                        nameEl.textContent = '恢复完成，共写入 ' + n + ' 条记录';
+                    } else {
+                        nameEl.textContent = (d && d.message) || '恢复失败';
+                    }
+                })
+                .catch(function () { nameEl.textContent = '网络错误，请重试'; })
+                .finally(function () {
+                    resBtn.disabled = false;
+                    resBtn.textContent = '开始恢复';
+                });
+        });
     })();
     </script>
     <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>

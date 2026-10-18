@@ -178,23 +178,6 @@ function getClientIP() {
     return WAF::getClientIP();
 }
 
-function isIPBlocked($ip) {
-    $fs = getFS();
-    $blacklist = $fs->find('ip_blacklist', ['ip' => $ip]);
-    return !empty($blacklist);
-}
-
-function isValidUserAgent() {
-    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    if (empty($ua)) return false;
-    $blocked = ['bot', 'spider', 'crawler', 'scraper', 'curl', 'wget', 'python', 'java/', 'go-http'];
-    foreach ($blocked as $pattern) {
-        if (stripos($ua, $pattern) !== false) {
-            return false;
-        }
-    }
-    return true;
-}
 
 /**
  * 选取一个可用的 TrueType 字体路径（GD 扭曲用），找不到返回 null 则用内置位图字体。
@@ -369,10 +352,6 @@ function verifyCaptcha($scene = 'default', $answer = '') {
 /**
  * 是否需要验证码（首次进入无需，供前端判断是否展示）。
  */
-function captchaRequired($scene = 'default') {
-    // 场景记录在 session，方便前端了解是否需要验证码
-    return isset($_SESSION['captcha_' . $scene]);
-}
 
 function checkRateLimit($ip, $action, $limit = 60, $window = 60) {
     $key = '_rl_' . $action . '_' . $ip;
@@ -489,8 +468,12 @@ function logUserActivity($userId, $action, $details = '') {
 }
 
 /**
- * 记录一次 AI 助手调用（结构化元数据 + 提问原文截断预览）。
- * 刻意不记录：AI 回复全文、system 提示词、API Key、鉴权头。
+ * 记录一次 AI 助手调用（结构化元数据 + 完整会话）。
+ *
+ * 与「只存提问预览」的旧版不同：这里保存后台可回看的完整对话，
+ * 供多模态审计 —— 用户每一轮的文字与图片、AI 的最终回复都会留存。
+ * 仍然刻意不记录：system 提示词、API Key、鉴权头（这些是机密，不能落盘）。
+ * 图片只存相对引用（images/ai/xxx.jpg），实体文件由 30 天清理任务负责。
  * 失败绝不影响主流程（AI 已经答完，日志只是旁路）。
  */
 function logAiCall(array $info) {
@@ -498,6 +481,57 @@ function logAiCall(array $info) {
         $fs = getFS();
         $question = isset($info['question']) ? (string)$info['question'] : '';
         $question = trim(preg_replace('/\s+/u', ' ', $question));
+
+        // ---- 完整会话：仅保留 user/assistant 的文本与图片，剔除 system 与超长内容 ----
+        $conversation = [];
+        $images = [];
+        $rawConv = isset($info['conversation']) && is_array($info['conversation']) ? $info['conversation'] : [];
+        foreach (array_slice($rawConv, -40) as $turn) {
+            if (!is_array($turn)) continue;
+            $role = ($turn['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $text = trim((string)($turn['content'] ?? ''));
+            $imgs = [];
+            if (!empty($turn['images']) && is_array($turn['images'])) {
+                foreach (array_slice($turn['images'], 0, 4) as $u) {
+                    $u = (string)$u;
+                    // 只接受站内相对路径，杜绝把外部链接写进日志
+                    if ($u !== '' && strpos($u, 'http') !== 0 && strpos($u, '//') !== 0
+                        && !preg_match('#\.\.#', $u) && preg_match('#^[A-Za-z0-9_\-./]+$#', $u)) {
+                        $imgs[] = $u;
+                        $images[] = $u;
+                    }
+                }
+            }
+            if ($text === '' && empty($imgs)) continue;
+            $conversation[] = [
+                'role' => $role,
+                'content' => mb_substr($text, 0, 8000),
+                'images' => $imgs,
+            ];
+        }
+
+        // ---- token 用量：兼容 OpenAI 兼容端点的 usage 结构 ----
+        // 常见字段：prompt_tokens / completion_tokens / total_tokens；
+        // 智谱等部分端点用 input_tokens / output_tokens，这里统一归一化。
+        $usageArr = isset($info['usage']) && is_array($info['usage']) ? $info['usage'] : [];
+        $promptTokens = (int)($usageArr['prompt_tokens'] ?? $usageArr['input_tokens'] ?? 0);
+        $completionTokens = (int)($usageArr['completion_tokens'] ?? $usageArr['output_tokens'] ?? 0);
+        $totalTokens = (int)($usageArr['total_tokens'] ?? ($promptTokens + $completionTokens));
+
+        // AI 回答正文单独存一列：后台列表可直接看摘要，详情弹窗也能单独高亮「AI 回答」，
+        // 不必再从 conversation 数组里反查最后一条 assistant。
+        $answerText = '';
+        if (!empty($info['answer'])) {
+            $answerText = mb_substr(trim((string)$info['answer']), 0, 8000);
+        } elseif ($conversation) {
+            for ($i = count($conversation) - 1; $i >= 0; $i--) {
+                if (($conversation[$i]['role'] ?? '') === 'assistant') {
+                    $answerText = mb_substr((string)($conversation[$i]['content'] ?? ''), 0, 8000);
+                    break;
+                }
+            }
+        }
+
         $fs->insert('ai_logs', [
             'user_id' => isset($info['user_id']) ? (int)$info['user_id'] : 0,
             'nickname' => mb_substr((string)($info['nickname'] ?? ''), 0, 40),
@@ -510,15 +544,69 @@ function logAiCall(array $info) {
             'key_tries' => (int)($info['key_tries'] ?? 0),
             // 'site' 消耗站点配额 / 'user' 用户自带模型（站点零成本）——后台看得出谁在烧谁的钱
             'key_owner' => (($info['key_owner'] ?? 'site') === 'user') ? 'user' : 'site',
+            'model' => mb_substr((string)($info['model'] ?? ''), 0, 80),
             'sources' => implode('、', array_slice((array)($info['sources'] ?? []), 0, 12)),
             'intent' => mb_substr((string)($info['intent'] ?? ''), 0, 60),
             'question' => mb_substr($question, 0, 200),
+            // AI 回答正文（列表摘要与详情高亮都用它）
+            'answer' => $answerText,
+            // token 用量三件套，后台可按用户/时间汇总消耗
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
             'page' => mb_substr((string)($info['page'] ?? ''), 0, 120),
+            // 完整对话与图片清单：后台「查看详情」弹窗的数据源
+            'conversation' => $conversation,
+            'images' => array_values(array_unique($images)),
         ]);
         pruneTable('ai_logs', 2000);
+        pruneAiImagesThrottled();
     } catch (Exception $e) {
         error_log('logAiCall failed: ' . $e->getMessage());
     }
+}
+
+/**
+ * 机会式触发图片清理：每次 AI 调用都会走到这里，但用时间戳节流，
+ * 保证最多每 6 小时真正扫一次目录（避免每请求都扫盘）。
+ * 不依赖任何外部 cron —— 只要有 AI 调用，30 天清理就会自动发生。
+ */
+function pruneAiImagesThrottled($days = 30, $intervalSec = 21600) {
+    try {
+        $stampFile = UPLOAD_DIR . '/.ai_prune_ts';
+        $last = @filemtime($stampFile);
+        if ($last !== false && (time() - $last) < $intervalSec) return 0;
+        @touch($stampFile);
+        return pruneAiImages($days);
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+
+/**
+ * 清理 ai_logs 中超过 $days 天的 AI 图片实体文件（默认 30 天）。
+ * 只删磁盘文件，不删日志行——日志里仍保留相对引用，
+ * 后台点击时会得到「已过期」而不是 404，便于追溯。
+ * @return int 删除的文件数
+ */
+function pruneAiImages($days = 30) {
+    $days = max(1, (int)$days);
+    $dir = UPLOAD_DIR . '/ai';
+    if (!is_dir($dir)) return 0;
+    $cutoff = time() - $days * 86400;
+    $deleted = 0;
+    $items = @scandir($dir);
+    if (!is_array($items)) return 0;
+    foreach ($items as $name) {
+        if ($name === '.' || $name === '..') continue;
+        $path = $dir . '/' . $name;
+        if (!is_file($path)) continue;
+        $mtime = @filemtime($path);
+        if ($mtime !== false && $mtime < $cutoff) {
+            if (@unlink($path)) $deleted++;
+        }
+    }
+    return $deleted;
 }
 
 /**
@@ -725,9 +813,6 @@ function gradeLabel($entranceYear, $withNew = true) {
 /**
  * “已毕业”起始年：用于某届学生高一那一年（A-3，即今年夏季刚毕业那一届）。
  */
-function graduatedEntranceYear() {
-    return schoolAcademicYear() - 3;
-}
 
 /**
  * 由用户当前所选年级反推入学高一之年（用于注册/修改时存储 entrance_year）。
@@ -742,10 +827,6 @@ function entranceYearFromGrade($gradeIndex) {
 /**
  * 校验班级：1-20，0 表示未填写。
  */
-function validClassNum($classNum) {
-    $classNum = (int)$classNum;
-    return $classNum >= 0 && $classNum <= 20;
-}
 
 /**
  * 校验安徽 高考选科：首选(物理/历史) + 再选2门。
@@ -842,12 +923,20 @@ function requireLogin() {
 }
 
 /**
- * 是否处于游客模式：未登录，且访客主动选择了「先逛逛」。
- * 游客只能浏览前若干条动态、公告与社区规范，以及只读工具页。
+ * 是否处于游客模式：未登录即可只读浏览。
+ *
+ * 设计变更（2026-10-17）：匿名访客**默认**视为游客，不再强制先点「先逛逛」。
+ *   原实现要求访客主动访问 gateway.php?browse=1 写入会话标记，导致：
+ *     · 匿名打开首页会 302 跳登录页 → 搜索引擎/探针/新访客看到的都是登录页；
+ *     · 游客首页「0 帖」的观感（数据其实在，只是没进游客模式）。
+ *   现在改为「未登录 = 游客只读」：能看首页信息流、公告、社区规范与只读工具页，
+ *   所有写操作仍由 requireMember() 拦截并引导注册，权限边界不变。
+ *   `$_SESSION['guest_mode']` 保留：显式设置 1 可固定游客身份，0 可临时退出游客态。
  */
 function isGuestMode() {
     if (getCurrentUser()) return false;
-    return !empty($_SESSION['guest_mode']);
+    if (isset($_SESSION['guest_mode'])) return !empty($_SESSION['guest_mode']);
+    return true;
 }
 
 /** 开启游客模式（写入会话标记）。 */
@@ -1143,6 +1232,11 @@ function getAllPermissionDefinitions() {
             'manage_feature_requests' => '管理功能建议',
             'manage_growth' => '管理成长体系（等级经验规则 / 成就）',
             'view_stats' => '查看全站统计',
+            'manage_liquid_glass' => '管理全局液态玻璃效果（总开关 / 参数 / 使用统计）',
+        ],
+        '移动端（App）' => [
+            'view_app_devices' => '查看 App 安装与使用情况',
+            'manage_app_push'  => '向已安装 App 的用户推送系统通知',
         ],
         '管理员管理' => [
             'manage_admins' => '新增/删除/调整管理员权限',
@@ -1150,6 +1244,7 @@ function getAllPermissionDefinitions() {
         '日志与安全' => [
             'view_operation_logs' => '查看操作日志和IP黑名单',
             'view_ai_logs' => '查看 AI 助手调用记录',
+            'manage_ai_logs' => '删除/清空 AI 调用记录及其图片',
             'manage_ip_blacklist' => '管理IP黑名单（添加/移除）',
             'view_illegal_logs' => '查看非法访问日志',
             'view_health' => '查看系统健康状态（磁盘/日志/数据表体检）',
@@ -1250,75 +1345,6 @@ function validatePasswordStrength($password) {
     return true;
 }
 
-function validateFileUpload($file, $allowedTypes = [], $maxSize = 5242880) {
-    if (empty($allowedTypes)) {
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    }
-
-    if (!isset($file['error']) || is_array($file['error'])) {
-        return [false, '无效的上传参数'];
-    }
-
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        $errors = [
-            UPLOAD_ERR_INI_SIZE   => '文件超过服务器配置限制',
-            UPLOAD_ERR_FORM_SIZE  => '文件超过表单限制',
-            UPLOAD_ERR_PARTIAL    => '文件上传不完整',
-            UPLOAD_ERR_NO_FILE    => '没有选择文件',
-            UPLOAD_ERR_NO_TMP_DIR => '服务器临时目录缺失',
-            UPLOAD_ERR_CANT_WRITE => '无法写入磁盘',
-            UPLOAD_ERR_EXTENSION  => '服务器扩展拦截了上传',
-        ];
-        return [false, $errors[$file['error']] ?? '未知上传错误'];
-    }
-
-    if ($file['size'] > $maxSize) {
-        return [false, '文件大小超过限制（最大 ' . round($maxSize / 1048576, 1) . 'MB）'];
-    }
-
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $detectedMime = $finfo->file($file['tmp_name']);
-
-    if (!in_array($detectedMime, $allowedTypes)) {
-        return [false, '不允许的文件类型: ' . $detectedMime];
-    }
-
-    $handle = fopen($file['tmp_name'], 'rb');
-    $header = fread($handle, 8);
-    fclose($handle);
-
-    $magicBytes = [
-        'image/jpeg' => ["\xFF\xD8\xFF"],
-        'image/png'  => ["\x89PNG"],
-        'image/gif'  => ["GIF87a", "GIF89a"],
-        'image/webp' => ["RIFF"],
-    ];
-
-    $validMagic = false;
-    if (isset($magicBytes[$detectedMime])) {
-        foreach ($magicBytes[$detectedMime] as $magic) {
-            if (strpos($header, $magic) === 0) {
-                $validMagic = true;
-                break;
-            }
-        }
-    }
-
-    if (!$validMagic) {
-        return [false, '文件内容与声明类型不匹配，可能是恶意文件'];
-    }
-
-    $extMap = [
-        'image/jpeg' => '.jpg',
-        'image/png'  => '.png',
-        'image/gif'  => '.gif',
-        'image/webp' => '.webp',
-    ];
-    $ext     = $extMap[$detectedMime] ?? '';
-    $newName = bin2hex(random_bytes(16)) . '_' . time() . $ext;
-
-    return [true, $newName, $detectedMime];
-}
 
 /**
  * 解析帖子的 images 字段（库里的存法是 JSON 字符串），并丢掉磁盘上已不存在的图片。
@@ -1356,111 +1382,6 @@ function postImagesExisting($post) {
     return array_values($result);
 }
 
-function generateFormToken($formName = 'default') {
-    $token = bin2hex(random_bytes(32));
-    $key   = 'form_token_' . $formName;
-
-    if (!isset($_SESSION[$key])) {
-        $_SESSION[$key] = [];
-    }
-
-    $now = time();
-    $_SESSION[$key] = array_filter($_SESSION[$key], function ($entry) use ($now) {
-        return ($entry['expires'] ?? 0) > $now;
-    });
-
-    if (count($_SESSION[$key]) > 20) {
-        $_SESSION[$key] = array_slice($_SESSION[$key], -20, 20, true);
-    }
-
-    $_SESSION[$key][$token] = [
-        'expires' => $now + 600,
-        'used'    => false,
-        'created' => $now,
-    ];
-
-    return $token;
-}
-
-function verifyFormToken($token, $formName = 'default') {
-    $key = 'form_token_' . $formName;
-
-    if (empty($_SESSION[$key]) || empty($token)) {
-        return false;
-    }
-
-    if (isset($_SESSION[$key][$token])) {
-        $entry = &$_SESSION[$key][$token];
-        if ($entry['expires'] > time() && !$entry['used']) {
-            $entry['used'] = true;
-            return true;
-        }
-        unset($_SESSION[$key][$token]);
-    }
-
-    return false;
-}
-
-function detectContentScraping() {
-    $ip  = getClientIP();
-    $now = time();
-    $uri = $_SERVER['REQUEST_URI'] ?? '/';
-
-    // 已登录管理员跳过这套「反爬」启发式：
-    // 它按「30 秒内 >20 个不同 URI 且 >30 次请求」判定，站长自己连续翻几页就会被算中，
-    // 代价是 30 分钟封禁 + 无提示 403「Access Denied」，非常难自查。
-    // 真正要防的采集器是未登录的，这里放行不影响防护效果。
-    if (class_exists('WAF') && WAF::isTrustedSession()) {
-        return;
-    }
-
-    $key = 'waf_scraping_' . str_replace(['.', ':'], '_', $ip);
-    if (!isset($_SESSION[$key])) {
-        $_SESSION[$key] = [
-            'pages'      => [],
-            'first_seen' => $now,
-            'count'      => 0,
-        ];
-    }
-
-    $scraping = &$_SESSION[$key];
-
-    if ($now - $scraping['first_seen'] > 60) {
-        $scraping = [
-            'pages'      => [],
-            'first_seen' => $now,
-            'count'      => 0,
-        ];
-    }
-
-    $scraping['count']++;
-    $scraping['pages'][$uri] = true;
-
-    // 反爬阈值（2026-10 放宽）：窗口 30s→60s，不同页面 20→40，总请求 30→80，封禁 30min→10min。
-    // 原值对「正常用户连着翻几页」太紧（一次页面加载会带出好几个接口请求），
-    // 且共享出口 IP（校园网/运营商 NAT）会被整片算进来。真采集器一秒就能刷爆 80 次，
-    // 放宽后仍然拦得住，只是不再误伤真人。
-    if (count($scraping['pages']) > 40 && $scraping['count'] > 80) {
-        WAF::banIP($ip, 'content_scraping', 600);
-        require_once __DIR__ . '/ban_page.php';
-        http_response_code(429);
-        header('Retry-After: 600');
-        header('Content-Type: application/json; charset=utf-8');
-        $expireAt = time() + 600;
-        die(json_encode([
-            'success'  => false,
-            'banned'   => true,
-            'strategy' => lwBanReasonCode('content_scraping'),
-            'message'  => '访问被临时拦截（' . lwBanReasonCode('content_scraping') . ' · '
-                . lwBanReasonLabel('content_scraping') . '）。预计 '
-                . date('Y-m-d H:i:s', $expireAt) . ' 自动恢复。如为误判请联系站长 QQ '
-                . LW_BAN_CONTACT_QQ . '（事件编号 ' . lwBanRefId($ip, $expireAt) . '）',
-            'unban_at' => $expireAt,
-            'ref_id'   => lwBanRefId($ip, $expireAt),
-            'contact_qq' => LW_BAN_CONTACT_QQ,
-        ], JSON_UNESCAPED_UNICODE));
-    }
-}
 
 /**
  * 前置安全声明页（gateway）：进入登录/注册/找回密码之前，先确认“本站为官方入口，谨防钓鱼”。

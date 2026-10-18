@@ -33,23 +33,51 @@
   --macaron-lemon: #8A6410;
   --macaron-lemon-bg: #FAF2DA;
 
-  --success: #2E8B57;
+  /* 语义色：既要能当「实底 + 白字」的按钮底色，又要能当「浅底上的文字色」，
+     所以必须取到「白字压它 ≥4.5」且「它压白底 ≥4.5」的深阶。
+     原值 #2E8B57 / #C7902A 两头都差一口气（白字 4.25 / 2.82；压 #FFF8E6 的徽章底 3.79 / 2.66），
+     现改为 #277A4C（5.28 / 4.71）与 #8A5A0B（5.92 / 5.05，与 --toast-warning 同值）。 */
+  --success: #277A4C;
   --success-light: #E6F4EC;
-  --warning: #C7902A;
+  --warning: #8A5A0B;
   --warning-light: #FBF3E3;
   --danger: #C2453F;
   --danger-light: #FBE9E8;
   --info: #2773C4;
   --info-light: #E7F1FA;
+  /* 提示条（toast）专用：浅色主题下用「深阶实底 + 白字」。
+     为什么不直接用上面的 --success/--warning：那几枚是给「浅底深字」的徽章配的，
+     白字压在上面只有 2.8~3.1:1，达不到 4.5:1；这里取同色系深阶，白字对比度 5.3~7.0:1。 */
+  --toast-fg: #FFFFFF;
+  --toast-success: #1E7A4C;
+  --toast-warning: #8A5A0B;
+  --toast-danger: #A9312B;
+  --toast-info: #1D5A9E;
 
   /* 中性色（slate 系，对齐液态玻璃规范） */
   --bg: #F4F6F9;
   --bg-secondary: #EDF1F5;
   --card-bg: rgba(255, 255, 255, 0.85);
+  /* 弹窗吸底按钮区等「必须完全遮住滚动内容」处的实心兜底色：
+     --card-bg 是半透明的，直接当吸底底纹会透出正文，故另设一枚不透明令牌 */
+  --modal-solid-bg: #FFFFFF;
   --text: #2D3748;
   --text-secondary: #718096;
   --text-muted: #A0AEC0;
   --text-inverse: #FFFFFF;
+  /* ── 「实底 + 文字」成对前景色（约束 38 的收口）─────────────────────────
+     浅色主题的语义色偏深，白字没问题；暗色主题为了在深底上可见把它们提亮成亮阶，
+     白字对比度就只剩 2.35~3.48:1（不达 WCAG AA 正文 4.5:1）。改为亮底近黑字后
+     是 5.2~7.7:1。凡 background 取自 --primary/--success/--warning/--danger/--info
+     的实底控件，文字一律用 --on-solid，不要再写死 #fff。 */
+  --on-solid: #FFFFFF;
+  /* 金色 --accent 在明暗两套主题里都是亮色（白字仅 2.24:1），恒用近黑字 */
+  --on-accent: #10161F;
+  /* 反白容器（长按气泡、选中文字后的分享菜单）：浅色页面深底白字；
+     暗色页面必须翻成亮底近黑字 —— 否则 --text 变近白、白字白底 = 完全看不见。 */
+  --invert-bg: #2D3748;
+  --invert-fg: #FFFFFF;
+  --invert-hover: rgba(255, 255, 255, 0.16);
   --border: #E9EEF4;
   --border-light: #F1F5F9;
   --border-focus: #2F5B9A;
@@ -80,14 +108,17 @@
   --glass-blur: 20px;
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* 间距（比旧版多两档，用于模块之间的大留白） */
-  --space-xs: 0.25rem;
-  --space-sm: 0.5rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-  --space-xxl: 2.75rem;
-  --space-xxxl: 4.5rem;
+  /* 间距（比旧版多两档，用于模块之间的大留白）
+     --space-scale 由后台「自适应布局 → 紧凑模式」下发（includes/layout_tokens.php），
+     非紧凑时恒为 1；改间距请改基准值，不要在页面里写死 px。 */
+  --space-scale: 1;
+  --space-xs: calc(0.25rem * var(--space-scale));
+  --space-sm: calc(0.5rem * var(--space-scale));
+  --space-md: calc(1rem * var(--space-scale));
+  --space-lg: calc(1.5rem * var(--space-scale));
+  --space-xl: calc(2rem * var(--space-scale));
+  --space-xxl: calc(2.75rem * var(--space-scale));
+  --space-xxxl: calc(4.5rem * var(--space-scale));
 
   /* 布局 */
   --header-height: 3.75rem;
@@ -292,6 +323,8 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   gap: 0.625rem;
   flex-shrink: 0;
   color: var(--text);
+  text-decoration: none;   /* 站名必须是链接（全站可点回首页），但不能出现下划线 */
+  cursor: pointer;
 }
 .site-logo:hover { color: var(--text); }
 .site-logo .logo-icon { width: 2rem; height: 2rem; display: block; }
@@ -470,7 +503,7 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   padding: 0 0.25rem;
   border-radius: 0.5625rem;
   background: var(--danger);
-  color: #fff;
+  color: var(--on-solid, #fff);
   font-size: 0.625rem;
   font-weight: 700;
   display: flex;
@@ -575,6 +608,10 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 /* ---------- 公告 ---------- */
 .announcement-bar {
   background: var(--accent-light);
+  /* 成对前景色：以前只给了背景、没给 color，文字继承到 --text-secondary，
+     配在 #F8F3E7 上对比度只有 4.0 出头，长句看着发灰（站长截图圈的就是这里）。
+     硬约束 38：写死浅底必须同时给 color。 */
+  color: var(--text);
   border-bottom: 1px solid var(--border);
   padding: 0.5625rem 0;
   overflow: hidden;
@@ -620,13 +657,13 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   padding: 0.375rem 1rem;
   border-radius: var(--radius-full);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
   font-size: 0.8rem;
   font-weight: 600;
   text-decoration: none;
   transition: background var(--transition);
 }
-.guest-bar-btn:hover { background: var(--primary-hover); color: #fff; }
+.guest-bar-btn:hover { background: var(--primary-hover); color: var(--on-solid, #fff); }
 
 .guest-feed-note {
   padding: 0.75rem 1rem;
@@ -702,7 +739,7 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
 .cat-filter.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
   font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
@@ -731,6 +768,9 @@ a.sort-tab { text-decoration: none; display: inline-flex; align-items: center; }
   color: var(--primary);
   box-shadow: var(--shadow-sm);
 }
+/* 聊天室入口：带图标，用主色描边把它从「排序」里区分出来（是导航而非排序项） */
+a.sort-tab-room { gap: 0.25rem; color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent); }
+a.sort-tab-room:hover { background: var(--primary-light); color: var(--primary); }
 
 
 
@@ -777,7 +817,7 @@ a.sort-tab { text-decoration: none; display: inline-flex; align-items: center; }
 .category-badge.cat-confession { background: var(--macaron-pink-bg); color: var(--macaron-pink); }
 .category-badge.cat-school_info { background: var(--macaron-lilac-bg); color: var(--macaron-lilac); }
 .category-badge.cat-other { background: var(--bg-secondary); color: var(--text-secondary); }
-.cat-announcement { background: var(--accent); color: #fff; font-weight: 600; }
+.cat-announcement { background: var(--accent); color: var(--on-accent, #10161F); font-weight: 600; }
 
 
 .post-card-header .post-time {
@@ -1116,11 +1156,11 @@ a.sort-tab { text-decoration: none; display: inline-flex; align-items: center; }
   border: 1px solid transparent;
 }
 .btn:active { transform: scale(0.98); }
-.btn-primary { background: var(--primary); color: #fff; box-shadow: var(--shadow-sm); }
-.btn-primary:hover { background: var(--primary-hover); color: #fff; box-shadow: var(--shadow-md); }
+.btn-primary { background: var(--primary); color: var(--on-solid, #fff); box-shadow: var(--shadow-sm); }
+.btn-primary:hover { background: var(--primary-hover); color: var(--on-solid, #fff); box-shadow: var(--shadow-md); }
 .btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
 .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: var(--bg); }
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); color: var(--on-solid, #fff); }
 .btn-danger:hover { background: #B03A35; box-shadow: var(--shadow-sm); }
 .btn-sm { padding: 0.375rem 1rem; font-size: 0.8rem; min-height: 2.125rem; }
 .btn-lg { padding: 0.875rem 2rem; font-size: 1rem; min-height: 3.125rem; }
@@ -1147,7 +1187,7 @@ a.sort-tab { text-decoration: none; display: inline-flex; align-items: center; }
   height: 3.375rem;
   border-radius: var(--radius-full);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1179,7 +1219,7 @@ a.sort-tab { text-decoration: none; display: inline-flex; align-items: center; }
   transform: translateY(8px);
 }
 .back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
-.back-to-top:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.back-to-top:hover { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); }
 /* 图标跟随字号缩放（原为 SVG width/height 属性固定 20px） */
 .back-to-top svg { width: 1.25rem; height: 1.25rem; }
 
@@ -1336,7 +1376,9 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   pointer-events: auto;
   padding: 0.75rem 1.125rem;
   border-radius: var(--radius-sm);
-  color: #fff;
+  /* 前景色必须显式给定：一旦某个类型漏了背景规则，浏览器会把背景算成 transparent，
+     白字落在浅色页面上就等于「彻底看不见」（.toast-warning 曾长期如此）。 */
+  color: var(--toast-fg, #fff);
   font-size: 0.875rem;
   font-weight: 500;
   box-shadow: var(--shadow-md);
@@ -1349,11 +1391,17 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   overflow: hidden;
 }
 @keyframes toastSlideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
-.toast-success { background: var(--success); }
-.toast-error { background: var(--danger); }
+/* 四类提示条：**每一种都必须显式给出背景色**（含 warning）。
+   历史坑：只有 success/error/info 三条规则，type='warning' 的调用（如「请先登录」）
+   拿到的计算值是 background: rgba(0,0,0,0) + color: #fff —— 白字透明底，
+   在浅色页面上完全不可见，用户只能看到一个孤零零的警告图标。 */
+.toast-success { background: var(--toast-success, #1E7A4C); }
+.toast-warning { background: var(--toast-warning, #8A5A0B); }
+.toast-error   { background: var(--toast-danger,  #A9312B); }
+.toast-info    { background: var(--toast-info,    #1D5A9E); }
 
-.toast-info { background: var(--info); }
-.toast-progress { position: absolute; bottom: 0; left: 0; height: 0.1875rem; background: rgba(255,255,255,0.4); animation: toastProgress 3s linear forwards; }
+/* 底部进度条跟随前景色，明暗两套主题都清晰可见（原先是写死的白色，暗色下反而糊掉） */
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 0.1875rem; background: currentColor; opacity: 0.35; animation: toastProgress 3s linear forwards; }
 @keyframes toastProgress { from { width: 100%; } to { width: 0%; } }
 
 /* ---------- 徽章 ---------- */
@@ -1362,8 +1410,8 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .badge-warning { background: var(--warning-light); color: var(--warning); }
 .badge-danger { background: var(--danger-light); color: var(--danger); }
 .badge-info { background: var(--info-light); color: var(--info); }
-.badge-super { background: var(--accent); color: #fff; }
-.badge-admin { background: var(--primary); color: #fff; }
+.badge-super { background: var(--accent); color: var(--on-accent, #10161F); }
+.badge-admin { background: var(--primary); color: var(--on-solid, #fff); }
 .badge-user { background: var(--bg-secondary); color: var(--text-secondary); }
 
 .tag { display: inline-flex; align-items: center; padding: 2px 0.625rem; border-radius: var(--radius-full); font-size: 0.72rem; background: var(--bg-secondary); color: var(--text-secondary); white-space: nowrap; }
@@ -1389,7 +1437,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   top: var(--header-height);
   z-index: var(--z-ban);
   background: linear-gradient(90deg, var(--danger), #B03A35);
-  color: #fff;
+  color: var(--on-solid, #fff);
   padding: 0.5625rem var(--space-lg);
   display: flex;
   align-items: center;
@@ -1399,6 +1447,11 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   font-weight: 600;
   text-align: center;
   flex-wrap: wrap;
+}
+/* 暗色下 --danger 被提亮，终点 #B03A35 却仍是深红：白字在亮端只有 3.27、近黑字在暗端只有 3.03，
+   渐变横跨亮暗两端，怎么选都有一段不达标。改为亮阶窄渐变 + 近黑字，全程 ≥5.5:1。 */
+.dark-theme .ban-banner {
+  background: linear-gradient(90deg, var(--danger, #E06A64), #EE8B86);
 }
 .ban-countdown { font-weight: 700; background: rgba(0, 0, 0, 0.18); padding: 1px 0.625rem; border-radius: var(--radius-full); font-size: 0.8rem; }
 
@@ -1497,7 +1550,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .uc-input-wrapper { position: relative; }
 .uc-toggle-pw { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-secondary); }
 .uc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.625rem 1.375rem; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all var(--transition-fast); min-height: 2.5rem; border: 1px solid transparent; }
-.uc-btn-primary { background: var(--primary); color: #fff; box-shadow: var(--shadow-sm); }
+.uc-btn-primary { background: var(--primary); color: var(--on-solid, #fff); box-shadow: var(--shadow-sm); }
 .uc-btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-md); }
 .uc-btn-outline { background: transparent; border-color: var(--border); color: var(--text); }
 .uc-btn-outline:hover { border-color: var(--primary); color: var(--primary); }
@@ -1509,7 +1562,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .uc-2fa-steps, .twofa-steps { list-style: none; counter-reset: step; }
 .uc-2fa-step, .twofa-steps li { counter-increment: step; padding: var(--space-md) 0; padding-left: 2.75rem; position: relative; border-bottom: 1px solid var(--border-light); }
 .uc-2fa-step:last-child, .twofa-steps li:last-child { border-bottom: none; }
-.uc-2fa-step::before, .twofa-steps li::before { content: counter(step); position: absolute; left: 0; top: var(--space-md); width: 1.875rem; height: 1.875rem; background: var(--primary); color: #fff; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; }
+.uc-2fa-step::before, .twofa-steps li::before { content: counter(step); position: absolute; left: 0; top: var(--space-md); width: 1.875rem; height: 1.875rem; background: var(--primary); color: var(--on-solid, #fff); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; }
 .uc-2fa-step h4, .twofa-steps li h4 { font-size: 0.92rem; margin-bottom: 0.25rem; }
 .uc-2fa-step p, .twofa-steps li p { font-size: 0.8rem; color: var(--text-secondary); margin: 0; }.uc-qr-container{ display: flex; justify-content: center; padding: var(--space-lg); background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); margin: var(--space-md) 0; }.uc-qr-container img, .uc-qr-container canvas{ width: 11.875rem; height: 11.875rem; }.uc-recovery-grid{ display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; margin: var(--space-md) 0; }
 
@@ -1528,7 +1581,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .category-selector { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .cat-option { padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: 0.85rem; color: var(--text-secondary); background: var(--card-bg); cursor: pointer; transition: all var(--transition-fast); }
 .cat-option:hover { border-color: var(--primary); color: var(--primary); }
-.cat-option.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+.cat-option.active { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); font-weight: 600; }
 .form-textarea { min-height: 9.375rem; }
 
 .anon-toggle { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border-radius: var(--radius-sm); font-size: 0.9rem; cursor: pointer; }
@@ -1584,12 +1637,12 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .filter-btn { padding: 0.5rem 1rem; border: 1px solid var(--border); background: var(--card-bg); border-radius: var(--radius-full); font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast); }
 .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
-.filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filter-btn.active { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); }
 .filter-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 0.375rem; margin-top: 1.25rem; flex-wrap: wrap; }
 .pagination button, .pagination a { min-width: 2.375rem; height: 2.375rem; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); color: var(--text); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); }
 .pagination button:hover, .pagination a:hover { border-color: var(--primary); color: var(--primary); }
-.pagination button.active, .pagination a.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+.pagination button.active, .pagination a.active { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); font-weight: 600; }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* 权限设置 */
@@ -1605,7 +1658,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .perm-cb { appearance: none; -webkit-appearance: none; width: 1.25rem; height: 1.25rem; flex-shrink: 0; border: 2px solid var(--border); border-radius: 0.3125rem; background: var(--card-bg); cursor: pointer; position: relative; }
 .perm-cb:hover { border-color: var(--primary); }
 .perm-cb:checked { background: var(--primary); border-color: var(--primary); }
-.perm-cb:checked::after { content: ''; position: absolute; left: 0.3125rem; top: 2px; width: 0.375rem; height: 0.625rem; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.perm-cb:checked::after { content: ''; position: absolute; left: 0.3125rem; top: 2px; width: 0.375rem; height: 0.625rem; border: solid var(--on-solid, #fff); border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .perm-label-text { color: var(--text); }
 .perm-checkbox-item:has(input:checked) { background: var(--primary-light); }
 .perm-checkbox-item:has(input:checked) .perm-label-text { color: var(--primary); font-weight: 500; }
@@ -1703,7 +1756,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 
 /* 头像卡片 / 悬停卡片 / 长按菜单 (enhancements.js) */
 .follow-btn { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 1rem; border-radius: var(--radius-full); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all var(--transition); border: 1px solid var(--primary); background: transparent; color: var(--primary); }
-.follow-btn.following { background: var(--primary); color: #fff; }
+.follow-btn.following { background: var(--primary); color: var(--on-solid, #fff); }
 .follow-btn:not(.following):hover { background: var(--primary-light); }
 .follow-btn.following:hover { background: var(--primary-hover); }
 
@@ -1737,7 +1790,9 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .long-press-menu { position: absolute; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 500; overflow: hidden; padding: 0.375rem; }
 .long-press-menu-item { display: block; width: 100%; text-align: left; padding: 0.5625rem 0.875rem; font-size: 0.85rem; color: var(--text); border-radius: var(--radius-xs); }
 .long-press-menu-item:hover { background: var(--bg-secondary); }
-.long-press-tooltip { position: absolute; background: var(--text); color: #fff; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.7rem; z-index: 500; }
+/* 反白容器：浅色页面深底白字；暗色页面 --text 是近白，若继续用「--text 当底色 + #fff 文字」
+   就是白字白底（实测 1.22:1）＝ 完全看不见。故背景/前景都改走 --invert-* 成对令牌。 */
+.long-press-tooltip { position: absolute; background: var(--invert-bg, #2D3748); color: var(--invert-fg, #fff); padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.7rem; z-index: 500; }
 .double-click-heart { position: absolute; pointer-events: none; font-size: 3rem; animation: heartPop 0.6s ease forwards; }
 @keyframes heartPop { from { opacity: 1; transform: scale(0.6); } to { opacity: 0; transform: scale(1.6); } }
 
@@ -1750,7 +1805,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 
 /* 功能投票 */
 .feature-vote-btn { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1rem; border-radius: var(--radius-full); background: linear-gradient(135deg, var(--primary-light), #fff3d6); color: var(--primary); font-weight: 600; transition: all 0.2s; }
-.feature-vote-btn:hover { background: var(--primary); color: #fff; transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.feature-vote-btn:hover { background: var(--primary); color: var(--on-solid, #fff); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 .feature-vote-modal { width: 100%; max-width: 520px; display: flex; flex-direction: column; max-height: 80vh; }
 .feature-vote-modal .modal-body { display: flex; flex-direction: column; gap: 0.875rem; overflow-y: auto; }
 .fv-submit { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1766,7 +1821,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .fv-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1875rem; }
 .fv-vote-btn { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.375rem 0.625rem; border: 1px solid var(--border); border-radius: var(--radius-full); color: var(--text-secondary); font-size: 0.8rem; transition: all 0.2s; white-space: nowrap; }
 .fv-vote-btn:hover { border-color: var(--danger); color: var(--danger); }
-.fv-vote-btn.voted { background: var(--danger); border-color: var(--danger); color: #fff; }
+.fv-vote-btn.voted { background: var(--danger); border-color: var(--danger); color: var(--on-solid, #fff); }
 .fv-heart { font-size: 0.9rem; line-height: 1; }
 .fv-count { font-weight: 600; }
 @media (max-width: 480px) {
@@ -1775,8 +1830,15 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 
 /* 站内私信 */
 .pm-btn { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1rem; border-radius: var(--radius-full); background: linear-gradient(135deg, var(--primary-light), var(--card-bg)); color: var(--primary); font-weight: 600; transition: all 0.2s; }
-.pm-btn:hover { background: var(--primary); color: #fff; transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.pm-btn:hover { background: var(--primary); color: var(--on-solid, #fff); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 .pm-modal { width: 100%; max-width: 560px; display: flex; flex-direction: column; max-height: 82vh; height: min(38.75rem, 82vh); }
+/* 私信面板右上角「立即同步」：与关闭按钮同排，手动触发一次服务器拉取 */
+.pm-refresh { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: none; border-radius: 50%; background: transparent; color: var(--text-secondary); cursor: pointer; transition: background var(--transition-fast), color var(--transition-fast); }
+.pm-refresh:hover { background: var(--bg-secondary); color: var(--primary); }
+.pm-refresh.spinning { animation: pm-refresh-spin 0.8s linear infinite; color: var(--primary); }
+@keyframes pm-refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.pm-modal .modal-header { gap: 0.25rem; }
+.pm-modal .modal-header h3 { margin-right: auto; }
 .pm-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .pm-footer-tip { padding: 0.5rem 1rem; border-top: 1px solid var(--border-light); color: var(--text-muted); font-size: 0.72rem; text-align: center; flex-shrink: 0; background: var(--bg); border-radius: 0 0 var(--radius) var(--radius); }
 .pm-loading { text-align: center; color: var(--text-muted); padding: 2rem 0; }
@@ -1806,7 +1868,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .pm-session.unread .pm-session-name { font-weight: 700; color: var(--primary); }
 .pm-session.unread .pm-session-time { color: var(--primary); }
 .pm-session.unread .pm-preview-text { color: var(--text); font-weight: 500; }
-.pm-badge { min-width: 1.125rem; height: 1.125rem; padding: 0 0.3125rem; border-radius: 0.5625rem; background: var(--danger); color: #fff; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.pm-badge { min-width: 1.125rem; height: 1.125rem; padding: 0 0.3125rem; border-radius: 0.5625rem; background: var(--danger); color: var(--on-solid, #fff); font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .pm-view-contacts { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .pm-contacts-search { padding: 0.625rem 0.875rem; border-bottom: 1px solid var(--border-light); }
 .pm-contacts { flex: 1 1 auto; overflow-y: auto; min-height: 7.5rem; padding-bottom: 0.25rem; }
@@ -1818,7 +1880,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .pm-msg.me { align-self: flex-end; align-items: flex-end; }
 .pm-msg.them { align-self: flex-start; align-items: flex-start; }
 .pm-msg-bubble { padding: 0.5625rem 0.8125rem; border-radius: 0.875rem; font-size: 0.88rem; line-height: 1.5; word-break: break-word; }
-.pm-msg.me .pm-msg-bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 0.25rem; }
+.pm-msg.me .pm-msg-bubble { background: var(--primary); color: var(--on-solid, #fff); border-bottom-right-radius: 0.25rem; }
 .pm-msg.them .pm-msg-bubble { background: var(--bg-secondary); color: var(--text); border-bottom-left-radius: 0.25rem; }
 .pm-msg-time { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.1875rem; }
 .pm-chat-input { display: flex; align-items: flex-end; gap: 0.5rem; padding: 0.625rem 0.75rem; border-top: 1px solid var(--border-light); background: var(--card-bg); }
@@ -2017,7 +2079,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .related-posts-section { margin-top: 1.5rem; }
 .view-count-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-muted); }
 .reading-progress-bar { position: fixed; top: 0; left: 0; height: 0.1875rem; background: var(--accent); z-index: 9999; transition: width 0.1s linear; }
-.offline-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--danger); color: #fff; text-align: center; padding: 0.5rem; font-size: 0.82rem; z-index: 9999; }
+.offline-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--danger); color: var(--on-solid, #fff); text-align: center; padding: 0.5rem; font-size: 0.82rem; z-index: 9999; }
 
 /* 快捷键面板 */
 .shortcuts-panel-overlay { position: fixed; inset: 0; background: rgba(16, 24, 40, 0.5); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); padding: var(--space-md); }
@@ -2036,9 +2098,9 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .quick-reply-templates { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.375rem; }
 .quick-reply-btn { padding: 0.25rem 0.75rem; font-size: 0.78rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-full); color: var(--text-secondary); }
 .quick-reply-btn:hover { border-color: var(--primary); color: var(--primary); }
-.selection-share-popup { position: absolute; display: flex; gap: 2px; background: var(--text); border-radius: var(--radius-sm); padding: 0.25rem; z-index: 600; box-shadow: var(--shadow-md); }
-.sel-share-btn { padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #fff; border-radius: 0.25rem; }
-.sel-share-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.selection-share-popup { position: absolute; display: flex; gap: 2px; background: var(--invert-bg, #2D3748); border-radius: var(--radius-sm); padding: 0.25rem; z-index: 600; box-shadow: var(--shadow-md); }
+.sel-share-btn { padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--invert-fg, #fff); border-radius: 0.25rem; }
+.sel-share-btn:hover { background: var(--invert-hover, rgba(255, 255, 255, 0.16)); }
 .emoji-reaction-btn { padding: 0.25rem 0.625rem; border-radius: var(--radius-full); background: var(--bg-secondary); font-size: 0.85rem; color: var(--text-secondary); }
 .emoji-reaction-btn:hover { background: var(--primary-light); }
 .fullscreen-toggle-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-sm); color: var(--text-secondary); }
@@ -2069,7 +2131,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .uc-badge { display: inline-block; vertical-align: middle; padding: 2px 0.625rem; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 600; margin-left: 0.375rem; }
 .uc-badge-success { background: var(--success-light); color: var(--success); }
 .uc-badge-warning { background: var(--warning-light); color: var(--warning); }
-.uc-btn-danger { background: var(--danger); color: #fff; }
+.uc-btn-danger { background: var(--danger); color: var(--on-solid, #fff); }
 .uc-btn-danger:hover { background: #B03A35; }
 .uc-btn-sm { padding: 0.375rem 0.875rem; font-size: 0.8rem; min-height: 2.125rem; border-radius: var(--radius-xs); }
 .uc-manual-key { font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.82rem; color: var(--text-secondary); word-break: break-all; background: var(--bg-secondary); padding: 0.5rem 0.75rem; border-radius: var(--radius-xs); margin-top: 0.5rem; }
@@ -2093,7 +2155,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .uc-theme-label { font-size: 0.82rem; color: var(--text-secondary); }
 .uc-recovery-item { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; margin: 0.375rem 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-xs); font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.85rem; }
 .uc-recovery-item button, .uc-recovery-item .copy-btn { padding: 0.25rem 0.625rem; font-size: 0.72rem; color: var(--primary); border: 1px solid var(--primary); border-radius: var(--radius-xs); min-height: 1.625rem; transition: all var(--transition-fast); }
-.uc-recovery-item button:hover { background: var(--primary); color: #fff; }
+.uc-recovery-item button:hover { background: var(--primary); color: var(--on-solid, #fff); }
 .uc-data-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--border-light); }
 .uc-data-item:last-child { border-bottom: none; }
 .uc-data-main { flex: 1; min-width: 0; }
@@ -2184,7 +2246,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .mobile-nav-item.active { color: var(--primary); }
 .mobile-nav-item.active svg {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
   box-shadow: 0 8px 18px -8px rgba(47, 91, 154, 0.65);
 }
 .mobile-nav-item.active::after {
@@ -2320,7 +2382,13 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   --bg: #0F1520;
   --bg-secondary: #171E2B;
   --card-bg: rgba(27, 36, 52, 0.75);
+  /* 弹窗吸底按钮区实心兜底色（对应 :root 同名令牌，暗色下取与弹窗同色系的实心深底） */
+  --modal-solid-bg: #1B2434;
   --text: #E4E9F0;
+  --on-solid: #10161F;
+  --invert-bg: #E4E9F0;
+  --invert-fg: #10161F;
+  --invert-hover: rgba(0, 0, 0, 0.10);
   --text-secondary: #9AA7B8;
   /* 原 #6C7A8C 在 #0F1520 上仅 4.18:1，不达 WCAG AA 正文标准；调整为 5.3:1 */
   --text-muted: #7C8B9E;
@@ -2359,6 +2427,13 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   --danger-light: #331C1B;
   --info: #5C9BE0;
   --info-light: #182837;
+  /* 提示条：暗色主题改用亮阶实底 + 近黑文字（亮底深字在暗色页面里更好读，
+     也避免深底提示条在深色背景上糊成一团）。对比度 5.6~7.8:1。 */
+  --toast-fg: #10161F;
+  --toast-success: #4CAF7D;
+  --toast-warning: #D0A24C;
+  --toast-danger: #E06A64;
+  --toast-info: #5C9BE0;
   /* 暗色玻璃令牌：深色半透明底 + 极淡白色描边 */
   --glass-bg: rgba(27, 36, 52, 0.75);
   --glass-bg-soft: rgba(15, 21, 32, 0.65);
@@ -2708,7 +2783,7 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .poll-vote-btn {
   padding: 0.375rem 1.125rem;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
   border: none;
   border-radius: 1rem;
   font-size: 0.82rem;
@@ -2883,7 +2958,7 @@ button, a, select, textarea, .dropdown-item, .action-btn, .mobile-nav-item, .fab
     margin: 0 0.1875rem;
     justify-content: center;
     background: var(--primary);
-    color: #fff;
+    color: var(--on-solid, #fff);
     border-radius: 50%;
     transform: translateY(-14px);
     box-shadow: 0 10px 20px -8px rgba(47, 91, 154, 0.7);
@@ -2896,7 +2971,7 @@ button, a, select, textarea, .dropdown-item, .action-btn, .mobile-nav-item, .fab
     box-shadow: none;
   }
   .mobile-nav-item--compose.active,
-  .mobile-nav-item--compose:active { background: var(--primary-hover); color: #fff; }
+  .mobile-nav-item--compose:active { background: var(--primary-hover); color: var(--on-solid, #fff); }
   /* 发帖键自带圆形主色底，不需要激活圆点/药丸底 */
   .mobile-nav-item--compose::after { display: none; }
 
@@ -3054,7 +3129,7 @@ button, a, select, textarea, .dropdown-item, .action-btn, .mobile-nav-item, .fab
   z-index: 9999;
   padding: 0.75rem 1.25rem;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
@@ -3186,7 +3261,7 @@ button, a, select, textarea, .dropdown-item, .action-btn, .mobile-nav-item, .fab
 .gw-tabs { display: flex; gap: 6px; margin-top: 18px; flex-wrap: wrap; }
 .gw-tab { padding: 7px 15px; border-radius: 999px; font-size: 13.5px; cursor: pointer; border: 1px solid var(--border, #E9EEF4); background: var(--card-bg, #fff); color: var(--text-secondary); transition: all .18s ease; }
 .gw-tab:hover { border-color: var(--primary, #2F5B9A); color: var(--primary, #2F5B9A); }
-.gw-tab.active { background: var(--primary, #2F5B9A); border-color: var(--primary, #2F5B9A); color: #fff; }
+.gw-tab.active { background: var(--primary, #2F5B9A); border-color: var(--primary, #2F5B9A); color: var(--on-solid, #fff); }
 
 /* ---------- 交互细节打磨 ---------- */
 
@@ -3623,4 +3698,30 @@ a:focus-visible { outline-offset: 3px; }
 /* ---------- 12. Toast 出现位置避开键盘弹起区域 ---------- */
 @media (max-width: 768px) {
   .toast-container { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+
+
+/* ============================================================================
+ * 公告滚动条的「减少动画」豁免（2026-10-18）
+ * ----------------------------------------------------------------------------
+ * 系统开了「减少动态效果」（不少手机默认开）时，全站动效被关掉是对的 ——
+ * 但公告这一条不一样：它承载的是**信息**，不是装饰。
+ * 关掉之后那行字就静止停在左边，长一点的公告直接被截断看不见。
+ * 所以这里单独豁免，并且在 JS 侧还有「鼠标悬停/触摸暂停」的保护。
+ * ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  /* 必须逐条覆盖 animation-*，不能只写 animation 简写：
+     全站有一条通配规则把 animation-duration 压到 .001ms 且带 !important，
+     简写里的 duration 会被它按层叠顺序吃掉（实测滚动直接停住）。
+     这里用三级选择器 + 逐属性 !important，特异性稳稳高于通配符。 */
+  html body .announcement-scroll {
+    animation-name: announcementScroll !important;
+    animation-duration: 26s !important;
+    animation-timing-function: linear !important;
+    animation-iteration-count: infinite !important;
+    animation-play-state: running !important;
+  }
+  html body .announcement-scroll:hover {
+    animation-play-state: paused !important;
+  }
 }

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/fields.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('请求方法不允许', 405);
@@ -65,7 +66,9 @@ if ($action === 'my') {
     usort($list, function ($a, $b) {
         return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
-    jsonSuccess($list);
+    // 字段投影（E14）：不传 fields 时与改造前完全一致。
+    jsonSuccess(lwProjectRows($list, lwFieldsRequest(),
+        ['id', 'user_id', 'qq', 'nickname', 'title_text', 'reason', 'status', 'created_at'], ['id']));
 }
 
 jsonError('未知操作');

@@ -274,7 +274,7 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
 
         .btn-primary {
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border-radius: var(--radius-full);
             box-shadow: 0 4px 14px rgba(47, 91, 154, 0.28);
         }

@@ -192,8 +192,8 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
             bottom: 1.875rem;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--text);
-            color: var(--text-inverse);
+            background: var(--invert-bg, #2D3748);
+            color: var(--invert-fg, #fff);
             padding: 0.625rem 1.375rem;
             border-radius: var(--radius-sm);
             font-size: 0.85rem;

@@ -54,6 +54,7 @@
       trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
       expand: '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>',
       send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+      image: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
       link: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
       gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
     };
@@ -98,6 +99,20 @@
       if (new URL(decoded, global.location.origin).origin !== global.location.origin) { return null; }
     } catch (e) { return null; }
     return decoded;
+  }
+
+  /**
+   * 图片地址白名单：只允许本站 AI 上传目录下的相对路径（/uploads/ai/…）。
+   * 拒绝协议、外链、//、.. 与控制字符，避免把用户图片渲染成可被劫持的外链。
+   */
+  function safeImgSrc(raw) {
+    if (typeof raw !== 'string') { return null; }
+    var src = raw.trim();
+    if (src.length > 300) { return null; }
+    if (/[\s\u0000-\u001f\\]/.test(src)) { return null; }
+    if (src.indexOf('..') !== -1) { return null; }
+    if (!/^\/uploads\/ai\/[A-Za-z0-9_\-]+\.(jpg|jpeg|png|gif|webp)$/i.test(src)) { return null; }
+    return src;
   }
 
   /**
@@ -624,6 +639,14 @@
       quick: ui.quick || null
     };
 
+    // ---- 多模态附件（图片）状态 ----
+    var multimodal = opt.multimodal !== false;   // 默认开启；离线/纯文本场景可 opt.multimodal=false 关掉
+    var pendingImages = [];                       // 已上传成功、待随下一条消息发送的图片
+    var uploading = 0;                            // 正在进行中的上传数量
+    var elFile = null;                            // 隐藏的 <input type=file>
+    var elAttach = null;                          // 回形针按钮
+    var elPreview = null;                         // 待发送图片预览条
+
     function scrollBottom() {
       if (el.msgs) { el.msgs.scrollTop = el.msgs.scrollHeight; }
     }
@@ -648,14 +671,123 @@
       }, 4000);
     }
 
-    function appendUser(text) {
+    /** 插入图片预览条 / 上传按钮相关函数 */
+    function insertAttachment() {
+      if (multimodal) {
+        elAttach = document.createElement('button');
+        elAttach.type = 'button';
+        elAttach.className = 'lw-ai-attach';
+        elAttach.title = '上传图片（可多选）';
+        elAttach.setAttribute('aria-label', '上传图片');
+        elAttach.innerHTML = icon('image');
+        if (el.form) {
+          var ref = (el.input && el.input.parentNode === el.form) ? el.input : el.form.firstChild;
+          el.form.insertBefore(elAttach, ref);
+        }
+        elFile = document.createElement('input');
+        elFile.type = 'file';
+        elFile.accept = 'image/jpeg,image/png,image/gif,image/webp';
+        elFile.multiple = true;
+        elFile.style.display = 'none';
+        document.body.appendChild(elFile);
+        elAttach.addEventListener('click', function () { elFile.click(); });
+        elFile.addEventListener('change', function () {
+          var files = Array.prototype.slice.call(elFile.files || []);
+          files.forEach(uploadFile);
+          elFile.value = '';
+        });
+      }
+    }
+
+    function uploadFile(file) {
+      if (!file || uploading >= 3) { return; }
+      uploading++;
+      var fd = new FormData();
+      fd.append('image', file);
+      fd.append('csrf_token', csrfToken());
+      respFetch('/api/ai_upload.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      }).then(function (res) {
+        return res.json().catch(function () { return null; });
+      }).then(function (d) {
+        uploading--;
+        if (d && d.success === true && d.data && d.data.url) {
+          pendingImages.push(d.data.url);
+          renderPreview();
+        } else {
+          notify((d && d.message) || '图片上传失败');
+        }
+      }).catch(function () { uploading--; notify('图片上传失败，请稍后重试'); });
+    }
+
+    function renderPreview() {
+      if (!elPreview) { return; }
+      elPreview.innerHTML = '';
+      if (!pendingImages.length) { elPreview.style.display = 'none'; return; }
+      elPreview.style.display = 'flex';
+      pendingImages.forEach(function (src, idx) {
+        var url = safeImgSrc(src);
+        if (!url) { return; }
+        var item = document.createElement('div');
+        item.className = 'lw-ai-preview-item';
+        var im = document.createElement('img');
+        im.src = url;
+        im.alt = '待发送图片';
+        item.appendChild(im);
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'lw-ai-preview-x';
+        x.textContent = '×';
+        x.addEventListener('click', function () {
+          pendingImages.splice(idx, 1);
+          renderPreview();
+        });
+        item.appendChild(x);
+        elPreview.appendChild(item);
+      });
+    }
+
+    if (multimodal && el.form && el.form.parentNode) {
+      elPreview = document.createElement('div');
+      elPreview.className = 'lw-ai-preview';
+      elPreview.style.display = 'none';
+      el.form.parentNode.insertBefore(elPreview, el.form);
+      insertAttachment();
+    }
+
+    function appendUser(text, images) {
       hideWelcome();
       var row = document.createElement('div');
       row.className = 'lw-ai-msg lw-ai-msg--user';
-      var bubble = document.createElement('div');
-      bubble.className = 'lw-ai-bubble';
-      bubble.textContent = text;
-      row.appendChild(bubble);
+      if (images && images.length) {
+        var grid = document.createElement('div');
+        grid.className = 'lw-ai-msg-imgs';
+        images.forEach(function (src) {
+          var url = safeImgSrc(src);
+          if (!url) { return; }
+          var a = document.createElement('a');
+          a.className = 'lw-ai-msg-img';
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          var im = document.createElement('img');
+          im.src = url;
+          im.alt = '用户上传的图片';
+          im.loading = 'lazy';
+          a.appendChild(im);
+          grid.appendChild(a);
+        });
+        if (grid.childNodes.length) { row.appendChild(grid); }
+      }
+      if (String(text || '').trim() !== '' && text !== '[用户上传了图片]') {
+        var bubble = document.createElement('div');
+        bubble.className = 'lw-ai-bubble';
+        bubble.textContent = text;
+        row.appendChild(bubble);
+      }
       el.msgs.appendChild(row);
       scrollBottom();
       return row;
@@ -1049,18 +1181,22 @@
       });
     }
 
-    function send(text) {
+    function send(text, imgs) {
       text = String(text || '').trim();
-      if (busy || text === '') { return; }
+      var images = (imgs || pendingImages || []).filter(function (u) { return !!safeImgSrc(u); });
+      if (busy || uploading > 0) { return; }
+      if (text === '' && !images.length) { return; }
       busy = true;
       if (el.send) { el.send.disabled = true; }
 
-      appendUser(text);
+      appendUser(text, images);
       if (el.input) {
         el.input.value = '';
         autoGrow();
       }
-      messages.push({ role: 'user', content: text });
+      messages.push({ role: 'user', content: text, images: images });
+      pendingImages = [];
+      renderPreview();
       var history = trimMessages(messages).slice(-MAX_MSGS);
       saveHistory(messages, '');
       showTyping();
@@ -1143,7 +1279,7 @@
       hideWelcome();
       messages.forEach(function (m) {
         if (m.role === 'user') {
-          appendUser(m.content);
+          appendUser(m.content, m.images);
         } else {
           appendAi(renderText(m.content));
         }
@@ -1209,7 +1345,10 @@
           el.quick.appendChild(b);
         });
       },
-      showGate: showGate
+      showGate: showGate,
+      attachImage: function (file) { if (multimodal) { uploadFile(file); } },
+      pendingImages: function () { return pendingImages.slice(); },
+      isMultimodal: function () { return multimodal; }
     };
     return instance;
   }

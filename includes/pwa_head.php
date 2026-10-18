@@ -62,7 +62,11 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
     <link rel="dns-prefetch" href="https://q.qlogo.cn">
     <link rel="dns-prefetch" href="https://v1.hitokoto.cn">
 
-    <link rel="manifest" href="/manifest.webmanifest">
+    <?php /* manifest 用 .css 后缀：主机商的反爬挑战按扩展名白名单放行（.css/.png 直通，
+             .webmanifest 会被塞回 200 + HTML 挑战页），而浏览器取 manifest 是不带凭据的
+             请求，必然撞上挑战页 → 控制台报 Syntax error 且 PWA 不可安装。
+             内容仍是 JSON，浏览器不校验 MIME 只校验 body，详见 .htaccess 同名说明。 */ ?>
+    <link rel="manifest" href="/manifest.css">
     <meta name="theme-color" content="#2F5B9A">
     <meta name="color-scheme" content="light dark">
 
@@ -71,11 +75,21 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
         *,*::before,*::after{box-sizing:border-box}
         html,body{margin:0;padding:0;background:#f4f6fb;color:#1f2733;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
         body{min-height:100vh;-webkit-text-size-adjust:100%}
+        /* 图片通用防溢出。
+           ⚠️ 必须排除「有尺寸契约的组件图」：这条 `height:auto` 会强行覆盖
+           .lw-av-img 的 88% 高度，在固定方形的头像槽位里把照片压成扁条，
+           看起来就是"头像框里只剩几根线和下面一个圆圈"。
+           :not([class*=lw-]) 把头像复合件、挂件层全部放行。 */
         img{max-width:100%;height:auto}
+        img[class*="lw-av"], img[class*="lw-widget"], img[class*="lw-avatar"]{height:revert;max-width:none}
         .container{max-width:960px;margin:0 auto;padding:0 14px}
         .top-bar{height:56px;display:flex;align-items:center}
         .btn{padding:8px 16px;border-radius:10px}
     </style>
+    <?php // 布局自适应令牌（需求三、5）：必须早于主题样式，先铺 @media 断点再谈配色 ?>
+    <?php require_once __DIR__ . '/layout_tokens.php'; ?>
+    <?php // 低配设备降级层（需求三、7）：越早越好，避免先按满血样式画一帧再掉回去 ?>
+    <?php require_once __DIR__ . '/lowperf.php'; ?>
     <script>window.LW_SERVER_THEME = <?= json_encode($lwServerTheme) ?>;</script>
 <?php require_once __DIR__ . '/theme_boot.php'; ?>
     <!-- 主屏应用：全屏运行 + 图标 + 名称 -->
@@ -139,6 +153,30 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
     <link rel="preload" href="<?= $lwPolishCssUrl ?>?v=<?= $lwPolishCssVer ?>" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="<?= $lwPolishCssUrl ?>?v=<?= $lwPolishCssVer ?>"></noscript>
     <script src="<?= $lwPolishJsUrl ?>?v=<?= $lwPolishJsVer ?>" defer></script>
+    <?php
+    // ── 全局液态玻璃（liquid-glass）───────────────────────────────────────
+    // 独立作用域样式 + Canvas 流体引擎。非首屏必需，异步加载；
+    // 总开关默认开启，用户可在个人中心关闭（自动回退 MIUIX 主题）。
+    $lwLgCssUrl = function_exists('asset_url') ? asset_url('/assets/css/liquid-glass.css') : '/assets/css/liquid-glass.css';
+    $lwLgCssVer = function_exists('asset_ver') ? asset_ver('/assets/css/liquid-glass.css') : '1';
+    $lwLgJsUrl  = function_exists('asset_url') ? asset_url('/assets/js/liquid-glass.js') : '/assets/js/liquid-glass.js';
+    $lwLgJsVer  = function_exists('asset_ver') ? asset_ver('/assets/js/liquid-glass.js') : '1';
+    ?>
+    <link rel="preload" href="<?= $lwLgCssUrl ?>?v=<?= $lwLgCssVer ?>" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="<?= $lwLgCssUrl ?>?v=<?= $lwLgCssVer ?>"></noscript>
+    <script src="<?= $lwLgJsUrl ?>?v=<?= $lwLgJsVer ?>" defer></script>
+    <?php
+    // ── 本地加密持久化（需求二、7）─────────────────────────────────────────
+    // 必须在 main.js 之前执行：main.js 里的偏好读取走 window.LWStorage。
+    // 非 defer：要尽早定义 LWStorage；它本身很轻（纯函数 + 懒派生密钥）。
+    ?>
+    <script src="<?= function_exists('asset_url') ? asset_url('/assets/js/lw_storage.js') : '/assets/js/lw_storage.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/assets/js/lw_storage.js') : '1' ?>"></script>
+    <?php
+    // ── 全局运行时报错捕获（需求四、2）────────────────────────────────────
+    // 必须最先加载（非 defer）：要赶在任何业务脚本之前挂上监听，
+    // 否则首屏早于它的报错会漏记。探针用 window.__lwErrors 断言。
+    ?>
+    <script src="<?= function_exists('asset_url') ? asset_url('/assets/js/lw_errorguard.js') : '/assets/js/lw_errorguard.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/assets/js/lw_errorguard.js') : '1' ?>"></script>
     <?php // F17 反调试探针（轻量、非阻断）：全站引入，与构建脚本 --obfuscate 的反篡改哨兵呼应。 ?>
     <script src="<?= function_exists('asset_url') ? asset_url('/assets/js/anti_debug.js') : '/assets/js/anti_debug.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/assets/js/anti_debug.js') : '1' ?>" defer></script>
     <?php endif; ?>

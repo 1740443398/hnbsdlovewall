@@ -50,7 +50,7 @@ $user = function_exists('getCurrentUser') ? getCurrentUser() : null;
         .admin-link {
             display: inline-block; margin-top: 24px; padding: 12px 32px;
             background: var(--primary);
-            color: #fff; text-decoration: none; border-radius: 9999px;
+            color: var(--on-solid, #fff); text-decoration: none; border-radius: 9999px;
             font-weight: 600;
         }
         .admin-link:hover { opacity: 0.9; }

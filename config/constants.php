@@ -1,9 +1,27 @@
 <?php
 define('SITE_NAME', '淮南北师大实验中学高中部校园交流墙');
+// 预期访问域名白名单：浏览器地址栏域名必须在此名单内才视为本平台，否则可能被 DNS 劫持/仿冒站
+// 线上主站 https://hnbsd.ct.ws，另放行本地开发 127.0.0.1 / localhost（含各端口）
+// 注意：必须定义在 SITE_URL 之前 —— SITE_URL 要用它做 Host 头校验。
+define('EXPECTED_HOSTS', ['hnbsd.ct.ws', 'www.hnbsd.ct.ws', '127.0.0.1', 'localhost']);
+define('CANONICAL_HOST', 'hnbsd.ct.ws');
+
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
              (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
              (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https' : 'http';
-define('SITE_URL', $protocol . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+
+// Host 头完全由客户端控制，直接拿它拼 SITE_URL 就是典型的 Host 头注入：
+// 攻击者伪造 Host 后，找回密码邮件里的链接、canonical / og:url / sitemap 里的地址
+// 都会指向他的域名（密码重置劫持 + 搜索引擎污染）。
+// 因此只信任白名单内的 Host（比对前先剥掉端口，本地开发是 localhost:8899 这种），
+// 不在名单内一律回退到线上主域，绝不把外部输入写进绝对链接。
+$__host     = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+$__hostOnly = preg_replace('/:\d+$/', '', $__host);
+if ($__hostOnly === '' || !in_array($__hostOnly, array_map('strtolower', EXPECTED_HOSTS), true)) {
+    $__host = CANONICAL_HOST;
+}
+define('SITE_URL', $protocol . '://' . $__host);
+unset($__host, $__hostOnly);
 define('BASE_PATH', __DIR__ . '/..');
 define('UPLOAD_DIR', BASE_PATH . '/uploads');
 define('UPLOAD_IMAGES_DIR', UPLOAD_DIR . '/images');
@@ -24,9 +42,7 @@ define('ITEMS_PER_PAGE', 20);
 // 游客模式：未注册访客可浏览的动态条数上限，其余功能需注册账号
 define('GUEST_VISIBLE_POSTS', 3);
 
-// 预期访问域名白名单：浏览器地址栏域名必须在此名单内才视为本平台，否则可能被 DNS 劫持/仿冒站
-// 线上主站 https://hnbsd.ct.ws，另放行本地开发 127.0.0.1 / localhost（含各端口）
-define('EXPECTED_HOSTS', ['hnbsd.ct.ws', 'www.hnbsd.ct.ws', '127.0.0.1', 'localhost']);
+// （EXPECTED_HOSTS 已在文件开头定义，SITE_URL 的 Host 头校验需要它）
 
 // GitHub 开源仓库地址
 define('GITHUB_REPO_URL', 'https://github.com/1740443398/hnbsdlovewall');

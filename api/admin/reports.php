@@ -15,7 +15,10 @@ if ($action === 'list') {
     if (!checkPermission($admin, 'view_reports')) {
         jsonError('无权限查看举报', 403);
     }
-    $type = $_REQUEST['type'] === 'post' ? 'post' : 'pm';
+    // 必须给默认值：这里原先直接读 $_REQUEST['type']，未带该参数时 PHP 会抛
+    // 「Warning: Undefined array key "type"」——接口照常返回，但每次调用都在
+    // 日志里刷一条噪音（页面巡检实测命中）。同文件其它参数都写了 ??，补齐一致性。
+    $type = ($_REQUEST['type'] ?? '') === 'post' ? 'post' : 'pm';
     $page = max(1, intval($_REQUEST['page'] ?? 1));
     $limit = 15;
     $keyword = sanitizeInput($_REQUEST['keyword'] ?? '');
@@ -88,7 +91,7 @@ if ($action === 'delete') {
     if (!checkPermission($admin, 'manage_reports')) {
         jsonError('无权限删除举报', 403);
     }
-    $type = $_POST['type'] === 'post' ? 'post' : 'pm';
+    $type = ($_POST['type'] ?? '') === 'post' ? 'post' : 'pm';
     $id = intval($_POST['id'] ?? 0);
     if (!$id) {
         jsonError('举报ID无效');

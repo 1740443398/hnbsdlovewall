@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/fields.php';
+// 评论要带 author_frame（头像框），lwUserDecorBundle 在 widget_render.php 里
+require_once __DIR__ . '/../../includes/widget_render.php';
 
 $postId = intval($_REQUEST['id'] ?? 0);
 if (!$postId) {
@@ -103,6 +106,9 @@ if (!$preview) {
     foreach ($comments as $c) {
         $cIsAnonymous = !empty($c['is_anonymous']);
         $cUser = $cIsAnonymous ? null : ($userIndex[(int)$c['user_id']] ?? null);
+        // 评论头像框：前端 commentFrameHtml() 依赖这个字段画框。
+        // 之前不返回它，导致「同一个人在首页有框、评论区没框」。
+        $cDecor = (!$cIsAnonymous && $cUser) ? lwUserDecorBundle((int)$c['user_id']) : ['frame' => null];
         $commentList[] = [
             'id' => $c['id'],
             'content' => $c['content'],
@@ -110,12 +116,23 @@ if (!$preview) {
             'is_anonymous' => $cIsAnonymous,
             'author_nickname' => $cIsAnonymous ? '匿名用户' : ($cUser['nickname'] ?? ''),
             'author_avatar' => $cIsAnonymous ? '/assets/images/default-avatar.svg' : ($cUser['avatar'] ?? ''),
+            'author_frame' => $cDecor['frame'] ?? null,
             'created_at' => $c['created_at'],
             'is_author' => $user && $user['id'] == $c['user_id']
         ];
     }
 
-    $payload['comments'] = $commentList;
+    // 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+    $payload['comments'] = lwProjectRows($commentList, lwFieldsRequest(),
+        ['id', 'content', 'parent_id', 'is_anonymous', 'author_nickname',
+         'author_avatar', 'author_frame', 'created_at', 'is_author'], ['id']);
 }
 
-jsonSuccess($payload);
+// post 本体是单个对象，走 lwProjectRow（同样是「不传即原样」）。
+$payload['post'] = lwProjectRow($payload['post'], lwFieldsRequest(),
+    ['id', 'category', 'title', 'content', 'images', 'is_anonymous',
+     'author_nickname', 'author_avatar', 'author_title_text', 'author_title_color',
+     'author_title_bg_color', 'author_title_rainbow', 'author_title_gradient_start',
+     'author_title_gradient_end', 'is_author', 'likes', 'comments', 'is_liked',
+     'is_favorited', 'created_at', 'status'], ['id']);
+jsonSuccess(lwProjectTop($payload, lwTopRequest(), ['post', 'comments']));

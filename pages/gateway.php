@@ -109,7 +109,7 @@ a:hover { text-decoration: underline; }
   width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-solid, #fff);
 }
 .nav-links { display: flex; align-items: center; gap: 6px; }
 .nav-links a { font-size: 14px; color: var(--text-secondary); padding: 8px 12px; border-radius: 10px; font-weight: 500; }
@@ -124,7 +124,7 @@ a:hover { text-decoration: underline; }
   font-size: 15px; font-weight: 600; cursor: pointer;
   font-family: inherit; text-decoration: none; transition: all var(--transition);
 }
-.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 14px rgba(47,91,154,0.28); }
+.btn-primary { background: var(--primary); color: var(--on-solid, #fff); box-shadow: 0 4px 14px rgba(47,91,154,0.28); }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(47,91,154,0.36); text-decoration: none; color: #fff; }
 .btn-ghost { background: rgba(255,255,255,0.7); color: var(--text); border: 1px solid var(--border); }
 .btn-ghost:hover { border-color: var(--primary); color: var(--primary); background: #fff; text-decoration: none; }

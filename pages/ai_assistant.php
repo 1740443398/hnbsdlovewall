@@ -115,7 +115,7 @@ $aiWidgetMode = 'off';
         .ai-header h1 .ai-badge {
             font-size: 0.7rem;
             font-weight: 600;
-            color: #fff;
+            color: var(--on-accent, #10161F);
             background: var(--accent);
             border-radius: var(--radius-full);
             padding: 0.1875rem 0.625rem;

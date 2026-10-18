@@ -276,7 +276,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         }
         .t-btn-primary {
             background: var(--primary);
-            color: var(--text-inverse);
+            color: var(--on-solid, #fff);
             box-shadow: 0 2px 8px rgba(74, 144, 217, 0.3);
         }
         .t-btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4); }
@@ -288,7 +288,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         .t-btn-secondary:hover { background: var(--border); }
         .t-btn-danger {
             background: var(--danger);
-            color: var(--text-inverse);
+            color: var(--on-solid, #fff);
         }
         .t-btn-danger:hover { background: var(--accent-pink-dark); }
         .t-btn-sm { padding: 0.3125rem 0.75rem; font-size: 0.8rem; border-radius: 0.375rem; }
@@ -412,11 +412,11 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         }
         .calc-btn:hover { background: var(--bg-secondary); }
         .calc-btn.operator { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
-        .calc-btn.operator:hover { background: var(--primary); color: var(--text-inverse); }
-        .calc-btn.equals { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
+        .calc-btn.operator:hover { background: var(--primary); color: var(--on-solid, #fff); }
+        .calc-btn.equals { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); }
         .calc-btn.equals:hover { background: var(--primary-hover); }
         .calc-btn.clear { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
-        .calc-btn.clear:hover { background: var(--danger); color: var(--text-inverse); }
+        .calc-btn.clear:hover { background: var(--danger); color: var(--on-solid, #fff); }
         .calc-btn.span2 { grid-column: span 2; }
 
         /* Color picker */
@@ -463,7 +463,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
             font-family: inherit;
             transition: all var(--transition-fast);
         }
-        .password-display .copy-btn:hover { background: var(--primary); color: var(--text-inverse); }
+        .password-display .copy-btn:hover { background: var(--primary); color: var(--on-solid, #fff); }
         input[type="range"] { width: 100%; accent-color: var(--primary); }
 
         /* Coin */
@@ -489,7 +489,8 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
             display: flex; align-items: center; justify-content: center;
             font-size: 2.2rem; font-weight: 700;
         }
-        .coin-front { background: linear-gradient(135deg, #f9ca24, #e1b12c); color: #fff; }
+        /* 金币正面是写死的金色渐变，白字只有 1.56/1.99:1（近乎隐形）→ 改亮底墨字（11.67/9.10） */
+        .coin-front { background: linear-gradient(135deg, #f9ca24, #e1b12c); color: var(--on-accent, #10161F); }
         .coin-back { background: linear-gradient(135deg, #636e72, #2d3436); color: #fff; transform: rotateY(180deg); }
         .coin-result { text-align: center; font-size: 1.1rem; margin-top: 0.5rem; color: var(--text); font-weight: 500; }
 
@@ -498,7 +499,8 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         .dice-face {
             width: 6.875rem; height: 6.875rem;
             margin: 0 auto;
-            background: linear-gradient(135deg, #ff6b6b, #c0392b);
+            /* 原 #ff6b6b→#c0392b 的白字只有 2.78/5.44:1（亮端不达标）→ 压深到 4.98/6.57:1 */
+            background: linear-gradient(135deg, #d32f2f, #b71c1c);
             border-radius: var(--radius);
             display: flex; align-items: center; justify-content: center;
             font-size: 3rem;
@@ -581,7 +583,12 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
             height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-dark));
             border-radius: var(--radius-sm); transition: width 0.5s ease;
             display: flex; align-items: center; padding-left: 0.625rem;
-            font-size: 0.8rem; font-weight: 600; color: var(--text-inverse);
+            font-size: 0.8rem; font-weight: 600; color: var(--on-solid, #fff);
+        }
+        /* 暗色主题：--primary 是提亮的亮阶、--primary-dark 又偏暗，渐变两端一个配白字(3.48)
+           一个配近黑字(3.08)，怎么选都有一段不达标。改为亮阶窄渐变 + 近黑字，全程 ≥5.2:1。 */
+        .dark-theme .vote-bar {
+            background: linear-gradient(90deg, var(--primary, #5B8CC9), var(--primary-hover, #6E9AD3));
         }
         .vote-count { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
 
@@ -751,7 +758,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         /* Toast */
         .t-toast {
             position: fixed; bottom: 1.875rem; left: 50%; transform: translateX(-50%);
-            background: var(--text); color: var(--text-inverse);
+            background: var(--invert-bg, #2D3748); color: var(--invert-fg, #fff);
             padding: 0.625rem 1.375rem; border-radius: var(--radius-sm);
             font-size: 0.85rem; z-index: 9999;
             animation: toastIn 0.3s ease, toastOut 0.3s ease 1.7s forwards;

@@ -41,7 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // PRG（Post-Redirect-Get）：保存后 302 回本页。
         // 直接在 POST 响应里渲染页面的话，用户按 F5 会被浏览器拦下问「要重新提交表单吗」，
         // 体验上很像「表单没提交成功」。重定向后刷新就是一次干净的 GET。
-        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?saved=1');
+        // REQUEST_URI 由客户端提供，理论上可夹带 %0d%0a。PHP 7+ 的 header() 自身会拒收
+        // CRLF，且这里拼的是相对路径（不构成开放重定向），但按纵深防御仍只取 path 并
+        // 剥掉控制字符，取不到时回退到脚本自身路径。
+        $self = str_replace(["\r", "\n", "\0"], '', (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+        header('Location: ' . ($self !== '' ? $self : '/admin/checkin_rules.php') . '?saved=1');
         exit;
     }
 }

@@ -47,7 +47,7 @@
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  color: #fff;
+  color: var(--on-solid, #fff);
   background: linear-gradient(135deg, var(--primary, #2F5B9A), var(--primary-dark, #1E3A63));
   box-shadow: 0 6px 18px -6px rgba(47, 91, 154, .65);
   display: grid;
@@ -63,6 +63,17 @@
 .lw-fab.is-open .lw-fab-btn svg { transform: rotate(135deg); }   /* ＋ → × */
 .lw-fab-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(47, 91, 154, .8); }
 .lw-fab-btn:active { transform: scale(.94); }
+
+/* 暗色主题下 --primary 是被「提亮」的亮阶（充当深底上的前景色），拿它当按钮实底时：
+   白字只有 3.48:1、而渐变终点 --primary-dark(#3E6698) 配近黑字又只有 3.08:1 ——
+   渐变横跨亮暗两端，无论选白字还是近黑字都必有一段不达标。故暗色改为「平涂亮阶 + 近黑字」
+   （5.22:1），与全站 .btn-primary 的语义色实底规则保持一致；悬停仍走高亮一档（6.25:1）。
+   注意本块必须排在 .lw-fab-item--primary 的 :hover 规则之前，同特异性下让 :hover 生效。 */
+.dark-theme .lw-fab-btn,
+.dark-theme .lw-fab-item--primary {
+  background: var(--primary, #5B8CC9);
+  color: var(--on-solid, #10161F);
+}
 
 .lw-fab-menu {
   display: flex;
@@ -109,16 +120,16 @@
 .lw-fab-item[hidden] { display: none; }
 .lw-fab-item:hover { background: var(--primary-light, #E7EEF7); transform: translateX(-2px); }
 .lw-fab-item:active { transform: scale(.96); }
-/* 主操作（发帖）：主色实底 + 白字，一眼可辨 */
+/* 主操作（发帖）：主色实底 + --on-solid 前景，一眼可辨（暗色由上面的 .dark-theme 覆盖接管） */
 .lw-fab-item--primary {
   border-color: transparent;
   background: linear-gradient(135deg, var(--primary, #2F5B9A), var(--primary-dark, #1E3A63));
-  color: #fff;
+  color: var(--on-solid, #fff);
   box-shadow: 0 6px 16px -6px rgba(47, 91, 154, .7);
 }
 .lw-fab-item--primary:hover {
   background: linear-gradient(135deg, var(--primary-hover, #3A6BB0), var(--primary, #2F5B9A));
-  color: #fff;
+  color: var(--on-solid, #fff);
 }
 .lw-fab-ico { display: grid; place-items: center; width: 18px; height: 18px; }
 .lw-fab-ico svg { width: 18px; height: 18px; }
@@ -297,3 +308,39 @@ html.lw-fs-xl  { font-size: 112.5%; }    /* 18px 基准 */
   .lw-fab-btn, .lw-fab-btn svg, .lw-fab-menu, .lw-fab-item,
   .lw-kbd-panel, .lw-lightbox img { animation: none !important; transition: none !important; }
 }
+
+/* ---------- 9. App 内由原生 Dock 接管底部导航 ---------- */
+/*
+ * 原生 App（com.hnbsd.lovewall）在手机竖屏下会画一条原生「液态玻璃」Dock，
+ * 位置与网页自带的 .mobile-bottom-nav 完全重合（都是距底 0.75rem + 安全区）。
+ * 由原生注入 html.lw-native-dock 类名，这里负责让位 —— 否则会出现「两条底栏叠在一起」。
+ *
+ * 为什么不让网页自己渲染那条 Dock：网页版的 backdrop-filter 是逐帧合成，
+ * 长列表滚动时会让 WebView 明显掉帧；共享虚拟主机也没有余量多送一份合成开销。
+ * 原生做完之后网页侧只剩「隐藏自带的」这一件事，反而更省。
+ *
+ * 注意：body 的 padding-bottom（≤768px 时 5.75rem）刻意保留 —— 它本来就是为了给底栏
+ * 让出空间，原生 Dock 高度与之相当，继续留着才能保证最后一条内容不被压住。
+ * 万一某个 ROM 的字体缩放把原生 Dock 撑得更高，原生会把实测高度写进 --lw-dock-h。
+ */
+html.lw-native-dock .mobile-bottom-nav { display: none !important; }
+html.lw-native-dock .lw-fab { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+
+/*
+ * 原生「流体云」背景层：App 在 WebView 之下铺了一层会缓慢流动的彩色云。
+ * 网页若保持不透明的 --bg 底色，这层云永远看不见，原生玻璃也只能透出死白。
+ * 所以在此场景下把「页面最外层底色」调成半透明 —— 只放开 body / 页面容器，
+ * 卡片、面板仍是不透明的，层次感由此产生。
+ *
+ * 关键取舍：只改 3 个最外层选择器，绝不动 --bg 变量本身。
+ * 一旦把变量改成 rgba，所有引用 --bg 的组件都会一起变半透明，白底卡片流会糊成一团。
+ */
+html.lw-native-cloud body,
+html.lw-native-cloud .site-main,
+html.lw-native-cloud .container { background-color: transparent !important; }
+/* 顶栏保留玻璃质感，但不要挡住云：降低自身底色不透明度 */
+html.lw-native-cloud .site-header { background-color: rgba(255, 255, 255, 0.62) !important; }
+html.lw-native-cloud.dark-theme .site-header { background-color: rgba(20, 27, 38, 0.62) !important; }
+/* 深色主题下卡片也不该是纯黑：留一点底色让云能隐约透出 */
+html.lw-native-cloud.dark-theme .post-card,
+html.lw-native-cloud.dark-theme .sidebar .widget { background-color: rgba(27, 36, 52, 0.92) !important; }

@@ -435,6 +435,42 @@
 
   window.esc = escapeHtml;
 
+  /**
+   * 在一组背景色里挑「最不容易糊」的前景色，返回 '#FFFFFF' 或 '#10161F'。
+   *
+   * 用途：称号徽章的底色由站长自选（默认还是 #ff4757→#a55eea 的彩虹渐变），
+   * 前景色过去写死 #fff —— 实测白字落在这些默认底色上只有 3.34~3.90:1，不达
+   * WCAG AA 正文 4.5:1；站长选偏亮的渐变时称号直接糊掉。这里按 WCAG 取
+   * 「在全部候选底色上的最小对比度」最大的那个前景色。
+   * 与 PHP 侧 lwReadableFg() 同一算法（includes/user_title.php），两端结果一致。
+   */
+  function pickReadableFg(...backgrounds) {
+    const lum = (hex) => {
+      let h = String(hex || '').replace('#', '');
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      if (!/^[0-9a-f]{6}$/i.test(h)) return null;
+      const c = [0, 2, 4].map((i) => {
+        const v = parseInt(h.substr(i, 2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    let best = '#FFFFFF';
+    let bestWorst = -1;
+    for (const fg of ['#FFFFFF', '#10161F']) {
+      const lf = lum(fg);
+      let worst = null;
+      for (const bg of backgrounds) {
+        const lb = lum(bg);
+        if (lb === null) continue;   // rgb()/hsl()/具名色解析不了，跳过
+        const ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
+        worst = worst === null ? ratio : Math.min(worst, ratio);
+      }
+      if (worst !== null && worst > bestWorst) { bestWorst = worst; best = fg; }
+    }
+    return best;
+  }
+
   async function copyToClipboard(text) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -463,14 +499,17 @@
     if (!author || !author.title_text) return '';
     let style =
       'display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:6px;vertical-align:middle;';
+    // 站长没指定 title_color 时按底色自动选前景（白/近黑），别再一律写死白字
+    const fg = author.title_color || '';
     if (author.title_rainbow == 1) {
       const gs = author.title_gradient_start || '#ff4757';
       const ge = author.title_gradient_end || '#a55eea';
       style +=
-        'background:linear-gradient(90deg,' + gs + ',' + ge + ',' + gs + ');background-size:200% 100%;animation:titleRainbow 2s linear infinite;color:' + (author.title_color || '#fff') + ';';
+        'background:linear-gradient(90deg,' + gs + ',' + ge + ',' + gs + ');background-size:200% 100%;animation:titleRainbow 2s linear infinite;color:' + (fg || pickReadableFg(gs, ge)) + ';';
     } else {
+      const bg = author.title_bg_color || '#4A90D9';
       style +=
-        'background:' + (author.title_bg_color || '#4A90D9') + ';color:' + (author.title_color || '#ffffff') + ';';
+        'background:' + bg + ';color:' + (fg || pickReadableFg(bg)) + ';';
     }
     return '<span style="' + style + '">' + escapeHtml(author.title_text) + '</span>';
   }
@@ -1222,6 +1261,20 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) this.doPoll();
       });
+      // 页面即将离开（点链接跳转/刷新/关标签）时停掉轮询。
+      // 不停的话：跳转瞬间发出的请求会被浏览器中断，控制台留下
+      //「net::ERR_ABORTED .../api/posts/poll.php」—— 它其实不是 bug，
+      // 但会让人误以为接口挂了。主动 clear 掉就彻底没有这条噪音。
+      window.addEventListener('pagehide', () => this.stopPolling());
+      window.addEventListener('beforeunload', () => this.stopPolling());
+    },
+
+    stopPolling() {
+      this._leaving = true;
+      if (this._pollTimer) {
+        clearInterval(this._pollTimer);
+        this._pollTimer = null;
+      }
     },
 
     getVisiblePostIds() {
@@ -1237,9 +1290,16 @@
       if (window.IS_GUEST) return;
       const ids = this.getVisiblePostIds();
       if (ids.length === 0) return;
+      // 页面已经在离开的路上：这次请求必然被浏览器中断，干脆不发。
+      // 发出去的话控制台会多一条 net::ERR_ABORTED，看起来像接口挂了。
+      if (this._leaving) return;
+      if (this._polling) return;   // 上一次还没回来，别叠加
+      this._polling = true;
       try {
         const url = '/api/posts/poll.php?ids=' + ids.join(',') + '&since=' + encodeURIComponent(this._lastPollTime);
         const data = await fetchAPI(url);
+        // 请求回来时页面可能已经开始跳转，此时不再动 DOM
+        if (this._leaving) return;
         this._lastPollTime = new Date().toISOString();
         if (data.data && data.data.posts) {
           for (const [postId, stats] of Object.entries(data.data.posts)) {
@@ -1251,7 +1311,10 @@
             this.addNewCommentsInline(postId, comments);
           }
         }
-      } catch (err) {}
+      } catch (err) {
+      } finally {
+        this._polling = false;
+      }
     },
 
     updatePostStats(postId, stats) {
@@ -1502,15 +1565,45 @@
         imagesHtml += '</div>';
       }
 
+      // 头像：与 PHP 端 lwAvatarComposite 输出**同一套结构**（.lw-av / .lw-av-img / .lw-widget-frame）。
+      // 两边结构必须逐字一致，否则列表页和详情页的头像框会大小不一。
+      // 尺寸同样内联写死（28px）：pwa_head 的 img{height:auto} 与"样式表没加载"
+      // 这两种情况都出现过 —— 只靠外部 CSS 会让头像按原图尺寸铺开成大方块。
+      const AV = 32;
+      // 图片型头像框是「图案围着人像」的构图，镂空口径只占槽位六成左右，
+      // 头像按普通槽位的 88% 铺满会被框压住脸 —— 所以单列一个更小的内缩。
+      const IS_IMG_FRAME = !!(post.author && post.author.frame && post.author.frame.asset);
+      const AV_INSET = IS_IMG_FRAME ? Math.round(AV * 0.17) : 2;
+      const AV_D = AV - AV_INSET * 2;
+      // 头像框 DOM 拼装（与 avatar.php 的输出逐字对齐）。
+      //
+      // 旧写法有个致命 bug：图片框分支里先在 class 字符串中把引号闭合，
+      // 再拼一段 style，末尾又无条件补一个 style —— 结果是
+      //   <span class="... lw-frame-img" style="background-image:..." style="position:...">
+      // 标签里出现**两个 style 属性**，浏览器只认第一个，框的位置与尺寸全部失效，
+      // 图片型头像框在列表页直接看不见。后端 php 用的是「先算 attrs 再拼」的写法，
+      // 所以详情页正常、列表页不正常 —— 这就是「有时候装扮不显示」。
+      function frameHtml(frame) {
+        if (!frame) return '';
+        const isImg = !!(frame.asset && String(frame.asset).trim());
+        const cls = 'lw-widget lw-widget-frame' + (isImg ? ' lw-frame-img' : ' ' + escapeHtml(frame.css_class || ''));
+        let st = 'position:absolute;inset:0;border-radius:50%';
+        if (isImg) {
+          st = 'background-image:url(&quot;' + escapeHtml(frame.asset) + '&quot;);background-size:100% 100%;background-repeat:no-repeat;background-position:center;' + st;
+        }
+        return '<span class="' + cls + '" aria-hidden="true" style="' + st + '"></span>';
+      }
       const authorHtml = post.author
         ? '<div class="post-card-author">' +
-          (post.author.avatar
-            ? '<img src="' +
-              escapeHtml(post.author.avatar) +
-              '" class="author-avatar"' +
-              (post.author.qq && post.author.id ? ' data-qq="' + escapeHtml(post.author.qq) + '" data-name="' + escapeHtml(post.author.nickname || '同学') + '" title="发送私信"' : '') +
-              ' alt="头像" decoding="async" width="32" height="32" onerror="this.style.display=\'none\'">'
-            : '') +
+          '<span class="lw-av' + (post.author.frame ? ' has-frame' : '') + (IS_IMG_FRAME ? ' has-img-frame' : '') + '" style="--lw-av:' + AV + 'px;width:' + AV + 'px;height:' + AV + 'px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%">' +
+          frameHtml(post.author.frame) +
+          '<img src="' + escapeHtml(post.author.avatar || '/assets/images/default-avatar.svg') + '"' +
+          ' class="lw-av-img"' +
+          ' width="' + AV_D + '" height="' + AV_D + '"' +
+          ' style="position:absolute;left:' + AV_INSET + 'px;top:' + AV_INSET + 'px;width:' + AV_D + 'px;height:' + AV_D + 'px;border-radius:50%;object-fit:cover"' +
+          (post.author.qq && post.author.id ? ' data-qq="' + escapeHtml(post.author.qq) + '" data-name="' + escapeHtml(post.author.nickname || '同学') + '" title="发送私信"' : '') +
+          ' alt="头像" decoding="async" loading="lazy" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'">' +
+          '</span>' +
           '<span class="author-name">' +
           escapeHtml(post.author.nickname || '匿名用户') +
           '</span>' +
@@ -1807,8 +1900,10 @@
         });
       });
 
-      const authorAvatar = card.querySelector('.author-avatar');
+      // 头像换成 .lw-av-img 之后，私信入口挂在整颗头像上（原来挂在 img 上）
+      const authorAvatar = card.querySelector('.author-avatar, .post-card-author .lw-av-img');
       if (authorAvatar && authorAvatar.dataset.qq && window.App && window.App.PrivateMessage) {
+        authorAvatar.style.cursor = 'pointer';
         authorAvatar.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -2349,6 +2444,19 @@
     const items = scroll.innerHTML;
     scroll.innerHTML = items + items;
 
+    // 【2026-10-18】把滚动参数写成**行内 !important**。
+    // 为什么不用 CSS：全站有一条通配规则
+    //   @media (prefers-reduced-motion: reduce) { * { animation-duration:.001ms !important } }
+    // 它是给装饰动效用的，但公告条承载的是信息 —— 被它一压，滚动直接停住，
+    // 长公告停在左边看不见。行内 !important 的层叠优先级最高，
+    // 不用再和那条通配规则比特异性（试过 .announcement-bar .announcement-scroll 仍然被压）。
+    const force = (prop, val) => scroll.style.setProperty(prop, val, 'important');
+    force('animation-name', 'announcementScroll');
+    force('animation-duration', '26s');
+    force('animation-timing-function', 'linear');
+    force('animation-iteration-count', 'infinite');
+    force('animation-play-state', 'running');
+
     bar.addEventListener('mouseenter', () => {
       scroll.style.animationPlayState = 'paused';
     });
@@ -2620,13 +2728,34 @@
     const queue = [];
     let running = false;
 
+    // 关掉任意一个自动弹窗后，10 分钟内不再自动弹任何弹窗。
+    // 与 enhancements.js 的 LWPopupCooldown 共用同一个 localStorage 键，
+    // 两个文件谁先加载都不影响判断。
+    const COOLDOWN_MS = 10 * 60 * 1000;
+    const COOLDOWN_KEY = 'lw_popup_closed_at';
+
+    function lastClosedAt() {
+      try { return parseInt(localStorage.getItem(COOLDOWN_KEY) || '0', 10) || 0; }
+      catch (e) { return 0; }
+    }
+    function inCooldown() {
+      return (Date.now() - lastClosedAt()) < COOLDOWN_MS;
+    }
+    function markClosed() {
+      try { localStorage.setItem(COOLDOWN_KEY, String(Date.now())); } catch (e) {}
+    }
+
     function next() {
       if (running || queue.length === 0) return;
+      // 冷却期内：整队丢弃，不再打扰
+      if (inCooldown()) { queue.length = 0; return; }
       running = true;
       const show = queue.shift();
       show(function release() {
         running = false;
-        // 留一点间隔，让上一个弹窗的退场动画走完，避免视觉上粘连
+        // 用户刚关掉一个 → 记时间并清空剩余队列（这就是「10 分钟内别再弹」）
+        markClosed();
+        queue.length = 0;
         setTimeout(next, 260);
       });
     }
@@ -2637,9 +2766,12 @@
        * @param {(done: Function) => void} show 负责展示弹窗；用户关闭后必须调用 done()
        */
       push(show) {
+        if (inCooldown()) return;   // 刚被关过 → 本次直接不排队
         queue.push(show);
         next();
       },
+      inCooldown,
+      markClosed,
     };
   })();
   window.PopupQueue = PopupQueue;
@@ -2655,6 +2787,40 @@
     const now = new Date();
     const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
     return lastMonth !== currentMonth;
+  }
+
+  /**
+   * 是否允许自动弹出赞助窗。
+   *
+   * 【为什么加这道闸】原先只要「本月没弹过」就在登录后的第一个页面自动弹，
+   * 结果学生每次打开首页先被整屏二维码糊脸，首页内容全被盖住 —— 这是最伤体验的
+   * 一处「打扰式运营」。现在改为**只在首页、且用户已读过一点内容（滚动超过 60%）
+   * 或停留 25 秒后**，才礼貌地弹一次。
+   * 想在别的页面主动看，点页脚的「支持我们」入口即可。
+   */
+  let sponsorArmed = false;
+  function armSponsorModal() {
+    if (!IS_LOGGED_IN) return;
+    if (typeof IS_SPONSOR !== 'undefined' && IS_SPONSOR) return;
+    if (!shouldShowSponsor()) return;
+    if (location.pathname !== '/' && location.pathname !== '/index.php') return;
+    if (sponsorArmed) return;
+    sponsorArmed = true;
+
+    let fired = false;
+    const fire = function () {
+      if (fired) return;
+      fired = true;
+      window.removeEventListener('scroll', onScroll);
+      initSponsorModal();
+    };
+    const onScroll = function () {
+      const doc = document.documentElement;
+      const total = doc.scrollHeight - window.innerHeight;
+      if (total > 0 && window.scrollY / total > 0.6) fire();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    setTimeout(fire, 25000);
   }
 
   // 赞助弹窗处于队列中时的「已关闭」回调（不在队列中则为 null）
@@ -2783,6 +2949,16 @@
     panel: null,
     unreadCount: 0,
     _pollTimer: null,
+    // 通知系统升级：分类标签页 / 静默偏好 / 历史分页
+    _tab: 'all',            // all | interact | system
+    _page: 1,
+    _limit: 20,
+    _hasMore: false,
+    _items: [],             // 当前已加载通知（含已读，用于历史）
+    _seenIds: null,         // 已知通知 id，用于「到达动效」判定
+    _st: null,              // 面板内元素引用缓存
+
+    PREFS_KEY: 'lw_notify_prefs',
 
     init() {
       if (!IS_LOGGED_IN) return;
@@ -2791,6 +2967,8 @@
       this.bindEvents();
       this.fetchNotifications();
       this.startPolling();
+      // 云端偏好拉取完成后刷新静默 UI（流体云多端同步）
+      window.addEventListener('lw:ui-prefs', () => { try { this.syncSilentUI(); } catch (e) {} });
       // 手机客户端点通知进来时地址带 #notifications，直接展开面板，
       // 省得用户再自己去找顶栏的铃铛。
       if (window.location.hash === '#notifications') {
@@ -2799,6 +2977,29 @@
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       }
+    },
+
+    /* ---------- 静默偏好（本地） ---------- */
+    prefs() {
+      const def = { silent: false, silentStart: 23, silentEnd: 7 };
+      try {
+        const o = JSON.parse(localStorage.getItem(this.PREFS_KEY) || '{}');
+        return Object.assign(def, o || {});
+      } catch (e) { return def; }
+    },
+    savePrefs(p) {
+      try { localStorage.setItem(this.PREFS_KEY, JSON.stringify(p)); } catch (e) {}
+      // 流体云：通知偏好变更上云
+      try { if (window.LWLiquidGlass && typeof window.LWLiquidGlass.syncCloud === 'function') window.LWLiquidGlass.syncCloud(); } catch (e) {}
+    },
+    /** 当前是否处于静默时段（跨零点用 OR 判定） */
+    isQuietNow() {
+      const p = this.prefs();
+      if (!p.silent) return false;
+      const h = new Date().getHours();
+      return p.silentStart <= p.silentEnd
+        ? (h >= p.silentStart && h < p.silentEnd)
+        : (h >= p.silentStart || h < p.silentEnd);
     },
 
     createBell() {
@@ -2828,15 +3029,34 @@
       this.panel.setAttribute('role', 'dialog');
       this.panel.setAttribute('aria-label', '消息通知');
       this.panel.innerHTML =
-        '<div class="notification-panel-header"><span>消息通知</span><button type="button" class="mark-all-read">全部已读</button></div>' +
-        '<div class="notification-panel-list"><div class="notification-panel-empty">' +
+        '<div class="lw-ntf-head">' +
+          '<span class="lw-ntf-title">消息通知</span>' +
+          '<button type="button" class="lw-ntf-silent" data-ntf-silent aria-pressed="false" title="静默通知（23:00-次日7:00 不打扰）">' +
+            svgIcon('bell', 15) + '<span>静默</span>' +
+          '</button>' +
+          '<button type="button" class="mark-all-read">全部已读</button>' +
+        '</div>' +
+        '<div class="lw-ntf-tabs" role="tablist">' +
+          '<button type="button" class="lw-ntf-tab is-active" data-ntf-tab="all" role="tab">全部</button>' +
+          '<button type="button" class="lw-ntf-tab" data-ntf-tab="interact" role="tab">互动</button>' +
+          '<button type="button" class="lw-ntf-tab" data-ntf-tab="system" role="tab">系统</button>' +
+        '</div>' +
+        '<div class="notification-panel-list lw-ntf-list"><div class="notification-panel-empty">' +
         LWIllustration('notifications', 40) +
-        '<p>暂无通知</p></div></div>';
+        '<p>暂无通知</p></div></div>' +
+        '<div class="lw-ntf-foot"><button type="button" class="lw-ntf-more" data-ntf-more disabled>没有更多了</button></div>';
       // 面板必须挂到 <body> 而不是塞进铃铛按钮里，原因有两个：
       //   1) 把一个 <button> 放进另一个 <button> 是非法嵌套，部分移动端浏览器会把内层按钮
       //      的点击重定向到外层「铃铛」上 —— 表现就是「点『全部已读』没反应，面板反而关了」；
       //   2) 顶栏在桌面端带 backdrop-filter，会成为 position:fixed 后代的包含块，面板会错位。
       document.body.appendChild(this.panel);
+      this._st = {
+        list: this.panel.querySelector('.lw-ntf-list'),
+        more: this.panel.querySelector('[data-ntf-more]'),
+        silent: this.panel.querySelector('[data-ntf-silent]'),
+        tabs: Array.prototype.slice.call(this.panel.querySelectorAll('[data-ntf-tab]')),
+      };
+      this.syncSilentUI();
       this.repositionPanel();
     },
 
@@ -2862,6 +3082,11 @@
         e.stopPropagation();
         this.repositionPanel();
         this.panel.classList.toggle('show');
+        // 打开时若还停在历史里，回到最新一页，避免看到过期内容
+        if (this.panel.classList.contains('show') && this._page !== 1) {
+          this._page = 1;
+          this.fetchNotifications();
+        }
       });
       document.addEventListener('click', (e) => {
         if (!this.panel.classList.contains('show')) return;
@@ -2877,36 +3102,116 @@
       window.addEventListener('resize', () => {
         if (this.panel.classList.contains('show')) this.repositionPanel();
       });
+
+      // 分类标签页切换
+      this._st.tabs.forEach((tabEl) => {
+        tabEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const tab = tabEl.getAttribute('data-ntf-tab');
+          if (tab === this._tab) return;
+          this._tab = tab;
+          this._st.tabs.forEach((t) => t.classList.toggle('is-active', t === tabEl));
+          this.renderList();
+        });
+      });
+
+      // 静默开关（本地偏好，跨设备由「流体云」同步）
+      this._st.silent.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const p = this.prefs();
+        p.silent = !p.silent;
+        this.savePrefs(p);
+        this.syncSilentUI();
+        showToast(p.silent ? '已开启静默通知' : '已关闭静默通知', 'info');
+      });
+
+      // 加载更多（历史）
+      this._st.more.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this._st.more.disabled) return;
+        this._page += 1;
+        this.fetchNotifications(true);
+      });
+
       this.panel.querySelector('.mark-all-read').addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
           await fetchAPI('/api/user/notifications.php', { method: 'POST', body: 'action=read_all' });
           this.unreadCount = 0;
           this.updateBadge();
-          this.updatePanelList([], true);
+          this._items = this._items.map((n) => Object.assign({}, n, { is_read: true }));
+          this.renderList(true);
           showToast('已全部标记为已读', 'success');
         } catch (err) {}
       });
     },
 
+    /** 静默按钮态 + 面板内「静默时段」提示条 */
+    syncSilentUI() {
+      const p = this.prefs();
+      if (!this._st || !this._st.silent) return;
+      this._st.silent.classList.toggle('is-on', !!p.silent);
+      this._st.silent.setAttribute('aria-pressed', p.silent ? 'true' : 'false');
+      const quietNow = this.isQuietNow();
+      let bar = this.panel.querySelector('.lw-ntf-quiet');
+      if (quietNow && !bar) {
+        bar = document.createElement('div');
+        bar.className = 'lw-ntf-quiet';
+        bar.innerHTML = svgIcon('bell', 14) + '<span>静默时段 · 新通知不会打扰你</span>';
+        this.panel.insertBefore(bar, this._st.list);
+      } else if (!quietNow && bar) {
+        bar.remove();
+      }
+    },
+
     startPolling() {
       this._pollTimer = setInterval(() => {
         if (document.hidden) return; // 后台不轮询，省流量
+        this._page = 1;              // 轮询只刷最新一页，避免与「加载更多」错页
         this.fetchNotifications();
       }, 60000);
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) this.fetchNotifications(); // 回前台立刻刷新未读红点
+        if (!document.hidden) { this._page = 1; this.fetchNotifications(); } // 回前台立刻刷新未读红点
       });
     },
 
-    async fetchNotifications() {
+    async fetchNotifications(isMore) {
       try {
-        const data = await fetchAPI('/api/user/notifications.php?unread=1&limit=20');
-        if (data.data) {
-          this.unreadCount = data.data.unread_count || 0;
-          this.updateBadge();
-          this.updatePanelList(data.data.notifications || []);
+        // 拉取含已读的完整列表（不再用 unread=1），既拿未读数也保留历史记录
+        const data = await fetchAPI(
+          '/api/user/notifications.php?page=' + this._page + '&limit=' + this._limit
+        );
+        if (!data.data) return;
+        this.unreadCount = data.data.unread_count || 0;
+        this.updateBadge();
+
+        const batch = data.data.notifications || [];
+        const hasMore = !!data.data.has_more;
+
+        // 到达动效：记录「上一轮未出现过」的 id（且为未读），仅对这些播放柔和滑入
+        if (this._seenIds === null) {
+          this._seenIds = new Set(batch.map((n) => String(n.id)));
+          this._newIds = new Set();
+        } else {
+          const fresh = new Set();
+          batch.forEach((n) => {
+            const k = String(n.id);
+            if (!this._seenIds.has(k) && !n.is_read) fresh.add(k);
+            this._seenIds.add(k);
+          });
+          this._newIds = fresh;
         }
+
+        this._items = isMore ? this._items.concat(batch) : batch;
+        this._hasMore = hasMore;
+        if (this._st) {
+          this._st.more.disabled = !hasMore;
+          this._st.more.textContent = hasMore ? '加载更多历史' : '没有更多了';
+        }
+        this.renderList();
+
+        // 到达提醒：非静默时段且有新未读时刷新静默提示条状态
+        if (this._newIds.size > 0) this.syncSilentUI();
       } catch (err) {}
     },
 
@@ -2919,8 +3224,55 @@
       }
     },
 
+    /** 通知归类与优先级：由既有 type 推导，无需改动后端数据 */
+    classify(n) {
+      const t = n.type || 'system';
+      const map = {
+        comment: ['interact', 'normal', '评论'],
+        reply:   ['interact', 'normal', '回复'],
+        mention: ['interact', 'high',   '@提到我'],
+        follow:  ['interact', 'normal', '关注'],
+        like:    ['interact', 'low',    '点赞'],
+        pm:      ['system',   'high',   '私信'],
+        admin:   ['system',   'high',   '管理'],
+        system:  ['system',   'low',    '系统'],
+      };
+      return map[t] || ['system', 'normal', '通知'];
+    },
+
+    /** 依据当前标签页重绘列表 */
+    renderList(isCleared) {
+      if (!this._st) return;
+      const all = this._items || [];
+      let list = all;
+      if (this._tab === 'interact') list = all.filter((n) => this.classify(n)[0] === 'interact');
+      else if (this._tab === 'system') list = all.filter((n) => this.classify(n)[0] === 'system');
+
+      // 更新标签上的未读数
+      this.updateTabCounts(all);
+      this.updatePanelList(list, isCleared);
+    },
+
+    updateTabCounts(all) {
+      if (!this._st) return;
+      const counts = { all: 0, interact: 0, system: 0 };
+      (all || []).forEach((n) => {
+        if (n.is_read) return;
+        const cat = this.classify(n)[0];
+        counts.all++;
+        if (cat === 'interact') counts.interact++;
+        else counts.system++;
+      });
+      this._st.tabs.forEach((t) => {
+        const key = t.getAttribute('data-ntf-tab');
+        const base = { all: '全部', interact: '互动', system: '系统' }[key];
+        const c = counts[key] || 0;
+        t.innerHTML = base + (c > 0 ? ' <span class="lw-ntf-tab-n">' + c + '</span>' : '');
+      });
+    },
+
     updatePanelList(notifications, isCleared) {
-      const listEl = this.panel.querySelector('.notification-panel-list');
+      const listEl = this._st ? this._st.list : this.panel.querySelector('.notification-panel-list');
       if (!notifications || notifications.length === 0) {
         listEl.innerHTML =
           '<div class="notification-panel-empty">' +
@@ -2940,46 +3292,59 @@
         admin: svgIcon('shield', 14),
         system: svgIcon('info', 14),
       };
+      const fresh = this._newIds || new Set();
       listEl.innerHTML = notifications
         .map((n) => {
           const icon = typeIcons[n.type] || typeIcons.system;
           const isUnread = !n.is_read;
+          const cls = this.classify(n);
+          const isNew = fresh.has(String(n.id));
           return (
-            '<div class="notification-item' +
+            '<div class="notification-item lw-ntf-item' +
             (isUnread ? ' unread' : '') +
+            (isNew ? ' lw-ntf-new' : '') +
             '" data-id="' +
             n.id +
             '" data-post-id="' +
             (n.post_id || '') +
-            '" style="position:relative;">' +
+            '" data-cat="' + cls[0] + '" data-pri="' + cls[1] + '">' +
             '<div class="notif-icon">' +
             icon +
             '</div>' +
             '<div class="notif-body">' +
             '<div class="notif-text">' +
+            '<span class="lw-ntf-cat">' + cls[2] + '</span>' +
             escapeHtml(n.content || '') +
             '</div>' +
             '<div class="notif-time">' +
             (n.timeAgo || formatTime(n.created_at)) +
             '</div>' +
             '</div>' +
+            '<span class="lw-ntf-dot" aria-hidden="true"></span>' +
             '</div>'
           );
         })
         .join('');
+      this._newIds = new Set();
 
       listEl.querySelectorAll('.notification-item').forEach((item) => {
         item.addEventListener('click', async (e) => {
           e.stopPropagation();
           const id = item.getAttribute('data-id');
           const postId = item.getAttribute('data-post-id');
+          const wasUnread = item.classList.contains('unread');
 
-          try {
-            await fetchAPI('/api/user/notifications.php', { method: 'POST', body: 'action=read&id=' + id });
-            item.classList.remove('unread');
-            this.unreadCount = Math.max(0, this.unreadCount - 1);
-            this.updateBadge();
-          } catch (err) {}
+          if (wasUnread) {
+            try {
+              await fetchAPI('/api/user/notifications.php', { method: 'POST', body: 'action=read&id=' + id });
+              item.classList.remove('unread');
+              this.unreadCount = Math.max(0, this.unreadCount - 1);
+              this.updateBadge();
+              const rec = this._items.find((n) => String(n.id) === String(id));
+              if (rec) rec.is_read = true;
+              this.updateTabCounts(this._items);
+            } catch (err) {}
+          }
 
           if (postId) {
             this.panel.classList.remove('show');
@@ -3564,7 +3929,7 @@
 
     setTimeout(function() {
       initTimeGreeting();
-      initSponsorModal();
+      armSponsorModal();
       AdminExport.init();
       FormHelpers.init();
       initImageUpload();
@@ -3599,6 +3964,7 @@
     formatTime,
     escapeHtml,
     esc: escapeHtml,
+    pickReadableFg,
     debounce,
     throttle,
     Modal,
@@ -3616,74 +3982,9 @@
   }
 
   // ===== 顶栏「申请头衔」弹窗 =====
-  // 菜单与弹窗结构来自公共组件 includes/user_dropdown.php，全站各页面共用同一份逻辑。
-  (function () {
-    // lang_ui.php 在 </body> 前才定义 window.__t，这里做兜底避免取不到文案
-    function tr(key, fallback) {
-      return (typeof window.__t === 'function') ? window.__t(key) : fallback;
-    }
-
-    function mount() {
-      var openBtn = document.getElementById('titleRequestBtn');
-      var modal = document.getElementById('titleRequestModal');
-      if (!openBtn || !modal) return;
-
-      var tTitle = document.getElementById('trTitle');
-      var tReason = document.getElementById('trReason');
-      var closeBtn = document.getElementById('titleReqClose');
-      var cancelBtn = document.getElementById('trCancel');
-      var submitBtn = document.getElementById('trSubmit');
-      if (!tTitle || !tReason || !submitBtn) return;
-
-      function openModal() {
-        var dd = document.getElementById('userDropdown');
-        if (dd) dd.classList.remove('show');
-        tTitle.value = '';
-        tReason.value = '';
-        modal.style.display = 'flex';
-        setTimeout(function () { tTitle.focus(); }, 50);
-      }
-
-      function closeModal() {
-        modal.style.display = 'none';
-      }
-
-      openBtn.addEventListener('click', openModal);
-      if (closeBtn) closeBtn.addEventListener('click', closeModal);
-      if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-      modal.addEventListener('click', function (e) {
-        if (e.target === modal) closeModal();
-      });
-
-      submitBtn.addEventListener('click', function () {
-        var text = tTitle.value.trim();
-        if (!text) {
-          window.alert(tr('tr.empty', '请输入想申请的头衔文字'));
-          tTitle.focus();
-          return;
-        }
-        var fd = new FormData();
-        // CSRF_TOKEN 由各页面内联脚本声明，未声明的页面跳过以免 ReferenceError
-        if (typeof CSRF_TOKEN !== 'undefined') fd.append('csrf_token', CSRF_TOKEN);
-        fd.append('action', 'submit');
-        fd.append('title_text', text);
-        fd.append('reason', tReason.value.trim());
-        submitBtn.disabled = true;
-        fetch(SITE_URL + '/api/title_request.php', { method: 'POST', body: fd })
-          .then(function (r) { return r.json(); })
-          .then(function (res) {
-            window.alert(res.message || tr(res.success ? 'tr.success' : 'tr.fail',
-              res.success ? '提交成功' : '提交失败'));
-            if (res.success) closeModal();
-          })
-          .catch(function () { window.alert(tr('common.net_error', '网络错误，请重试')); })
-          .finally(function () { submitBtn.disabled = false; });
-      });
-    }
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
-    else mount();
-  })();
+  // 【已下线】头衔改为用户在个人中心直接自定义（服务端只做违规词校验），
+  // 不再有「提交申请 → 站长审核」这一步，因此这里不再挂载任何弹窗逻辑。
+  // 保留这一段注释是为了让后来者知道：删除的是流程，不是 bug。
 
   // ===== 彩蛋：连点标题/Logo、连点页脚、搜索框神秘指令 =====
   (function () {
@@ -3707,10 +4008,11 @@
 
     function mount() {
       // 触发一：连点顶部标题/Logo 5 次
+      // 注意：**不能 preventDefault** —— 站名是「全站回首页」的官方入口，
+      // 早期这里为了计数阻止了默认跳转，结果全站点站名都没反应。现在照常跳转。
       var logo = document.querySelector('.site-logo');
       if (logo) {
-        logo.addEventListener('click', function (e) {
-          e.preventDefault(); // 阻止跳到首页，避免每次点击刷新清零
+        logo.addEventListener('click', function () {
           LOGO_CLICKS++;
           if (LOGO_CLICKS >= 5) { resetTrack(); go(); }
           if (LOGO_CLICKS === 1) setTimeout(function () { if (LOGO_CLICKS < 5) LOGO_CLICKS = 0; }, 2200);

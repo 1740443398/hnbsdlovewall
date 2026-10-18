@@ -59,10 +59,10 @@ body {
 .mail-chip { display: flex; align-items: center; gap: 8px; background: var(--primary-light); border: 1px solid rgba(47,91,154,0.18); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--primary-dark); margin-bottom: 18px; }
 .mail-chip b { font-weight: 700; }
 .step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
-.step .num { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.step .num { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: var(--on-solid, #fff); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
 .step .txt { font-size: 14px; color: var(--text-secondary); padding-top: 2px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 20px; border: none; border-radius: var(--radius-full); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; text-decoration: none; transition: all var(--transition); }
-.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 14px rgba(47,91,154,0.28); }
+.btn-primary { background: var(--primary); color: var(--on-solid, #fff); box-shadow: 0 4px 14px rgba(47,91,154,0.28); }
 .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-ghost:hover { color: var(--primary); background: var(--primary-light); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }

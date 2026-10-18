@@ -1,0 +1,912 @@
+/* ============================================================================
+ * 个人装扮（头像框 / 气泡 / 勋章）—— 固定槽位布局契约
+ * ----------------------------------------------------------------------------
+ * 需求二、4 反复强调「杜绝挂件布局错位」。错位的根因是**没有布局契约**，
+ * 不是"CSS 调得不够好"。所以这里把契约写成硬规则：
+ *
+ *   ① 每个挂件只能挂在预定义槽位（.lw-slot-*），槽位尺寸由 CSS 变量写死；
+ *   ② 槽位一律 position: relative + overflow: hidden + isolation: isolate，
+ *      挂件无论什么尺寸都画不出边界；
+ *   ③ 挂件本身只允许 position: absolute + inset: 0（铺满槽位），
+ *      禁止用 top/left/负 margin 之类"靠猜"的定位；
+ *   ④ 同槽位只渲染 1 个挂件（数据层已保证），CSS 侧再加 :not(:first-child) 兜底隐藏。
+ *
+ * 任何新增挂件只要遵守 ①~④，就永远不会错位。
+ * ========================================================================== */
+
+:root {
+    /* 槽位尺寸：写死为变量，任何设备/缩放下都一致 */
+    --lw-slot-avatar: 2.75rem;    /* 头像框槽位边长（1:1） */
+    --lw-slot-avatar-pad: 0.1875rem;
+    --lw-slot-bubble-radius: 0.875rem;
+    --lw-slot-bubble-pad-x: 0.75rem;
+    --lw-slot-bubble-pad-y: 0.5rem;
+    --lw-slot-badge-h: 1.25rem;   /* 勋章行内高度 */
+}
+
+/* ---------- 通用槽位基座 ---------- */
+.lw-slot {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* 槽位里的挂件层：只允许铺满，不允许自行定位 */
+.lw-slot > .lw-widget {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-sizing: border-box;
+    object-fit: contain;
+    object-position: center;
+    z-index: 1;
+}
+
+/* 兜底：同槽位若因脏数据渲染出多个，只显示第一个，绝不叠加 */
+.lw-slot > .lw-widget ~ .lw-widget { display: none; }
+
+/* ---------- ① 头像框槽位 ---------- */
+.lw-avatar-slot {
+    width: var(--lw-slot-avatar);
+    height: var(--lw-slot-avatar);
+    flex: 0 0 var(--lw-slot-avatar);
+    border-radius: 50%;
+}
+.lw-avatar-slot > .lw-avatar-img {
+    position: absolute;
+    inset: var(--lw-slot-avatar-pad);
+    width: calc(var(--lw-slot-avatar) - var(--lw-slot-avatar-pad) * 2);
+    height: calc(var(--lw-slot-avatar) - var(--lw-slot-avatar-pad) * 2);
+    border-radius: 50%;
+    object-fit: cover;
+    z-index: 0;
+}
+/* ---------------------------------------------------------------------------
+ * 图片型头像框（asset）：头像必须整体缩到 66% 并**居中**
+ * ---------------------------------------------------------------------------
+ * 这类框是从「装扮 + 示例头像」的合成图里抠出来的，构图本身就是
+ * 「图案围着一个小一号的人像」，镂空口径大约只占槽位的六成。
+ * 头像若不缩，脸会被图案压住。
+ *
+ * 坑（踩过）：PHP/JS 已经在元素上写了行内 left/top/width/height，
+ * 但上面两条基础规则里的 width/height 带 !important —— 行内样式被压掉，
+ * 结果「位置按 17% 偏了、尺寸还是 88%」，画面上就是**头像整体被挤到右下角**。
+ * 所以这里必须同样用 !important，把四个方向一起锁死。
+ * ------------------------------------------------------------------------- */
+/* 比例来源：原始卡片里「示例头像 : 卡片」≈ 61%，而抠出来的图案几乎铺满卡片，
+   所以把头像定在槽位的 62%（左右各 19%），与截图里的构图一致。 */
+.lw-av.has-img-frame > .lw-av-img {
+    inset: 19% !important;
+    left: 19% !important;
+    top: 19% !important;
+    width: calc(var(--lw-av) * 0.62) !important;
+    height: calc(var(--lw-av) * 0.62) !important;
+}
+.lw-avatar-slot.has-img-frame > .lw-avatar-img {
+    inset: 19% !important;
+    left: 19% !important;
+    top: 19% !important;
+    width: calc(var(--lw-slot-avatar) * 0.62) !important;
+    height: calc(var(--lw-slot-avatar) * 0.62) !important;
+}
+/* 头像框：环形描边由外圈槽位承担，不改变头像尺寸 */
+.lw-widget-frame {
+    border-radius: 50%;
+    border: 2px solid transparent;
+    box-shadow: none;
+}
+.lw-frame-gold   { border-color: #E0A93B; box-shadow: 0 0 0 1px rgba(224,169,59,.35) inset; }
+.lw-frame-silver { border-color: #A9B4C2; box-shadow: 0 0 0 1px rgba(169,180,194,.35) inset; }
+.lw-frame-bronze { border-color: #C07A48; box-shadow: 0 0 0 1px rgba(192,122,72,.35) inset; }
+.lw-frame-neon   { border-color: #37D6C0; box-shadow: 0 0 6px rgba(55,214,192,.55), 0 0 0 1px rgba(55,214,192,.4) inset; }
+.lw-frame-rose   { border-color: #E86B93; box-shadow: 0 0 0 1px rgba(232,107,147,.35) inset; }
+.lw-frame-glass  {
+    border-color: rgba(255,255,255,.55);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset, 0 2px 8px rgba(16,24,40,.08);
+}
+
+/* ============================================================================
+ * 同心头像复合件 .lw-av（includes/avatar.php 的唯一结构）
+ * ----------------------------------------------------------------------------
+ * 契约：所有部件都以 --lw-av 为唯一边长，靠 inset 摆位，**禁止负 margin / 位移**。
+ *   头像   inset:6%   （直径 = 88% 槽位，给外圈留出环与框的位置）
+ *   头像框 inset:0
+ *   等级环 inset:0
+ * 圆心恒等于 (50%,50%)，所以任何尺寸下三者必然同心。
+ * ========================================================================== */
+.lw-av {
+    --lw-av: 2.75rem;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--lw-av);
+    height: var(--lw-av);
+    flex: 0 0 var(--lw-av);
+    border-radius: 50%;
+    isolation: isolate;
+    vertical-align: middle;
+}
+.lw-av-img {
+    position: absolute;
+    inset: 6%;
+    /* 关键：pwa_head.php 的 img{height:auto} 会覆盖百分比高度。
+       这里把高度算成「边长 - 两侧内缩」，并且用 !important 锁死，
+       双保险之后任何全局 img 规则都压不扁头像。 */
+    width: calc(var(--lw-av) - var(--lw-av) * 0.12) !important;
+    height: calc(var(--lw-av) - var(--lw-av) * 0.12) !important;
+    max-width: none;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center;
+    background: var(--bg-secondary, #EDF1F5);
+    z-index: 1;
+}
+/* 头像框：铺满槽位，边框画在外沿；overflow 不能 hidden，否则环会被裁 */
+.lw-av > .lw-widget-frame {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    border-radius: 50%;
+}
+/* 等级环：与槽位同尺寸，叠在框内侧 */
+.lw-av > .lw-av-ring {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: block;
+    color: var(--primary, #2F5B9A);
+    pointer-events: none;
+}
+.lw-av > .lw-av-ring svg { display: block; width: 100%; height: 100%; }
+/* 迷你勋章：贴在右下，尺寸跟随槽位，绝不参与布局 */
+.lw-av-medal {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(var(--lw-av) * 0.36);
+    height: calc(var(--lw-av) * 0.36);
+    min-width: 12px;
+    min-height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F3D384, #C9A24E);
+    color: #5A4212;
+    font-size: calc(var(--lw-av) * 0.2);
+    font-weight: 800;
+    line-height: 1;
+    border: 1.5px solid var(--bg, #fff);
+    box-shadow: 0 1px 3px rgba(16, 24, 40, .22);
+}
+
+/* ---------- 头像框样式库 ----------
+ * 全部用 CSS 画：边框 / 渐变 / 光晕 / 伪元素。后台也可以用图片框（见 .lw-frame-img）。
+ * 命名 lw-frame-<风格>，与后台「样式类」下拉一一对应。
+ * ========================================================================== */
+
+/* 已有基础款 */
+.lw-frame-gold   { border: 2.5px solid #E0A93B; box-shadow: 0 0 0 1px rgba(224,169,59,.35) inset, 0 0 8px rgba(224,169,59,.45); }
+.lw-frame-silver { border: 2.5px solid #A9B4C2; box-shadow: 0 0 0 1px rgba(169,180,194,.35) inset; }
+.lw-frame-bronze { border: 2.5px solid #C07A48; box-shadow: 0 0 0 1px rgba(192,122,72,.35) inset; }
+.lw-frame-neon   { border: 2.5px solid #37D6C0; box-shadow: 0 0 10px rgba(55,214,192,.65), 0 0 0 1px rgba(55,214,192,.4) inset; }
+.lw-frame-rose   { border: 2.5px solid #E86B93; box-shadow: 0 0 0 1px rgba(232,107,147,.35) inset, 0 0 8px rgba(232,107,147,.35); }
+.lw-frame-glass  {
+    border: 2px solid rgba(255,255,255,.62);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset, 0 2px 8px rgba(16,24,40,.12);
+}
+
+/* 韩系手绘 / 暗黑系（对齐商城参考图） */
+.lw-frame-ink {
+    border: 2.5px solid #2B2B2B;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.9) inset, 0 0 0 4px rgba(43,43,43,.14);
+}
+.lw-frame-ink::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1px dashed rgba(43,43,43,.5);
+    animation: lwFrameSpin 18s linear infinite;
+}
+@keyframes lwFrameSpin { to { transform: rotate(360deg); } }
+
+.lw-frame-gothic {
+    border: 2.5px solid #6E5BA8;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.5) inset, 0 0 12px rgba(110,91,168,.55);
+}
+.lw-frame-gothic::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(110,91,168,.55), rgba(255,255,255,0), rgba(110,91,168,.55), rgba(255,255,255,0), rgba(110,91,168,.55));
+    -webkit-mask: radial-gradient(circle, transparent 66%, #000 68%, #000 74%, transparent 76%);
+    mask: radial-gradient(circle, transparent 66%, #000 68%, #000 74%, transparent 76%);
+    animation: lwFrameSpin 12s linear infinite;
+    z-index: -1;
+}
+
+.lw-frame-crown {
+    border: 2.5px solid #E9C25C;
+    box-shadow: 0 0 0 1px rgba(233,194,92,.5) inset, 0 0 14px rgba(233,194,92,.6);
+}
+.lw-frame-crown::before {
+    content: '♛';
+    position: absolute;
+    top: -34%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: calc(var(--lw-av, 2.75rem) * .34);
+    line-height: 1;
+    color: #E9C25C;
+    text-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+
+.lw-frame-halo {
+    border: 2px solid rgba(255,255,255,.85);
+    box-shadow: 0 0 0 1px rgba(160,190,255,.5) inset, 0 0 14px rgba(160,190,255,.7);
+}
+.lw-frame-halo::before {
+    content: '';
+    position: absolute;
+    top: -22%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 62%;
+    height: 14%;
+    border-radius: 9999px;
+    border: 2px solid rgba(255,231,150,.95);
+    box-shadow: 0 0 10px rgba(255,231,150,.85);
+}
+
+.lw-frame-heart {
+    border: 2.5px solid #FF8FB1;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.6) inset, 0 0 12px rgba(255,143,177,.5);
+}
+.lw-frame-heart::after {
+    content: '♥';
+    position: absolute;
+    right: -6%;
+    bottom: -4%;
+    font-size: calc(var(--lw-av, 2.75rem) * .3);
+    color: #FF8FB1;
+    text-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+
+.lw-frame-star {
+    border: 2.5px solid #7FB4FF;
+    box-shadow: 0 0 0 1px rgba(127,180,255,.5) inset, 0 0 12px rgba(127,180,255,.55);
+}
+.lw-frame-star::after {
+    content: '★';
+    position: absolute;
+    left: -5%;
+    top: -6%;
+    font-size: calc(var(--lw-av, 2.75rem) * .28);
+    color: #7FB4FF;
+}
+
+.lw-frame-aurora {
+    border: 2.5px solid transparent;
+    background:
+        linear-gradient(var(--bg, #fff), var(--bg, #fff)) padding-box,
+        linear-gradient(135deg, #7EE8FA, #A78BFA, #F9A8D4, #7EE8FA) border-box;
+    box-shadow: 0 0 14px rgba(167,139,250,.45);
+}
+.lw-frame-aurora::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(from 90deg, #7EE8FA, #A78BFA, #F9A8D4, #7EE8FA);
+    filter: blur(6px);
+    opacity: .55;
+    z-index: -1;
+}
+
+.lw-frame-flame {
+    border: 2.5px solid #FF9F45;
+    box-shadow: 0 0 0 1px rgba(255,159,69,.45) inset, 0 0 16px rgba(255,107,53,.6);
+}
+.lw-frame-flame::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,107,53,.0), rgba(255,107,53,.75), rgba(255,196,0,.0), rgba(255,107,53,.75), rgba(255,107,53,0));
+    -webkit-mask: radial-gradient(circle, transparent 68%, #000 70%, #000 78%, transparent 80%);
+    mask: radial-gradient(circle, transparent 68%, #000 70%, #000 78%, transparent 80%);
+    animation: lwFrameSpin 6s linear infinite;
+    z-index: -1;
+}
+
+.lw-frame-ocean {
+    border: 2.5px solid #47B9D9;
+    box-shadow: 0 0 0 1px rgba(71,185,217,.4) inset, 0 0 14px rgba(71,185,217,.5);
+}
+.lw-frame-ocean::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px double rgba(71,185,217,.55);
+    animation: lwFrameSpin 24s linear infinite reverse;
+}
+
+.lw-frame-royal {
+    border: 3px solid #C9A227;
+    background:
+        linear-gradient(var(--bg, #fff), var(--bg, #fff)) padding-box,
+        linear-gradient(160deg, #F7E7A2, #C9A227, #8A6D12, #F7E7A2) border-box;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.55) inset, 0 0 14px rgba(201,162,39,.5);
+}
+
+.lw-frame-plain {
+    border: 2px solid var(--border, #DDE3EC);
+}
+
+/* 图片型头像框：框图片铺满槽位，中心由头像自己遮住（头像永远在上层），
+   所以不需要 mask，也不会出现「mask 把整张图抹掉」的坑。 */
+.lw-widget-frame.lw-frame-img {
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    border: none;
+    box-shadow: none;
+}
+
+/* ---------- 气泡样式库 ---------- */
+.lw-bubble-slot {
+    border-radius: var(--lw-slot-bubble-radius);
+    padding: var(--lw-slot-bubble-pad-y) var(--lw-slot-bubble-pad-x);
+    background: var(--bg-secondary, #F4F7FA);
+    color: var(--text);
+    max-width: 100%;
+    overflow: visible;   /* 气泡本体允许溢出以便画尾巴，但尾巴由伪元素定死 */
+}
+/* 气泡视觉变体：只改颜色/边框，**不改内边距与圆角** —— 这是不错位的前提 */
+.lw-bubble-default { background: var(--bg-secondary, #F4F7FA); }
+.lw-bubble-blue    { background: #E7F0FF; color: #1E3A63; }
+.lw-bubble-pink    { background: #FDEBF2; color: #7A2E4A; }
+.lw-bubble-mint    { background: #E6F7F0; color: #1F5A47; }
+.lw-bubble-dark    { background: #1F2430; color: #F2F4F8; }
+.lw-bubble-glass   {
+    background: rgba(255,255,255,.55);
+    color: var(--text);
+    backdrop-filter: blur(10px) saturate(1.4);
+    border: 1px solid rgba(255,255,255,.6);
+}
+
+/* 气泡样式库（对齐商城参考图的品类：治愈 / 萌宠 / 玄研）——
+   全部只改颜色、描边、阴影，**不改内边距与圆角**，因此不可能撑坏布局。 */
+.lw-bubble-cream  { background: #FFF6E9; color: #7A5426; border: 1px solid #F3E0C4; }
+.lw-bubble-sakura { background: #FFF0F4; color: #8A3C55; border: 1px solid #FFD8E3; }
+.lw-bubble-sky    { background: #EEF6FF; color: #23507F; border: 1px solid #D4E6FA; }
+.lw-bubble-mint2  { background: #ECFAF3; color: #1F5A47; border: 1px solid #CDEFDF; }
+.lw-bubble-lilac  { background: #F3F0FF; color: #4A3B7C; border: 1px solid #DED6FA; }
+.lw-bubble-ink    { background: #2B2B2B; color: #F4F4F4; border: 1px solid #3D3D3D; }
+.lw-bubble-paper  {
+    background: #FFFDF7;
+    color: #4A4238;
+    border: 1px solid #E8E0D0;
+    box-shadow: 2px 2px 0 #EFE8DA;
+}
+.lw-bubble-neon   {
+    background: #101828;
+    color: #7DF9E4;
+    border: 1px solid rgba(125,249,228,.45);
+    box-shadow: 0 0 12px rgba(125,249,228,.28) inset, 0 0 10px rgba(125,249,228,.18);
+}
+.lw-bubble-sunset {
+    background: linear-gradient(135deg, #FFE7D6, #FFD0C2);
+    color: #8A3B22;
+    border: 1px solid rgba(255,255,255,.7);
+}
+.lw-bubble-ocean  {
+    background: linear-gradient(135deg, #E3F5FB, #D3ECF9);
+    color: #21546B;
+    border: 1px solid rgba(255,255,255,.8);
+}
+.lw-bubble-forest {
+    background: linear-gradient(135deg, #EAF7EC, #D8EFDD);
+    color: #275437;
+    border: 1px solid rgba(255,255,255,.8);
+}
+
+/* ============================================================================
+ * 补齐款（重要修复）
+ * ----------------------------------------------------------------------------
+ * data/widgets.json 里曾上架过 cat / sakura / galaxy / cyber / mint / cream /
+ * candy / tuxedo 这 8 款头像框，以及 latte / night / lemon 这 3 款气泡，
+ * 但 CSS 里**从来没有定义过它们**。于是用户花钱买到的是
+ * `.lw-widget-frame` 的默认值「2px 透明边框」—— 看上去就是「什么都没显示」。
+ * 这就是「有些时候装扮不显示」的第一号原因：不是渲染坏了，是压根没有样式。
+ * ========================================================================== */
+
+/* —— 头像框 —— */
+.lw-frame-cat {
+    border: 2.5px solid #F2C7D4;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.85) inset, 0 0 10px rgba(242,199,212,.6);
+}
+/* 猫耳：两个圆角三角，绝对定位在框顶，尺寸跟随 --lw-av 缩放 */
+.lw-frame-cat::before,
+.lw-frame-cat::after {
+    content: '';
+    position: absolute;
+    top: -16%;
+    width: 34%;
+    height: 34%;
+    background: #F2C7D4;
+    border: 1.5px solid rgba(255,255,255,.9);
+    border-radius: 60% 60% 20% 20%;
+    z-index: -1;
+}
+.lw-frame-cat::before { left: 2%;  transform: rotate(-18deg); }
+.lw-frame-cat::after  { right: 2%; transform: rotate(18deg); }
+
+.lw-frame-sakura {
+    border: 2.5px solid #F7A8C4;
+    box-shadow: 0 0 0 2px rgba(255,236,242,.9) inset, 0 0 12px rgba(247,168,196,.6);
+}
+.lw-frame-sakura::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 20% 12%, #FFD3E2 0 6%, transparent 7%),
+        radial-gradient(circle at 80% 20%, #FFD3E2 0 5%, transparent 6%),
+        radial-gradient(circle at 15% 78%, #FFD3E2 0 5%, transparent 6%),
+        radial-gradient(circle at 88% 74%, #FFD3E2 0 6%, transparent 7%);
+    pointer-events: none;
+}
+
+.lw-frame-galaxy {
+    border: 2.5px solid #6C5CE7;
+    background:
+        linear-gradient(160deg, #2A2450, #6C5CE7, #2A2450) border-box;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,.35) inset, 0 0 16px rgba(108,92,231,.7);
+}
+.lw-frame-galaxy::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent, rgba(160,200,255,.75), transparent 45%, rgba(255,190,255,.7), transparent);
+    -webkit-mask: radial-gradient(circle, transparent 68%, #000 70%, #000 78%, transparent 80%);
+    mask: radial-gradient(circle, transparent 68%, #000 70%, #000 78%, transparent 80%);
+    animation: lwFrameSpin 9s linear infinite;
+    z-index: -1;
+}
+
+.lw-frame-cyber {
+    border: 2.5px solid #00E5FF;
+    box-shadow:
+        0 0 0 1px rgba(0,229,255,.45) inset,
+        0 0 10px rgba(0,229,255,.7),
+        0 0 22px rgba(255,0,128,.35);
+}
+.lw-frame-cyber::before,
+.lw-frame-cyber::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    inset: -6px;
+    pointer-events: none;
+}
+.lw-frame-cyber::before {
+    border-top-color: #00E5FF;
+    border-right-color: #FF0080;
+    animation: lwFrameSpin 4s linear infinite;
+}
+.lw-frame-cyber::after {
+    inset: -10px;
+    border-bottom-color: rgba(0,229,255,.7);
+    animation: lwFrameSpin 7s linear infinite reverse;
+}
+
+.lw-frame-mint {
+    border: 2.5px solid #7FE3C4;
+    box-shadow: 0 0 0 1px rgba(127,227,196,.5) inset, 0 0 12px rgba(127,227,196,.55);
+}
+.lw-frame-mint::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px dotted rgba(127,227,196,.9);
+}
+
+.lw-frame-cream {
+    border: 3px solid #F3DFC0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.95) inset, 0 0 10px rgba(243,223,192,.8);
+}
+
+.lw-frame-candy {
+    border: 3px solid transparent;
+    background:
+        linear-gradient(var(--bg,#fff), var(--bg,#fff)) padding-box,
+        repeating-conic-gradient(from 0deg, #FF9AA2, #FFB7B2, #FFDAC1, #E2F0CB, #B5EAD7, #C7CEEA, #FF9AA2) border-box;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.8) inset;
+}
+.lw-frame-candy::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, #FF9AA2, #FFDAC1, #B5EAD7, #C7CEEA, #FF9AA2);
+    -webkit-mask: radial-gradient(circle, transparent 72%, #000 74%, #000 82%, transparent 84%);
+    mask: radial-gradient(circle, transparent 72%, #000 74%, #000 82%, transparent 84%);
+    animation: lwFrameSpin 20s linear infinite;
+    z-index: -1;
+}
+
+.lw-frame-tuxedo {
+    border: 3px solid #1E1E24;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,.9) inset, 0 0 0 4px rgba(30,30,36,.18);
+}
+/* 领结：一个小蝴蝶结卡在正下方 */
+.lw-frame-tuxedo::before {
+    content: '🎀';
+    position: absolute;
+    bottom: -18%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: calc(var(--lw-av, 2.75rem) * .3);
+    line-height: 1;
+    z-index: 1;
+}
+
+/* —— 气泡 —— */
+.lw-bubble-latte {
+    background: linear-gradient(135deg, #F5EDE4, #E9D9C7);
+    color: #6B4E33;
+    border: 1px solid rgba(255,255,255,.85);
+}
+.lw-bubble-night {
+    background: linear-gradient(150deg, #1B2138, #2C3556);
+    color: #DCE4F7;
+    border: 1px solid rgba(140,160,220,.35);
+    box-shadow: 0 0 10px rgba(120,150,230,.22) inset;
+}
+.lw-bubble-lemon {
+    background: linear-gradient(135deg, #FFF7C2, #FFE873);
+    color: #6E5A00;
+    border: 1px solid #FFDE59;
+}
+
+/* ============================================================================
+ * 第二批：新增头像框（让商城不要只摆十几款，也别全是「换个纯色描边」）
+ * 设计约束同前：只动描边/渐变/伪元素，绝不改尺寸与定位，因此不可能错位。
+ * ========================================================================== */
+/* 彩虹霓环：多色渐变环 + 自转 */
+.lw-frame-rainbow {
+    border: 3px solid transparent;
+    background:
+        linear-gradient(var(--bg,#fff), var(--bg,#fff)) padding-box,
+        conic-gradient(#FF8A8A, #FFD08A, #FFF28A, #9CE8A6, #8AD8FF, #B29AFF, #FF8A8A) border-box;
+}
+/* 月光银辉：冷白细环 + 柔光 */
+.lw-frame-moonlight {
+    border: 2.5px solid #DCE7F5;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.9) inset, 0 0 16px rgba(190,215,255,.75);
+}
+/* 樱花雨：环外飘落花瓣 */
+.lw-frame-petals {
+    border: 2.5px solid #F8B4CB;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.8) inset;
+}
+.lw-frame-petals::after {
+    content: '🌸';
+    position: absolute;
+    top: -22%;
+    right: -8%;
+    font-size: calc(var(--lw-av, 2.75rem) * .28);
+    animation: lwPetalFall 3.6s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes lwPetalFall {
+    0%   { transform: translate(0,0) rotate(0deg); opacity: 0; }
+    25%  { opacity: 1; }
+    100% { transform: translate(-60%, 90%) rotate(220deg); opacity: 0; }
+}
+/* 云朵棉花糖 */
+.lw-frame-cloud {
+    border: 3px solid #EAF2FF;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.95) inset, 0 6px 14px rgba(160,190,240,.4);
+}
+.lw-frame-cloud::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 0%, #fff 0 30%, transparent 31%),
+        radial-gradient(circle at 92% 55%, #fff 0 18%, transparent 19%),
+        radial-gradient(circle at 8% 55%, #fff 0 18%, transparent 19%);
+    z-index: -1;
+}
+/* 抹茶奶盖 */
+.lw-frame-matcha {
+    border: 2.5px solid #9BCB8E;
+    box-shadow: 0 0 0 2px rgba(246,255,240,.9) inset, 0 0 10px rgba(155,203,142,.5);
+}
+/* 极简黑胶：粗黑环 + 细内圈 */
+.lw-frame-vinyl {
+    border: 4px solid #14161C;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.25) inset, 0 0 0 1.5px #14161C;
+}
+/* 金箔碎钻：金属颗粒感 */
+.lw-frame-glitter {
+    border: 2.5px solid #E7C86B;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.7) inset, 0 0 12px rgba(231,200,107,.65);
+    background-image:
+        radial-gradient(circle at 12% 20%, rgba(255,255,255,.95) 0 1px, transparent 2px),
+        radial-gradient(circle at 82% 15%, rgba(255,255,255,.9) 0 1px, transparent 2px),
+        radial-gradient(circle at 88% 78%, rgba(255,255,255,.9) 0 1px, transparent 2px),
+        radial-gradient(circle at 18% 84%, rgba(255,255,255,.85) 0 1px, transparent 2px);
+}
+/* 青柠苏打：清爽双色 */
+.lw-frame-lime {
+    border: 2.5px solid #A8E05F;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.85) inset, 0 0 0 4px rgba(168,224,95,.18);
+}
+/* 机械齿轮：科技感刻度环 */
+.lw-frame-gear {
+    border: 2.5px solid #8B98A8;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.6) inset;
+}
+.lw-frame-gear::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(#8B98A8 0deg 6deg, transparent 6deg 24deg);
+    -webkit-mask: radial-gradient(circle, transparent 74%, #000 76%, #000 84%, transparent 86%);
+    mask: radial-gradient(circle, transparent 74%, #000 76%, #000 84%, transparent 86%);
+    animation: lwFrameSpin 26s linear infinite;
+    z-index: -1;
+}
+
+/* ============================================================================
+ * 第二批：新增聊天气泡
+ * 仍然只改颜色/纹理，不改 padding 与圆角 —— 这是「永不撑坏布局」的前提。
+ * ========================================================================== */
+/* 星河渐变 */
+.lw-bubble-galaxy {
+    background: linear-gradient(135deg, #2B2350, #4A3B8C 55%, #2B2350);
+    color: #E6E0FF;
+    border: 1px solid rgba(170,150,255,.45);
+}
+/* 蜜桃汽水 */
+.lw-bubble-peach {
+    background: linear-gradient(135deg, #FFE9E4, #FFD3C8);
+    color: #8A3B2A;
+    border: 1px solid rgba(255,255,255,.85);
+}
+/* 海洋薄荷 */
+.lw-bubble-aqua {
+    background: linear-gradient(135deg, #E0F7FB, #C9EEF8);
+    color: #1C5568;
+    border: 1px solid rgba(255,255,255,.85);
+}
+/* 薰衣草夜 */
+.lw-bubble-lavender-night {
+    background: linear-gradient(150deg, #3B3260, #574C8A);
+    color: #EFE9FF;
+    border: 1px solid rgba(180,160,255,.4);
+}
+/* 复古胶片：米黄 + 细颗粒 */
+.lw-bubble-film {
+    background: #F3EDDF;
+    color: #4A4335;
+    border: 1px solid #DCD2BC;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.8) inset;
+}
+/* 荧光笔：便签感 */
+.lw-bubble-highlight {
+    background: #FFF9B1;
+    color: #5A4B00;
+    border: 1px solid #EFE27A;
+    box-shadow: 0 2px 0 #E4D66A;
+}
+/* 黑金 */
+.lw-bubble-blackgold {
+    background: linear-gradient(150deg, #1A1A1F, #26262E);
+    color: #F0D48A;
+    border: 1px solid rgba(240,212,138,.5);
+}
+/* 云白 */
+.lw-bubble-cloudwhite {
+    background: #FBFCFE;
+    color: #2A3444;
+    border: 1px solid #E6EBF3;
+    box-shadow: 0 2px 6px rgba(16,24,40,.06);
+}
+/* 玫瑰金 */
+.lw-bubble-rosegold {
+    background: linear-gradient(135deg, #FDEDE6, #F6D6C8);
+    color: #7C4632;
+    border: 1px solid rgba(255,255,255,.9);
+}
+/* 屏保蓝：低饱和终端风 */
+.lw-bubble-terminal {
+    background: #0E1620;
+    color: #7CE38B;
+    border: 1px solid rgba(124,227,139,.35);
+    box-shadow: 0 0 10px rgba(124,227,139,.2) inset;
+}
+
+/* 气泡尾巴：定死在左下，尺寸写死，不随内容长度变化 */
+.lw-bubble-slot.has-tail::after {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    bottom: -0.375rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    background: inherit;
+    transform: rotate(45deg);
+    border-radius: 2px;
+    z-index: -1;
+}
+.lw-bubble-slot.has-tail.lw-bubble-glass::after {
+    backdrop-filter: none;   /* 尾巴不必再模糊，避免边缘发灰 */
+}
+
+/* ---------- ③ 勋章槽位 ---------- */
+.lw-badge-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: var(--lw-slot-badge-h);
+    padding: 0 0.4375rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;     /* 永不换行 → 永不撑高行高 */
+    flex: 0 0 auto;
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--primary-light, #E7EEF7);
+    color: var(--primary);
+    vertical-align: middle;
+}
+.lw-badge-slot > .lw-widget { display: none; }   /* 勋章是文字型，不用图层 */
+
+/* ---------- ③.1 徽章（badge）五款 ----------
+ * 契约：徽章是**文字型**槽位（.lw-badge-slot 自带底色/字色），
+ * 这里只补「同一槽位不同皮肤」，不改高度/内边距/布局。
+ * 每款必须同时给「背景」与「字色」——只给背景＝暗色下白字看不见（硬约束 38）。
+ */
+.lw-badge-crown {
+    background: linear-gradient(135deg, #F7DC8C 0%, #D8A63C 55%, #B9862A 100%);
+    color: #3B2A05;
+    box-shadow: 0 0 0 1px rgba(120, 82, 12, .35) inset, 0 1px 2px rgba(120, 82, 12, .25);
+}
+.lw-badge-cyber {
+    background: linear-gradient(135deg, #1B2140 0%, #2B1857 100%);
+    color: #7CF3E2;
+    box-shadow: 0 0 0 1px rgba(55, 214, 192, .55) inset, 0 0 6px rgba(55, 214, 192, .35);
+}
+.lw-badge-sakura {
+    background: linear-gradient(135deg, #FFDCE8 0%, #FFB3CC 100%);
+    color: #7A2743;
+    box-shadow: 0 0 0 1px rgba(190, 88, 126, .3) inset;
+}
+.lw-badge-ocean {
+    background: linear-gradient(135deg, #C8E7FF 0%, #8CC8F2 100%);
+    color: #0E3A5C;
+    box-shadow: 0 0 0 1px rgba(28, 104, 160, .3) inset;
+}
+.lw-badge-tuxedo {
+    background: linear-gradient(135deg, #33333B 0%, #131316 100%);
+    color: #EBC97E;
+    box-shadow: 0 0 0 1px rgba(201, 150, 46, .55) inset;
+}
+
+/* ---------- 商城卡片 ---------- */
+.lw-shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+.lw-shop-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.875rem;
+    border: 1px solid var(--border-light, #E4E9F0);
+    border-radius: 0.875rem;
+    background: var(--surface, #fff);
+    transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+.lw-shop-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+.lw-shop-preview {
+    /* 预览区固定高度，头像框/气泡/勋章都塞进同尺寸盒子里 —— 视觉一致 */
+    height: 4.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.625rem;
+    background: var(--bg-secondary, #F4F7FA);
+    overflow: hidden;
+}
+.lw-shop-name { font-size: 0.875rem; font-weight: 700; color: var(--text); }
+.lw-shop-meta { font-size: 0.72rem; color: var(--text-secondary); display: flex; justify-content: space-between; gap: 0.5rem; }
+.lw-shop-price { color: var(--primary); font-weight: 700; }
+.lw-shop-price.free { color: #2E8B57; }
+
+/* ---------- 个人主页头部（签名 / 勋章 / 成就） ---------- */
+.lw-profile-head {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+}
+.lw-profile-sign {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.lw-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+}
+
+/* ---------- 移动端：只缩槽位变量，不改布局结构 ---------- */
+@media (max-width: 640px) {
+    :root {
+        --lw-slot-avatar: 2.375rem;
+        --lw-slot-avatar-pad: 0.15625rem;
+        --lw-slot-bubble-radius: 0.75rem;
+        --lw-slot-bubble-pad-x: 0.625rem;
+        --lw-slot-bubble-pad-y: 0.4375rem;
+    }
+    .lw-shop-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.625rem; }
+}
+
+/* ---------- 深色模式 ---------- */
+@media (prefers-color-scheme: dark) {
+    .lw-bubble-glass {
+        background: rgba(30,34,44,.55);
+        border-color: rgba(255,255,255,.12);
+    }
+    .lw-frame-glass {
+        border-color: rgba(255,255,255,.32);
+        box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 2px 8px rgba(0,0,0,.35);
+    }
+}
+html[data-theme="dark"] .lw-bubble-glass {
+    background: rgba(30,34,44,.55);
+    border-color: rgba(255,255,255,.12);
+}
+html[data-theme="dark"] .lw-frame-glass {
+    border-color: rgba(255,255,255,.32);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 2px 8px rgba(0,0,0,.35);
+}
+/* 默认皮肤徽章在暗色下：浅底 + 浅字看不清，换成深底亮字。
+ * 注意：不能用 [class*="lw-badge-"] 取反 —— .lw-badge-slot 自身就含这个子串。 */
+html[data-theme="dark"] .lw-badge-slot:not(.lw-badge-crown):not(.lw-badge-cyber):not(.lw-badge-sakura):not(.lw-badge-ocean):not(.lw-badge-tuxedo) {
+    background: rgba(255,255,255,.12);
+    color: var(--text, #E8EDF5);
+}

@@ -8,6 +8,12 @@ class FileStorage {
     /** 主键索引：table => [id => 该行在表中的下标]。findById 走它，避免每次全表扫描。 */
     private $index = [];
 
+    /**
+     * 本次请求内「读失败」的表名单，语义与用途见 readRaw() 的长注释。
+     * 写路径（write / writeUnlocked）见到它必须拒绝落盘。
+     */
+    private $unreadable = [];
+
     public function __construct() {
         $this->dataDir = __DIR__ . '/../data';
         if (!is_dir($this->dataDir)) {
@@ -103,6 +109,84 @@ class FileStorage {
         }
     }
 
+    /**
+     * 读取数据文件的原始内容，把「文件不存在」「内容为空」「读取失败」三种情况分开。
+     *
+     * 为什么必须分开 —— 这里原本有一个会真实吃掉整表数据的连锁反应：
+     *   file_get_contents() 失败时返回 false，而旧代码用 `if (!$content) return [];`
+     *   把「读不到」和「空表」混为一谈，于是出现这条链路：
+     *       readUnlocked() 在 insert()/update()/delete() 持有写锁时被调用
+     *       → 读失败 → 当成空表 → 追加/过滤后写回 → **磁盘上只剩这一条**
+     *   所有「读出来改一改再写回去」的调用方全部踩得中，且都是关键数据：
+     *       · includes/waf.php 封禁落盘（黑名单整份被单条记录覆盖）
+     *       · 用户表 / 帖子表 / 评论表 / 关注表 …
+     *
+     * 共享主机上这是能真实发生的：实测 errno=13 Permission denied
+     * （写入方 rename 的瞬间、主机安全组件回收目录权限、并发下锁文件打开失败退化为
+     * 「跳过加锁」都造成过短暂不可读）。因此这里还带 3 次重试，瞬时故障直接自愈。
+     *
+     * @return array{0:bool,1:string} [是否读到, 原始内容]
+     */
+    private function readRaw($file) {
+        if (!is_file($file)) {
+            // is_file() 为 false 有两种成因，绝不能一律当成「空表」：
+            //   ① 文件真的不存在（全新表 / 数据目录刚重建）→ 空表，属正常
+            //   ② 文件存在、但连 stat 都够不着 → 读失败
+            // 实测②：Windows 下被别的进程以 FileShare.None 占用时，stat 直接报
+            // 共享冲突，is_file() 返回 false。若按空表处理，上面那条丢数据链路
+            // 会原样重现（保护等于没加）。
+            $dir = dirname($file);
+            if (!is_dir($dir)) {
+                return [true, ''];   // 连数据目录都没有 = 全新站点，按空表走，
+                                     // 否则「重建 data/」的恢复流程会被自己的保护拦死
+            }
+            $names = @scandir($dir);
+            if ($names === false || in_array(basename($file), $names, true)) {
+                error_log('FileStorage: 数据文件存在但无法访问：' . basename($file));
+                return [false, ''];
+            }
+            return [true, ''];
+        }
+
+        for ($try = 0; $try < 3; $try++) {
+            clearstatcache(false, $file);
+            $size = @filesize($file);
+            $content = @file_get_contents($file);
+            // 长度必须与读之前的一致。半截读取比「读失败」更阴险：内容是合法的
+            // UTF-8 前缀，只是 JSON 不完整 —— json_decode 会失败并触发
+            // quarantineCorrupt()，把整表改名成 *.json.corrupt.<时间> 从线上挪走。
+            // 那正是「数据文件解析失败」留档机制被误触发的唯一现实路径。
+            if ($content !== false && ($size === false || strlen($content) === $size)) {
+                return [true, $content];
+            }
+            usleep(50000 * ($try + 1)); // 50ms / 100ms
+        }
+        error_log('FileStorage: 数据文件读取失败（已重试 3 次，或只读到半截内容）：' . basename($file));
+        return [false, ''];
+    }
+
+    /** 记下「这张表本次请求读不到」，写路径据此拒绝落盘。 */
+    private function markUnreadable($table) {
+        $this->unreadable[$table] = true;
+        unset($this->cache[$table]);
+    }
+
+    /**
+     * 这张表本次请求是否允许落盘。
+     *
+     * 读失败时返回 false：宁可这一次写不进去（上层会看到 insert/update 返回 false，
+     * 接口报错、用户重试），也不能以「空表」为基础把磁盘上的真实数据覆盖掉。
+     * 单次写入失败是可恢复的，整表被覆盖是不可恢复的 —— 两者不对等。
+     */
+    private function writable($table) {
+        if (isset($this->unreadable[$table])) {
+            error_log('FileStorage: 拒绝写入 ' . $table
+                . ' —— 本次请求内该表读取失败，强行写入会以空表为基础覆盖真实数据');
+            return false;
+        }
+        return true;
+    }
+
     public function read($table) {
         if ($this->cacheEnabled && isset($this->cache[$table])) {
             return $this->cache[$table];
@@ -116,10 +200,16 @@ class FileStorage {
             $this->cache[$table] = [];
             return [];
         }
-        $content = file_get_contents($file);
+        list($ok, $content) = $this->readRaw($file);
         $this->releaseLock($table);
 
-        if (!$content) {
+        if (!$ok) {
+            // 读失败 ≠ 空表：不缓存、不动磁盘，只让本次请求降级为空列表；
+            // 同时把表标记为不可写，避免上层随后把「空」写回去。
+            $this->markUnreadable($table);
+            return [];
+        }
+        if ($content === '') {
             $this->cache[$table] = [];
             return [];
         }
@@ -143,6 +233,10 @@ class FileStorage {
 
     public function write($table, $data) {
         $this->acquireLock($table, LOCK_EX);
+        if (!$this->writable($table)) {
+            $this->releaseLock($table);
+            return false;
+        }
         $file = $this->getFilePath($table);
         $dir = dirname($file);
         if (!is_dir($dir)) {
@@ -264,8 +358,14 @@ class FileStorage {
         if (!file_exists($file)) {
             return [];
         }
-        $content = file_get_contents($file);
-        if (!$content) {
+        list($ok, $content) = $this->readRaw($file);
+        if (!$ok) {
+            // 这一条是整条丢数据链路的关键堵口：调用方（insert/update/delete/insertCapped）
+            // 此刻持有写锁，紧接着就会以 $data 为基础写回。读失败必须让写路径拒绝落盘。
+            $this->markUnreadable($table);
+            return [];
+        }
+        if ($content === '') {
             return [];
         }
         $data = json_decode($content, true);
@@ -283,6 +383,9 @@ class FileStorage {
     }
 
     private function writeUnlocked($table, $data) {
+        if (!$this->writable($table)) {
+            return false;
+        }
         $file = $this->getFilePath($table);
         // 同上：紧凑格式，不带 JSON_PRETTY_PRINT
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -427,12 +530,17 @@ class FileStorage {
     }
 
     public function clearCache($table = null) {
+        // 顺带清掉「不可写」标记：调用方调这个方法是明确表示「磁盘状态已变，
+        // 请重新读」；真读不到时下一次 read 会重新标记，所以这里放开是安全的
+        // （insert/update/delete 都是「先读后写」，不会绕过读失败的保护）。
         if ($table === null) {
             $this->cache = [];
             $this->index = [];
+            $this->unreadable = [];
         } else {
             unset($this->cache[$table]);
             unset($this->index[$table]);
+            unset($this->unreadable[$table]);
         }
     }
 

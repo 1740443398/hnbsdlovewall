@@ -52,7 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // PRG：保存/删除成功后 302 回本页。直接在 POST 响应里渲染的话，
     // 用户按 F5 会被浏览器问「要重新提交表单吗」，体感很像「没提交成功」。
     if ($okCode !== '' && empty($err)) {
-        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?done=' . $okCode);
+        // 同上：只取 path + 剥离控制字符，取不到时回退到脚本自身路径。
+        $self = str_replace(["\r", "\n", "\0"], '', (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+        header('Location: ' . ($self !== '' ? $self : '/admin/title_presets.php') . '?done=' . $okCode);
         exit;
     }
 }

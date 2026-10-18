@@ -35,7 +35,7 @@ $timeout = 60;
 // 发起请求：多 Key 轮换、HTTPS 证书缺失时的降级、cURL / stream 双通道
 // 全部收敛在 includes/ai_client.php，其他需要调模型的入口共用同一份实现。
 $aiT0 = microtime(true);
-$aiResult = aiChatCompletion($ctx['cfg'], $ctx['messages'], $timeout);
+$aiResult = aiChatCompletion($ctx['cfg'], $ctx['modelMessages'], $timeout);
 $aiElapsedMs = (int)round((microtime(true) - $aiT0) * 1000);
 
 // 后台审计与错误日志都在 aiChatFinalize() 里（logAiCall 落库 + error_log 摘要），

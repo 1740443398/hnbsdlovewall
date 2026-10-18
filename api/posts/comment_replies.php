@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/fields.php';
+require_once __DIR__ . '/../../includes/widget_render.php';
 
 $postId = intval($_REQUEST['post_id'] ?? 0);
 $parentId = intval($_REQUEST['parent_id'] ?? 0);
@@ -64,6 +65,8 @@ $list = [];
 foreach ($replies as $rc) {
     $rAnon = !empty($rc['is_anonymous']);
     $rUser = $rAnon ? null : ($userIndex[(int)$rc['user_id']] ?? null);
+    // 与 api/posts/detail.php 保持一致：回复也要带头像框，否则「楼中楼没框」
+    $rDecor = (!$rAnon && $rUser) ? lwUserDecorBundle((int)$rc['user_id']) : ['frame' => null];
     $list[] = [
         'id' => $rc['id'],
         'content' => $rc['content'],
@@ -71,6 +74,7 @@ foreach ($replies as $rc) {
         'is_anonymous' => $rAnon,
         'author_nickname' => $rAnon ? '匿名用户' : ($rUser['nickname'] ?? ''),
         'author_avatar' => $rAnon ? '/assets/images/default-avatar.svg' : ($rUser['avatar'] ?? ''),
+        'author_frame' => $rDecor['frame'] ?? null,
         'author_title_text' => $rAnon ? '' : ($rUser['title_text'] ?? ''),
         'author_title_color' => $rAnon ? '' : ($rUser['title_color'] ?? ''),
         'author_title_bg_color' => $rAnon ? '' : ($rUser['title_bg_color'] ?? ''),
@@ -91,7 +95,7 @@ jsonSuccess(lwProjectTop(
         lwFieldsRequest(),
         [
             'id', 'content', 'parent_id', 'is_anonymous',
-            'author_nickname', 'author_avatar',
+            'author_nickname', 'author_avatar', 'author_frame',
             'author_title_text', 'author_title_color', 'author_title_bg_color',
             'author_title_rainbow', 'author_title_gradient_start', 'author_title_gradient_end',
             'created_at', 'time_ago', 'is_author', 'reply_to_name',

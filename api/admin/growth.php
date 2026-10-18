@@ -216,4 +216,29 @@ if ($action === 'recalc') {
     jsonSuccess(['fixed' => $fixed, 'total' => count($rows)], $fixed > 0 ? ('已修正 ' . $fixed . ' 条等级缓存') : '所有等级缓存均一致，无需修正');
 }
 
+// ---------------------------------------------------------------- 站长解锁全部成就
+if ($action === 'unlock_all_achievements') {
+    // 只给站长：这是「展示位」操作，不是普通管理员能开的
+    if ((string)($admin['role'] ?? '') !== 'super_admin') {
+        jsonError('只有站长可以使用「解锁全部成就」', 403);
+    }
+    $uid = (int)($_POST['user_id'] ?? $admin['id']);
+    if ($uid <= 0) {
+        jsonError('缺少用户 ID');
+    }
+    $target = $fs->findById('users', $uid);
+    if (!$target) {
+        jsonError('用户不存在', 404);
+    }
+    $added = lwUnlockAllAchievements($uid);
+    logOperation($admin['id'], $admin['qq'], 'unlock_all_achievements', 'user', $uid,
+        '解锁全部成就（新增 ' . $added . ' 个）');
+    $summary = lwAchievementSummary($uid);
+    jsonSuccess([
+        'added'    => $added,
+        'unlocked' => $summary['unlocked'],
+        'total'    => $summary['total'],
+    ], $added > 0 ? ('已解锁全部成就（新增 ' . $added . ' 个）') : '该用户的成就已经是全解锁状态');
+}
+
 jsonError('未知操作');

@@ -14,6 +14,7 @@
  *   - 被提及次数只数 type=mention 的站内通知，与 includes/mention_notify.php 写入的类型一一对应。
  */
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/fields.php';
 
 $user = requireLogin();
 $user = checkBanned($user);
@@ -148,7 +149,8 @@ foreach ($topPosts as $p) {
     ];
 }
 
-jsonSuccess([
+// 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+jsonSuccess(lwProjectTop([
     'cards' => [
         'post_published' => $statusCount['published'],
         'post_pending'   => $statusCount['pending'],
@@ -167,5 +169,6 @@ jsonSuccess([
         'mine'     => $weekTotal,
         'received' => $weekReceived,
     ],
-    'top_posts' => $topResult,
-]);
+    'top_posts' => lwProjectRows($topResult, lwFieldsRequest(),
+        ['id', 'title', 'like_count', 'view_count', 'comment_count', 'created_at', 'timeAgo'], ['id']),
+], lwTopRequest(), ['top_posts']));

@@ -48,6 +48,55 @@ adminHeader('用户管理', $adminUser, $csrfToken);
             <button class="btn btn-primary btn-sm" onclick="loadUsers()">搜索</button>
             <button class="btn btn-outline btn-sm" onclick="toggleAdvFilter()" id="advToggleBtn" aria-expanded="false">高级检索</button>
             <button class="btn btn-outline btn-sm" onclick="resetAdvFilter()">重置条件</button>
+            <?php if ($isSuperAdmin || checkPermission($adminUser, 'manage_users')): ?>
+            <button class="btn btn-primary btn-sm" onclick="openAddUser()">+ 添加用户</button>
+            <?php endif; ?>
+        </div>
+
+        <?php /* 添加用户：站长代开账号。
+                 密码由站长手填或一键随机生成；身份可选普通用户 / 管理员 / 超级管理员。
+                 口令只在这一刻显示一次，提交后服务端只存哈希。 */ ?>
+        <div class="modal-overlay" id="addUserModal" style="display:none;">
+            <div class="modal" style="max-width:520px;">
+                <div class="modal-header">
+                    <h3>添加用户</h3>
+                    <button type="button" class="modal-close" onclick="closeAddUser()" aria-label="关闭">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>QQ 号（登录账号）</label>
+                        <input type="text" id="auQq" placeholder="5-12 位数字" maxlength="12" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>昵称</label>
+                        <input type="text" id="auNickname" placeholder="留空则用「用户 + QQ尾号」" maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label>身份</label>
+                        <select id="auRole">
+                            <option value="user">普通用户</option>
+                            <option value="admin">管理员</option>
+                            <?php if ($isSuperAdmin): ?>
+                            <option value="super_admin">超级管理员</option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>初始密码</label>
+                        <div style="display:flex;gap:8px;">
+                            <input type="text" id="auPassword" placeholder="至少 8 位，含字母与数字" autocomplete="new-password" style="flex:1;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="genPassword()">随机</button>
+                        </div>
+                        <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+                            请把账号和密码线下告知对方，并提醒首次登录后尽快修改。
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closeAddUser()">取消</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="auSubmit" onclick="submitAddUser()">创建账号</button>
+                </div>
+            </div>
         </div>
 
         <?php /* 批次 D：D12 用户高级检索 —— 多条件 AND 组合，默认折叠，不占常驻空间 */ ?>
@@ -557,9 +606,10 @@ function loadUsers() {
                         if (u.title_rainbow == 1) {
                             var gs = u.title_gradient_start || '#ff4757';
                             var ge = u.title_gradient_end || '#a55eea';
-                            style += 'background:linear-gradient(90deg,' + gs + ',' + ge + ',' + gs + ');color:#fff;';
+                            // 站长没指定 title_color 时按渐变两端自动选前景（白/近黑）
+                            style += 'background:linear-gradient(90deg,' + gs + ',' + ge + ',' + gs + ');color:' + (u.title_color || readableFg(gs, ge)) + ';';
                         } else {
-                            style += 'background:' + esc(u.title_bg_color || '#4A90D9') + ';color:' + esc(u.title_color || '#ffffff') + ';';
+                            style += 'background:' + esc(u.title_bg_color || '#4A90D9') + ';color:' + esc(u.title_color || readableFg(u.title_bg_color || '#4A90D9')) + ';';
                         }
                         titleBadge = '<span style="' + style + '">' + esc(u.title_text) + '</span>';
                     }
@@ -713,6 +763,69 @@ function confirmDeleteUser(userId, name) {
         onSuccess: function () { showToast('用户已删除'); loadUsers(); },
         onError: function (m) { showToast(m || '操作失败', 'error'); }
     });
+}
+
+/* ================= 添加用户 ================= */
+
+function openAddUser() {
+    document.getElementById('auQq').value = '';
+    document.getElementById('auNickname').value = '';
+    document.getElementById('auRole').value = 'user';
+    document.getElementById('auPassword').value = '';
+    document.getElementById('addUserModal').style.display = 'flex';
+    setTimeout(function () { document.getElementById('auQq').focus(); }, 60);
+}
+
+function closeAddUser() {
+    document.getElementById('addUserModal').style.display = 'none';
+}
+
+/** 随机口令：去掉容易看错的 0/O/1/l/I，方便站长口头转述 */
+function genPassword() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    var out = '';
+    var buf = new Uint32Array(14);
+    (window.crypto || window.msCrypto).getRandomValues(buf);
+    for (var i = 0; i < buf.length; i++) {
+        out += chars.charAt(buf[i] % chars.length);
+    }
+    document.getElementById('auPassword').value = out;
+}
+
+function submitAddUser() {
+    var qq = document.getElementById('auQq').value.trim();
+    var nickname = document.getElementById('auNickname').value.trim();
+    var role = document.getElementById('auRole').value;
+    var password = document.getElementById('auPassword').value;
+    if (!/^\d{5,12}$/.test(qq)) { showToast('QQ 号需为 5-12 位数字', 'error'); return; }
+    if (password.length < 8) { showToast('密码至少 8 位', 'error'); return; }
+
+    var btn = document.getElementById('auSubmit');
+    btn.disabled = true;
+    var body = new URLSearchParams();
+    body.append('csrf_token', CSRF_TOKEN);
+    body.append('action', 'create_user');
+    body.append('qq', qq);
+    body.append('nickname', nickname);
+    body.append('role', role);
+    body.append('password', password);
+
+    fetch(SITE_URL + '/api/admin/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+          btn.disabled = false;
+          if (!d.success) { showToast(d.message || '创建失败', 'error'); return; }
+          showToast('账号已创建：' + qq + ' / ' + password, 'success');
+          closeAddUser();
+          loadUsers();
+      })
+      .catch(function () {
+          btn.disabled = false;
+          showToast('网络错误', 'error');
+      });
 }
 
 function executePendingAction() {

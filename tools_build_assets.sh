@@ -191,6 +191,9 @@ echo "$JS_LIST" | while read -r src; do
             echo "$out" | head -5
         fi
     else
+        # 跳过时把 .min 的时间戳追平源文件：内容没变不必重压，但 mtime 落后会让
+        # asset_url() 的「.min 是否新鲜」判定与两站 --check 永远报警，也显得 --force 没生效。
+        [ -f "$min" ] && touch "$min"
         echo "  跳过 $src (已是最新)"
     fi
 done
@@ -200,8 +203,21 @@ echo "$CSS_LIST" | while read -r src; do
     [ -z "$src" ] && continue
     min="${src%.css}.min.css"
     if need_build "$src" "$min"; then
-        out=$("$NODE" "$CLEANCSS" -O2 "$src" -o "$min" 2>&1)
-        if [ $? -eq 0 ]; then
+        # 彩虹头衔等「构建期展开」的占位符先展开到临时文件再压缩。
+        # 占位符形如 /*@lw-rainbow:128*/，展开交给 tools/lw_rainbow_gen.py，
+        # 这样源码里不必手写 128 组色标（手写必数错）。
+        feed="$src"
+        tmp_expanded=""
+        if grep -q '@lw-rainbow:' "$src" 2>/dev/null && [ -f "$ROOT/../tools/lw_rainbow_gen.py" ]; then
+            tmp_expanded="$ROOT/.lw_expand_$$.css"
+            if python "$ROOT/../tools/lw_rainbow_gen.py" "$src" "$tmp_expanded" >/dev/null 2>&1; then
+                feed="$tmp_expanded"
+            fi
+        fi
+        out=$("$NODE" "$CLEANCSS" -O2 "$feed" -o "$min" 2>&1)
+        rc=$?
+        [ -n "$tmp_expanded" ] && rm -f "$tmp_expanded"
+        if [ $rc -eq 0 ]; then
             o=$(stat -c%s "$src"); m=$(stat -c%s "$min")
             echo "  压缩 $src  $o -> $m  (-$(( (o-m)*100/o ))%)"
         else
@@ -209,6 +225,7 @@ echo "$CSS_LIST" | while read -r src; do
             echo "$out" | head -5
         fi
     else
+        [ -f "$min" ] && touch "$min"
         echo "  跳过 $src (已是最新)"
     fi
 done

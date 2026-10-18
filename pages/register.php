@@ -279,7 +279,7 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
         .cap-tile.selected {
             border-color: var(--primary);
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
         }
         .captcha-hint {
             margin-top: 8px;
@@ -473,7 +473,7 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
         .subject-tag input:checked + span {
             border-color: var(--primary);
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             box-shadow: 0 2px 8px rgba(47,91,154,0.2);
         }
         .subject-tag input:focus-visible + span {
@@ -507,7 +507,7 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
 
         .btn-primary {
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border-radius: var(--radius-full);
             box-shadow: 0 4px 14px rgba(47, 91, 154, 0.28);
         }

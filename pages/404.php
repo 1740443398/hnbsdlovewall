@@ -43,7 +43,7 @@ http_response_code(404);
             gap: 8px;
             padding: 11px 26px;
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border-radius: var(--radius-sm);
             text-decoration: none;
             font-weight: 600;
@@ -51,7 +51,7 @@ http_response_code(404);
             transition: background 0.2s ease;
             min-height: 44px;
         }
-        .btn-home:hover { background: var(--primary-hover); color: #fff; }
+        .btn-home:hover { background: var(--primary-hover); color: var(--on-solid, #fff); }
     </style>
 </head>
 <body>

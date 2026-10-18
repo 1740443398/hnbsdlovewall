@@ -1,11 +1,44 @@
 <?php
 
+/**
+ * mbstring 兜底（放在所有代码之前）。
+ *
+ * 为什么需要：WAF 要在「任何主机」上都能跑，包括没装 mbstring 的 PHP。
+ * 缺扩展时调用 mb_strlen / mb_substr / mb_strtolower 是**致命错误**，
+ * 而 WAF 会在每个请求的最前面执行 —— 于是整个站点直接 500。
+ * 一个安全检查把站点搞挂，比不做检查更糟。
+ *
+ * 这里只在函数「确实不存在」时才定义同名函数，装了扩展的主机完全不受影响。
+ */
+if (!function_exists('mb_strlen')) {
+    function mb_strlen($s, $enc = null) { return strlen((string)$s); }
+}
+if (!function_exists('mb_substr')) {
+    function mb_substr($s, $start, $len = null, $enc = null) {
+        return $len === null ? substr((string)$s, $start) : substr((string)$s, $start, $len);
+    }
+}
+if (!function_exists('mb_strtolower')) {
+    function mb_strtolower($s, $enc = null) { return strtolower((string)$s); }
+}
+if (!function_exists('mb_strtoupper')) {
+    function mb_strtoupper($s, $enc = null) { return strtoupper((string)$s); }
+}
+if (!function_exists('mb_stripos')) {
+    function mb_stripos($h, $n, $offset = 0, $enc = null) { return stripos((string)$h, (string)$n, $offset); }
+}
+
 class WAF {
     private static $blacklistIPs = [];
     private static $rateLimitData = [];
     private static $rateLimitFile = null;
     private static $initialized = false;
     private static $lastSavedJson = null;
+    /**
+     * 本次请求读取限流数据失败。置位后 saveRateLimitData() 拒绝回写。
+     * 起因见 loadRateLimitData() 的注释：只挡「数组为空」是挡不住的。
+     */
+    private static $rateLimitReadFailed = false;
 
     public static function init() {
         if (self::$initialized) return;
@@ -110,7 +143,11 @@ class WAF {
     private static function loadBlacklist() {
         $file = __DIR__ . '/../data/ip_blacklist.json';
         if (file_exists($file)) {
-            $data = json_decode(file_get_contents($file), true);
+            // 这里只做「加载进内存」，读不到就先不加载：本函数每次请求都会重跑，
+            // 单次失败自愈；绝不能让它吐 Notice（会把本机绝对路径写进错误日志）。
+            // 真正的危险在写入侧（见下方 addToBlacklist：以 read 结果为基础 append），
+            // 那条路径已由 FileStorage 的「读失败 → 拒绝落盘」兜住。
+            $data = json_decode((string)@file_get_contents($file), true);
             if (is_array($data)) {
                 foreach ($data as $entry) {
                     if (!empty($entry['ip'])) {
@@ -300,8 +337,14 @@ class WAF {
 
     private static function validateRequestSize() {
         $uri = $_SERVER['REQUEST_URI'] ?? '';
-        if (mb_strlen($uri) > 2048) {
-            self::logAndBlock('url_too_long', mb_strlen($uri) . ' chars');
+        // 长度统计必须能在「没装 mbstring」的主机上活下来。
+        // 直接调 mb_strlen() 在缺扩展时是**致命错误**，整个站点 500 ——
+        // 一个安全检查把网站搞挂，这比不检查更糟。
+        $len = function_exists('mb_strlen')
+            ? mb_strlen($uri)
+            : strlen($uri);   // 退化成字节数：对纯 ASCII 等价，对中文只会更严格（偏安全）
+        if ($len > 2048) {
+            self::logAndBlock('url_too_long', $len . ' chars');
         }
 
         $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
@@ -484,7 +527,19 @@ class WAF {
             '/javascript\s*:/i',
             '/vbscript\s*:/i',
             '/data\s*:\s*text\/html/i',
-            '/on\w+\s*=/i',
+            // 内联事件处理器只可能在「属性位置」出现：前面必然紧挨着标签内的空白、
+            // 属性引号，或 `<img src=x` 那种自闭合斜杠。
+            //
+            // 原规则是裸的 `/on\w+\s*=/i`，会把**任何**以 on 开头的参数名当成事件处理器：
+            // 上线时实测 `?only_bound=0` 被判定为 `on` + `ly_bound` + `=` → 直接 403，
+            // 整个接口静默失效。而这类参数名（only_*、online、once…）在业务里再常见不过，
+            // 所以必须收窄到属性上下文，而不是靠「以后别这么起名」来回避。
+            //
+            // 收窄后的漏网形态只有「光秃秃一句 onerror=alert(1) 且不带任何标签」，
+            // 它单独存在无法执行，真正落地成 XSS 需要应用把它拼进标签里 —— 那一步由
+            // 输出转义与上面几条 `<img/onerror>`「`<svg/onload>`」专用规则兜底。
+            // LW_WAF_ON_HANDLER_PATTERN：下一行由 _probe/waf_xss_probe.php 读取做双向断言，勿删标记
+            '/[<\s"\'\/]on[a-z]+\s*=/i',
             '/expression\s*\(/i',
             '/eval\s*\(/i',
             '/alert\s*\(/i',
@@ -560,13 +615,40 @@ class WAF {
     /**
      * 读取限流数据（同一请求内只读一次）。
      */
+    /**
+     * 数据文件是「真的不存在」还是「存在但读不到」。
+     *
+     * 与 includes/filestorage.php 的 readRaw() 同一判断口径：is_file() 失败时
+     * 用父目录清单兜底 —— 共享主机上目录权限被回收、Windows 下被别的进程独占占用，
+     * 都会让 stat 直接够不着，但文件其实还在。那种情况绝不能当成「全新站点」。
+     */
+    private static function rateLimitFilePresent($file) {
+        if (is_file($file)) return true;
+        $dir = dirname($file);
+        if (!is_dir($dir)) return false;   // 连数据目录都没有 = 全新站点，按不存在走
+        $names = @scandir($dir);
+        return $names === false || in_array(basename($file), $names, true);
+    }
+
     private static function loadRateLimitData() {
         if (self::$rateLimitData) return;
-        $raw = @file_get_contents(self::rateLimitDataFile());
+        $file = self::rateLimitDataFile();
+        $raw = @file_get_contents($file);
         // 记下磁盘上的原始串：请求结束时若内容一字未变（例如本次只是取静态资源、
         // 计数没有增加），就直接跳过写盘。否则每个请求都要整文件重写一遍，
         // 在共享主机上是纯粹的磁盘 IO 浪费。
         self::$lastSavedJson = ($raw === false || $raw === '') ? null : $raw;
+
+        if ($raw === false && self::rateLimitFilePresent($file)) {
+            // 文件在、却读不出来（errno=13 / 半截读取）。本次请求一个字都不许回写：
+            // 下面的 checkRateLimit() 会把计数自增进（此刻为空的）$rateLimitData，
+            // 让它从「空数组」变成「只有本 IP 的数组」—— 而 saveRateLimitData()
+            // 只挡得住「数组为空」那种情况，于是整份限流数据被这一两个 IP 的记录覆盖，
+            // 其余 IP 的计数与 ID 遍历历史全部归零，等于给正在被限流的攻击者
+            // 重新发一轮配额。宁可这一分钟不计数，也不能把别人的计数清掉。
+            self::$rateLimitReadFailed = true;
+            return;
+        }
         if ($raw !== false && $raw !== '') {
             $data = json_decode($raw, true);
             if (is_array($data)) {
@@ -674,6 +756,11 @@ class WAF {
     }
 
     public static function saveRateLimitData() {
+        // 本次请求读限流数据就没读成功 → 一个字都不许写。
+        // 这一条必须排在「数组为空」判断之前：读失败后数组会被计数自增填满，
+        // 只靠下面那条 empty() 判断根本拦不住（详见 loadRateLimitData()）。
+        if (self::$rateLimitReadFailed) return;
+
         // 本次请求没有加载/写过限流数据时直接跳过：
         // 否则 json_encode([]) 会把文件里已有的计数清空，让限流计数「归零失效」。
         if (empty(self::$rateLimitData)) return;
@@ -736,8 +823,12 @@ class WAF {
             '/<link[\s\S]*?>/i',
             '/javascript\s*:[\s\S]*?$/im',
             '/vbscript\s*:/i',
-            '/on\w+\s*=\s*["\'][\s\S]*?["\']/i',
-            '/on\w+\s*=\s*\S+/i',
+            // 同 blockMaliciousRequests 里的 XSS 规则：事件处理器只可能出现在属性位置。
+            // 裸的 `on\w+\s*=` 会把正文里的 `download=x`、`?only_bound=0` 这类
+            // 普通文本整段替换成 [blocked] —— 用户明明写的是正常内容却被静默篡改，
+            // 比误拦更难发现。收窄后 `<img src=x onerror=...>` 仍被剥掉。
+            '/[<\s"\'\/]on[a-z]+\s*=\s*["\'][\s\S]*?["\']/i',
+            '/[<\s"\'\/]on[a-z]+\s*=\s*\S+/i',
         ];
         $str = preg_replace($patterns, '[blocked]', $str);
 
@@ -758,7 +849,16 @@ class WAF {
     private static function logAndBlock($type, $detail = '') {
         $ip = self::getClientIP();
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
-        $ua = mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200);
+        // 截断工具：主机缺少 mbstring 时 mb_substr 是致命错误，
+        // 而这里恰恰是「拦人」的路径 —— 拦人反而把站点 500，最不可接受。
+        $cut = function ($s, $n) {
+            $s = (string)$s;
+            if (function_exists('mb_substr')) {
+                return mb_substr($s, 0, $n);
+            }
+            return substr($s, 0, $n);
+        };
+        $ua = $cut($_SERVER['HTTP_USER_AGENT'] ?? '', 200);
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
         try {
@@ -768,8 +868,8 @@ class WAF {
             $fs->insertCapped('waf_logs', [
                 'ip' => $ip,
                 'type' => $type,
-                'detail' => mb_substr($detail, 0, 500),
-                'uri' => mb_substr($uri, 0, 500),
+                'detail' => $cut($detail, 500),
+                'uri' => $cut($uri, 500),
                 'ua' => $ua,
                 'method' => $method,
                 'time' => date('Y-m-d H:i:s')
@@ -1117,10 +1217,3 @@ function waf_json_response($data, $code = 200) {
     exit();
 }
 
-function waf_json_error($message, $code = 400) {
-    waf_json_response(['success' => false, 'message' => $message], $code);
-}
-
-function waf_json_success($data = [], $message = '操作成功') {
-    waf_json_response(['success' => true, 'message' => $message, 'data' => $data]);
-}

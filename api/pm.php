@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 // 发私信的落库与通知逻辑抽到内核，AI 确认卡片走同一段代码。
 // pm_key 也一并收进内核文件（两边都用 function_exists 守卫，不会重复声明）。
 require_once __DIR__ . '/../includes/actions/pm_send.php';
+require_once __DIR__ . '/../includes/fields.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfToken = $_POST['csrf_token'] ?? '';
@@ -71,10 +72,83 @@ function pm_read_map($fs, $key) {
     return $map;
 }
 
+// 当前用户所有会话里最新一条消息的时间戳（毫秒）。
+// 用途：增量同步（action=poll）只需回一个游标，前端比对后决定要不要拉全量，
+// 避免多端在线时每秒都在整表传输。
+function pm_latest_ts($fs, $meQq) {
+    $all = $fs->read('pm_messages');
+    $max = 0;
+    foreach ($all as $m) {
+        $key = (string)($m['key'] ?? '');
+        if ($key === '') continue;
+        if (strpos($key, $meQq) === false) continue;
+        $parts = explode('|', $key);
+        if (!in_array($meQq, $parts, true)) continue;
+        $ts = (int)($m['ts'] ?? 0);
+        if ($ts > $max) $max = $ts;
+    }
+    return $max;
+}
+
+// 会话游标表：只算「与我有关」的会话 + 最新 ts，用于轻量轮询。
+// 每条 = {key, peer_qq, last_ts, unread}，字节数远小于整段 messages。
+function pm_cursors($fs, $meQq, $user) {
+    $all = $fs->read('pm_messages');
+    $cursors = [];
+    foreach ($all as $m) {
+        $key = (string)($m['key'] ?? '');
+        if ($key === '') continue;
+        $parts = explode('|', $key);
+        if (!in_array($meQq, $parts, true)) continue;
+        $ts = (int)($m['ts'] ?? 0);
+        if (!isset($cursors[$key])) {
+            $peerQq = $parts[0] === $meQq ? $parts[1] : $parts[0];
+            $cursors[$key] = ['key' => $key, 'peer_qq' => $peerQq, 'last_ts' => $ts, 'count' => 0];
+        }
+        if ($ts > $cursors[$key]['last_ts']) $cursors[$key]['last_ts'] = $ts;
+        $cursors[$key]['count']++;
+    }
+
+    // 补未读数：对方发来、且晚于我最后一次已读的消息条数
+    $readAll = $fs->read('pm_read');
+    $myRead = [];
+    foreach ($readAll as $r) {
+        if (($r['qq'] ?? '') === $meQq) {
+            $myRead[(string)($r['key'] ?? '')] = (int)($r['last_read_ts'] ?? 0);
+        }
+    }
+    foreach ($cursors as $k => &$c) {
+        $since = $myRead[$k] ?? 0;
+        $unread = 0;
+        foreach ($all as $m) {
+            if (($m['key'] ?? '') !== $k) continue;
+            if (($m['who'] ?? '') === $meQq) continue;   // 自己发的不算未读
+            if ((int)($m['ts'] ?? 0) > $since) $unread++;
+        }
+        $c['unread'] = $unread;
+    }
+    unset($c);
+
+    return array_values($cursors);
+}
+
 switch ($action) {
+
+    // 轻量轮询：只回「会话游标 + 服务器时间」，供多端判定是否需要拉全量。
+    // 与 sync 的分工：sync 传全量消息（打开面板/首次加载用），poll 只传游标（定时心跳用）。
+    case 'poll':
+        $cursors = pm_cursors($fs, $meQq, $user);
+        $serverTs = pm_latest_ts($fs, $meQq);
+        jsonSuccess(lwProjectTop([
+            'server_ts' => $serverTs,
+            'cursors' => lwProjectRows($cursors, lwFieldsRequest(),
+                ['key', 'peer_qq', 'last_ts', 'unread'], []),
+        ], lwTopRequest(), ['cursors']));
+        break;
 
     // 同步当前用户的所有会话
     case 'sync':
+
         $all = $fs->read('pm_messages');
         $conversations = [];
         $hasConvo = [];
@@ -118,7 +192,12 @@ switch ($action) {
         });
 
         // 仅返回本用户参与且会话中至少有消息的会话
-        jsonSuccess(['conversations' => $conversations]);
+        // 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+        // conversations 的键本身就是会话标识（`qqA|qqB`），投影时保留键 —— 见 includes/fields.php。
+        jsonSuccess(lwProjectTop([
+            'conversations' => lwProjectRows($conversations, lwFieldsRequest(),
+                ['peer', 'read', 'messages', 'muted', 'pinned', 'blocked'], []),
+        ], lwTopRequest(), ['conversations']));
         break;
 
     // 发送一条私信
@@ -139,12 +218,14 @@ switch ($action) {
 
         $toQq = (string)($r['data']['to_qq'] ?? '');
         $key = pm_key($meQq, $toQq);
-        jsonSuccess([
+        // 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+        jsonSuccess(lwProjectTop([
             'key' => $key,
             'peer' => pm_peer($fs, $toQq, $meQq),
             'read' => pm_read_map($fs, $key),
-            'messages' => pm_messages($fs, $key, $meQq),
-        ], '私信已发送');
+            'messages' => lwProjectRows(pm_messages($fs, $key, $meQq), lwFieldsRequest(),
+                ['who', 'text', 'ts'], ['who']),
+        ], lwTopRequest(), ['messages']), '私信已发送');
         break;
 
     // 标记会话为已读

@@ -51,7 +51,7 @@ if (!isset($headerGuestCta) || $headerGuestCta === '') {
         <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="菜单" aria-expanded="false">
             <?= lw_icon('menu', 22, ['wrap' => false, 'stroke' => '2.5']) ?>
         </button>
-        <a href="<?= SITE_URL ?>/" class="site-logo">
+        <a href="<?= SITE_URL ?>/" class="site-logo" aria-label="<?= htmlspecialchars($headerSiteName) ?> 回到首页">
             <svg class="logo-icon" width="30" height="30" viewBox="0 0 24 24" fill="none">
                 <defs>
                     <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -87,7 +87,12 @@ if (!isset($headerGuestCta) || $headerGuestCta === '') {
     </div>
 </header>
 
-<?php require __DIR__ . '/title_request_modal.php'; ?>
+<?php /* 头衔申请弹窗已下线：头衔改为用户在个人中心直接自定义（违规词拦截） */ ?>
+
+<?php /* U 端（手机端）独立外壳：极简副顶栏 + 抽屉菜单（手稿「独立 U 端」）。
+         放在 header 外面，理由同下面的 .sheet-backdrop —— header 的 backdrop-filter
+         会形成包含块，fixed 定位的抽屉放进去会错位。 */ ?>
+<?php if (empty($headerNoMobileShell)) { require __DIR__ . '/mobile_shell.php'; } ?>
 
 <div class="sheet-backdrop" id="sheetBackdrop" aria-hidden="true"></div>
 

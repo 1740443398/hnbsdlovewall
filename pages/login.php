@@ -313,7 +313,7 @@ header('Expires: 0');
         .cap-tile.selected {
             border-color: var(--primary);
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
         }
         .captcha-hint {
             margin-top: 8px;
@@ -358,7 +358,7 @@ header('Expires: 0');
 
         .btn-primary {
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border-radius: var(--radius-full);
             box-shadow: 0 4px 14px rgba(47, 91, 154, 0.28);
         }
@@ -639,7 +639,7 @@ header('Expires: 0');
         .mobile-nav-item svg { width: 21px; height: 21px; }
         .mobile-nav-item.active {
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             box-shadow: 0 8px 18px -8px rgba(47, 91, 154, 0.65);
         }
         .mobile-nav-item:active { background: var(--primary-light); color: var(--primary); }

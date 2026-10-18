@@ -139,6 +139,17 @@ foreach ($posts as $post) {
             'title_rainbow' => intval($postUser['title_rainbow'] ?? 0),
             'title_gradient_start' => $postUser['title_gradient_start'] ?? '',
             'title_gradient_end' => $postUser['title_gradient_end'] ?? '',
+            // 头像框（商城挂件）：列表页头像要能显示正在装备的框
+            'frame' => (function () use ($postUser) {
+                if (!function_exists('lwUserDecorBundle')) {
+                    require_once __DIR__ . '/../../includes/widget_render.php';
+                }
+                $d = lwUserDecorBundle((int)$postUser['id']);
+                return $d['frame'] ? [
+                    'css_class' => (string)($d['frame']['css_class'] ?? ''),
+                    'asset' => (string)($d['frame']['asset'] ?? ''),
+                ] : null;
+            })(),
         ];
     } else {
         $author = [

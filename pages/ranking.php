@@ -16,6 +16,8 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/post_visibility.php';
 require_once __DIR__ . '/../includes/text_linkify.php';
+require_once __DIR__ . '/../includes/widget_render.php';
+require_once __DIR__ . '/../includes/avatar.php';
 
 $user = requireLoginOrGuest();
 if ($user) {
@@ -139,6 +141,40 @@ foreach ($cands as $p) {
 }
 arsort($tagCount);
 $tagBoard = array_slice($tagCount, 0, 12, true);
+
+// ---- 积分排行榜（需求二、5）----------------------------------------------
+// 口径：按 users.points 余额倒序，取前 10。与「活跃用户」不同 —— 后者是窗口内
+// 行为得分，前者是长期积累的存量，两者一起看才完整。
+$pointsBoard = [];
+$usersByPoints = $fs->read('users');
+$pointsSorted = [];
+foreach ((array)$usersByPoints as $u) {
+    $pts = (int)($u['points'] ?? 0);
+    if ($pts <= 0 || !empty($u['is_banned'])) {
+        continue;
+    }
+    $pointsSorted[] = $u;
+}
+usort($pointsSorted, function ($a, $b) {
+    return ((int)($b['points'] ?? 0)) <=> ((int)($a['points'] ?? 0));
+});
+foreach (array_slice($pointsSorted, 0, 10) as $u) {
+    $uid = (int)$u['id'];
+    $decor = lwUserDecorBundle($uid);
+    $avatar = trim((string)($u['avatar'] ?? ''));
+    if ($avatar === '' && !empty($u['qq'])) {
+        $avatar = getQQAvatar((string)$u['qq']);
+    }
+    $pointsBoard[] = [
+        'id' => $uid,
+        'nickname' => trim((string)($u['nickname'] ?? '')),
+        'avatar' => $avatar,
+        'points' => (int)($u['points'] ?? 0),
+        'level' => (int)($u['level'] ?? 1),
+        'posts' => (int)($userPosts[$uid] ?? 0),
+        'frame' => $decor['frame'],
+    ];
+}
 
 // ---- 昵称 / 头像：一次读全表建索引，避免循环里逐条查询 ----------------------
 $users = [];
@@ -297,6 +333,36 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
                             <span><?= htmlspecialchars(timeAgo((string)($p['created_at'] ?? ''))) ?></span>
                         </div>
                     </div>
+                </div>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+
+            <!-- 积分排行榜（需求二、5） -->
+            <div class="rk-panel">
+                <div class="rk-panel-head">
+                    <div class="rk-panel-title">积分排行榜</div>
+                    <div class="rk-panel-hint">按当前积分余额排序，积分来自签到、发帖互动与兑换码</div>
+                </div>
+                <?php if (!$pointsBoard): ?>
+                <div class="rk-empty"><?= t('rank.empty') ?></div>
+                <?php else: ?>
+                <?php foreach ($pointsBoard as $i => $pu):
+                    $rank = $i + 1;
+                    $nick = trim((string)($pu['nickname'] ?? '')) ?: ('用户' . $pu['id']);
+                    $avatar = (string)($pu['avatar'] ?? '');
+                ?>
+                <div class="rk-item">
+                    <span class="rk-rank<?= rankingMedalClass($rank) ?>"><?= $rank ?></span>
+                    <?= lwAvatarComposite(['id' => (int)($pu['user_id'] ?? 0), 'avatar' => $avatar, 'nickname' => $nick], 'md', ['ring' => false]) ?>
+                    <div class="rk-main">
+                        <a class="rk-item-title" href="<?= htmlspecialchars(lwUserUrl($nick)) ?>"><?= htmlspecialchars($nick) ?></a>
+                        <div class="rk-item-meta">
+                            <span>Lv.<?= (int)$pu['level'] ?></span>
+                            <span><?= (int)$pu['posts'] ?>篇动态</span>
+                        </div>
+                    </div>
+                    <span class="rk-score"><?= (int)$pu['points'] ?></span>
                 </div>
                 <?php endforeach; ?>
                 <?php endif; ?>

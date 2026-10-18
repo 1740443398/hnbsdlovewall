@@ -262,7 +262,7 @@ A user-supplied AI **shares the exact same core** as the site default, so it kee
 
 ### Do **not** upload these to a live site
 
-Upload the program code only (`admin/`, `api/`, `assets/`, `config/*.php` except the secret-bearing ones, `includes/`, `lang/`, `pages/`, `licenses/`, `tools/`, `index.php`, `init.php`, `sitemap.php`, `sw.js`, `offline.html`, `manifest.webmanifest`, `.htaccess`, `robots.txt`). The following are local data or credentials:
+Upload the program code only (`admin/`, `api/`, `assets/`, `config/*.php` except the secret-bearing ones, `includes/`, `lang/`, `pages/`, `licenses/`, `tools/`, `index.php`, `init.php`, `sitemap.php`, `sw.js`, `offline.html`, `manifest.css`, `.htaccess`, `robots.txt`). The following are local data or credentials:
 
 - `data/` (all site JSON data: users, posts, DMs, logs)
 - `uploads/` (user-uploaded images)
@@ -278,15 +278,22 @@ After uploading, open `init.php` once to create the default super admin, then ch
 
 ## Android Client
 
-A companion Android app ships with this project (a WebView shell plus native enhancements). Its version metadata lives in `config/app_config.php`, which both the site's "Install app" menu entry and the app's "Check for updates" screen read from.
+A companion Android app ships with this project. It is **not a plain WebView shell**: the WebView is only the content layer, while bottom navigation, notifications, version checks, downloads and the camera are all native. **Available APK versions are now discovered by scanning the `/download/` directory**: drop any `lovewall-v<version>.apk` in there and it is picked up automatically, with no config change needed. `config/app_config.php` is used to designate the "recommended" version and its release notes.
 
-**Current version: 1.7.0 (version_code 8)**
+**Current version: 2.1.0 (version_code 12)**
 
-- **APK size cut by ~58%** (2.66 MB → 1.11 MB): R8 obfuscation + resource shrinking enabled (with keep rules protecting the 13 `@JavascriptInterface` bridge methods), a single vector launch icon replaces the 5-density PNG set, and only `zh`/`en` language resources are kept
+- **Native Liquid Glass dock**: on phones in portrait the app draws its own bottom dock instead of leaving it to the web layer's `backdrop-filter`. It samples the real pixels immediately *above* itself (via `PixelCopy`, throttled to once per 180 ms while scrolling), blurs them on the GPU, picks its tint from measured average brightness, and finishes with a 45° sheen and a 1 dp edge. Because the blur is a one-off GPU pass rather than per-frame compositing, scrolling stays smooth on the shared host; the web page only has to hide its own `.mobile-bottom-nav` (the app adds `html.lw-native-dock`), so "which breakpoint shows a bottom bar" stays identical in the app and in a browser
+- **Device reporting**: the app reports its install on first launch, then heartbeats at most once per 5 minutes (and binds the QQ account once the user signs in). The console can therefore show total installs, currently active devices, daily/weekly actives, version and OS distribution, and which account each device belongs to
+- **Manual system notifications**: the console can push a titled, optional-link notification to all devices or to a chosen set of users. The app claims pushes on resume and from a periodic `WorkManager` job (≥15 min), then raises a local notification on its own channel — so no FCM/APNs credentials are needed on a shared host
+- **Historical version list**: the site's "Install app" menu opens a dialog listing every version found under `/download/` (sorted high→low by version number, with the newest tagged "Latest"), and any of them can be downloaded
+- **Desktop APK download**: on Windows / macOS / Linux, clicking "Install app" downloads the APK directly (with the first 12 chars of the SHA-256 shown for verification) to transfer to a phone or install in an Android subsystem
+- **APK size cut by ~58%** (2.66 MB → 1.11 MB): R8 obfuscation + resource shrinking enabled (with keep rules protecting the 15 `@JavascriptInterface` bridge methods), a single vector launch icon replaces the 5-density PNG set, and only `zh`/`en` language resources are kept
 - Desktop-layout mode, release-key signing, SHA-256 update verification and power-optimised background notifications (carried over from 1.6.0)
-- The 13 native bridge methods (`LoveWallApp.*`) are verified present by name in the final DEX, so the JS bridge keeps working after R8
+- The 15 native bridge methods (`LoveWallApp.*`) are verified present by name in the final DEX, so the JS bridge keeps working after R8
 
-> ⚠️ **1.6.0 changed the signing key.** Android refuses to install an APK whose signature differs from the installed one, so **users on an older build must uninstall it before installing 1.6.0+**. After that, 1.7.0 upgrades in place normally.
+> Releasing a build: drop the packaged APK into `/download/` (named like `lovewall-v2.1.0.apk`) and `/api/app_version.php` picks it up automatically; edit `config/app_config.php` only to mark a recommended version and its notes.
+
+> ⚠️ **1.6.0 changed the signing key.** Android refuses to install an APK whose signature differs from the installed one, so **users on an older build must uninstall it before installing 1.6.0+**. After that, upgrades work in place normally.
 
 ## Data sync tools (`tools/`)
 
@@ -384,7 +391,7 @@ love_wall/
 └── zanzhu/         # Sponsor images
 ```
 
-Also at the top level: `index.php` (entry point), `init.php` (initialization), `sitemap.php` (dynamic sitemap), `sw.js` (Service Worker), `offline.html` (offline page), `manifest.webmanifest` (PWA manifest), `robots.txt`, `.htaccess`, `启动.bat`, `tools_build_assets.sh`.
+Also at the top level: `index.php` (entry point), `init.php` (initialization), `sitemap.php` (dynamic sitemap), `sw.js` (Service Worker), `offline.html` (offline page), `manifest.css` (PWA manifest, JSON body behind a `.css` name — see the host-challenge note in `.htaccess`), `robots.txt`, `.htaccess`, `启动.bat`, `tools_build_assets.sh`.
 
 ## Configuration
 

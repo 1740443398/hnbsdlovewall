@@ -163,7 +163,7 @@ $pageTitle = $tag !== ''
         .topic-pager{display:flex;justify-content:center;align-items:center;gap:.75rem;margin-top:1.25rem;}
         .topic-pager a,.topic-pager span{padding:.375rem .875rem;border-radius:9999px;font-size:.82rem;text-decoration:none;border:1px solid var(--border-light,#E4E9F0);color:var(--text-secondary);}
         .topic-pager a:hover{border-color:var(--primary);color:var(--primary);}
-        .topic-pager .cur{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;}
+        .topic-pager .cur{background:var(--primary);border-color:var(--primary);color:var(--on-solid,#fff);font-weight:600;}
         @media (max-width:480px){
             .topic-page{padding:1rem .75rem 2.5rem;}
             .topic-name{font-size:1.3rem;}

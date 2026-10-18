@@ -3,6 +3,7 @@ error_reporting(0);
 ini_set('display_errors', '0');
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/fields.php';
 
 $fs = getFS();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -37,7 +38,9 @@ if ($method === 'GET') {
             'created_at' => $f['created_at'] ?? '',
         ];
     }, $features);
-    jsonSuccess($result);
+    // 字段投影（E14）：不传 fields 时与改造前完全一致。
+    jsonSuccess(lwProjectRows($result, lwFieldsRequest(),
+        ['id', 'title', 'content', 'status', 'nickname', 'vote_count', 'voted', 'created_at'], ['id']));
     exit;
 }
 

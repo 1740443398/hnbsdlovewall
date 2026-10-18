@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/zh_convert.php';
 
 $user = requireMember('发布动态需要注册账号后才能使用');
 $user = checkBanned($user);
@@ -12,6 +13,16 @@ if ($user['is_banned']) {
 }
 
 $csrfToken = generateCSRFToken();
+
+// 简繁字表内联给前端：约 4.8KB（gzip 3.5KB），本地转换零延迟、不发请求。
+// 真源仍是 includes/zh_convert.php，这里只是把它序列化一份给浏览器。
+$zhTable = lwZhTable();
+$zhSimp = '';
+$zhTrad = '';
+foreach ($zhTable as $k => $v) {
+    $zhSimp .= $k;
+    $zhTrad .= $v;
+}
 
 function catSvgIcon($name) {
     $icons = [
@@ -105,7 +116,7 @@ if ($editPostId > 0) {
             font-weight: 500;
         }
         .cat-option:hover { border-color: var(--primary); background: var(--primary-light); }
-        .cat-option.active { border-color: var(--primary); background: var(--primary); color: #fff; font-weight: 600; }
+        .cat-option.active { border-color: var(--primary); background: var(--primary); color: var(--on-solid, #fff); font-weight: 600; }
         .form-group { margin-bottom: 18px; }
         .form-group label {
             display: block;
@@ -243,7 +254,7 @@ if ($editPostId > 0) {
             position: absolute;
             top: 4px; right: 4px;
             background: var(--danger);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border: none;
             border-radius: 50%;
             width: 24px; height: 24px;
@@ -268,7 +279,7 @@ if ($editPostId > 0) {
             font-family: inherit;
             transition: all 0.2s ease;
         }
-        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary { background: var(--primary); color: var(--on-solid, #fff); }
         .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(47,91,154,0.3); }
         .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
         .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
@@ -435,6 +446,22 @@ if ($editPostId > 0) {
             cursor: pointer;
         }
         .poll-toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+
+        /* 简繁一键切换（需求一、4）：标签与按钮同排，窄屏自动换行 */
+        .zh-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 0.375rem; }
+        .zh-switch-row > label { margin-bottom: 0; }
+        .zh-switch { display: inline-flex; gap: 4px; padding: 3px; border-radius: 9999px; background: var(--bg-secondary); border: 1px solid var(--border-light); }
+        .zh-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border: none; border-radius: 9999px;
+            background: transparent; color: var(--text-secondary);
+            font-size: 0.75rem; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: background .18s, color .18s;
+        }
+        .zh-btn:hover { background: var(--card-bg); color: var(--primary); }
+        .zh-btn:active { transform: scale(0.97); }
+        .zh-btn svg { flex: 0 0 auto; }
+
         @media (max-width: 480px) {
             .post-card { padding: 20px; }
             .category-selector { gap: 6px; }
@@ -501,7 +528,19 @@ if ($editPostId > 0) {
                 </div>
 
                 <div class="form-group">
-                    <label for="content">内容</label>
+                    <div class="zh-switch-row">
+                        <label for="content">内容</label>
+                        <div class="zh-switch" role="group" aria-label="简繁切换">
+                            <button type="button" class="zh-btn" id="zhToTrad" title="把正文一键转为繁体中文">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 4v3"/><path d="M15 4v3"/><path d="M5 7c0 5 3 8 7 9"/><path d="M19 7c0 5-3 8-7 9"/><path d="M12 16v4"/><path d="M9 20h6"/></svg>
+                                转繁体
+                            </button>
+                            <button type="button" class="zh-btn" id="zhToSimp" title="把正文一键转为简体中文">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h8"/><path d="M8 4v2"/><path d="M5 6c0 4 2 6.5 5 7.5"/><path d="M12 13.5c-2 .8-4 1.2-6 1.4"/><path d="M14 20l4-9 4 9"/><path d="M15.5 17h5"/></svg>
+                                转简体
+                            </button>
+                        </div>
+                    </div>
                     <textarea id="content" name="content" class="form-input form-textarea" placeholder="写下你想说的..." maxlength="5000"></textarea>
                     <div class="char-count" id="charCount">0 / 5000</div>
                 </div>
@@ -990,6 +1029,66 @@ if ($editPostId > 0) {
         function clearDraft() {
             try { localStorage.removeItem('post_draft'); } catch(e) {}
         }
+
+        /* ===== 简繁一键切换（需求一、4）=====
+         * 字表由服务端内联下发（真源 includes/zh_convert.php），本地 strtr 式替换，
+         * 零网络请求、零延迟。只替换汉字；英文、数字、emoji、标点完全不动。
+         * 切换后立刻触发 input 事件，让字数统计与草稿自动保存同步更新。
+         */
+        (function () {
+            var SIMP = <?= json_encode($zhSimp, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+            var TRAD = <?= json_encode($zhTrad, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+            if (!SIMP || !TRAD || SIMP.length !== TRAD.length) return;
+
+            // 建两张映射表，用对象做 O(1) 查找
+            var s2t = {};
+            var t2s = {};
+            for (var i = 0; i < SIMP.length; i++) {
+                var s = SIMP.charAt(i);
+                var t = TRAD.charAt(i);
+                if (s !== t) {
+                    s2t[s] = t;
+                    if (!t2s[t]) t2s[t] = s;
+                }
+            }
+
+            function convert(text, map) {
+                var out = '';
+                for (var i = 0; i < text.length; i++) {
+                    var ch = text.charAt(i);
+                    out += (map[ch] !== undefined) ? map[ch] : ch;
+                }
+                return out;
+            }
+
+            var ta = document.getElementById('content');
+            var btnTrad = document.getElementById('zhToTrad');
+            var btnSimp = document.getElementById('zhToSimp');
+            if (!ta) return;
+
+            function apply(map, label) {
+                var before = ta.value;
+                if (!before) { App && App.showToast && App.showToast('先写点内容再切换吧', 'info'); return; }
+                var after = convert(before, map);
+                if (after === before) {
+                    App && App.showToast && App.showToast('内容已经是' + label + '了', 'info');
+                    return;
+                }
+                // 记下光标位置，尽量按比例还原，避免转换后光标跳到开头
+                var pos = ta.selectionStart || 0;
+                ta.value = after;
+                var ratio = before.length ? (pos / before.length) : 0;
+                var newPos = Math.round(after.length * ratio);
+                try { ta.setSelectionRange(newPos, newPos); } catch (e) {}
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.focus({ preventScroll: true });
+                App && App.showToast && App.showToast('已转为' + label, 'success');
+            }
+
+            if (btnTrad) btnTrad.addEventListener('click', function () { apply(s2t, '繁体'); });
+            if (btnSimp) btnSimp.addEventListener('click', function () { apply(t2s, '简体'); });
+        })();
 
         setInterval(saveDraft, 30000);
 

@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/sort_util.php';
+// 添加用户要分配邀请码：懒加载，避免所有管理动作都多读一次 invite 模块
+require_once __DIR__ . '/../../includes/invite.php';
 
 $admin = requireAdmin();
 $admin = checkBanned($admin);
@@ -320,6 +322,77 @@ if ($action === 'reset_password') {
 
     logOperation($admin['id'], $admin['qq'], 'reset_user_password', 'user', $userId, '重置密码');
     jsonSuccess([], '密码已重置');
+}
+
+if ($action === 'create_user') {
+    // 站长代开账号（需求：后台添加用户，并可选身份）
+    // 安全口径：
+    //   · 只有超级管理员能开「管理员/超级管理员」，普通管理员只能开普通用户 ——
+    //     否则一个管理员就能自己造一个超管，等于绕过所有权限模型；
+    //   · QQ 唯一、密码强度、角色白名单三道校验，全部在服务端，前端下拉只是提示。
+    if (!checkPermission($admin, 'manage_users') && ($admin['role'] ?? '') !== 'super_admin') {
+        jsonError('无权限添加用户', 403);
+    }
+
+    $qq       = trim((string)($_POST['qq'] ?? ''));
+    $nickname = sanitizeInput($_POST['nickname'] ?? '');
+    $password = (string)($_POST['password'] ?? '');
+    $role     = (string)($_POST['role'] ?? 'user');
+
+    if (!preg_match('/^\d{5,12}$/', $qq)) {
+        jsonError('QQ 号需为 5-12 位数字');
+    }
+    if ($fs->findOne('users', ['qq' => $qq])) {
+        jsonError('该 QQ 号已存在');
+    }
+
+    if (!in_array($role, ['user', 'admin', 'super_admin'], true)) {
+        jsonError('身份不合法');
+    }
+    if ($role !== 'user' && ($admin['role'] ?? '') !== 'super_admin') {
+        jsonError('只有超级管理员可以创建管理员账号', 403);
+    }
+
+    $nickname = trim($nickname);
+    if ($nickname === '') {
+        $nickname = '用户' . substr($qq, -4);
+    }
+    if (mb_strlen($nickname) > 50) {
+        jsonError('昵称最多 50 个字');
+    }
+    if ($fs->findOne('users', ['nickname' => $nickname])) {
+        jsonError('该昵称已被使用，请换一个');
+    }
+
+    $pwCheck = validatePasswordStrength($password);
+    if ($pwCheck !== true) {
+        jsonError($pwCheck);
+    }
+
+    try {
+        $created = $fs->insert('users', [
+            'qq'             => $qq,
+            'uuid'           => generateUUID(),
+            'password_hash'  => hashPassword($password),
+            'nickname'       => $nickname,
+            'avatar'         => '',
+            'role'           => $role,
+            'security_stamp' => generateSecurityStamp(),
+            'is_banned'      => 0,
+            'invite_code'    => lwInviteAllocate($fs),
+            'invited_by'     => 0,
+        ]);
+    } catch (Exception $e) {
+        error_log('[love_wall] 添加用户失败：' . $e->getMessage());
+        jsonError('创建失败，请稍后重试', 500);
+    }
+
+    $newId = (int)($created['id'] ?? 0);
+    logOperation($admin['id'], $admin['qq'], 'create_user', 'user', $newId,
+        '添加用户 ' . $qq . '（' . $role . '）');
+    logUserActivity($newId, 'admin_create', '由管理员 ' . $admin['qq'] . ' 创建账号');
+
+    jsonSuccess(['id' => $newId, 'qq' => $qq, 'nickname' => $nickname], '账号已创建');
 }
 
 if ($action === 'view_detail') {

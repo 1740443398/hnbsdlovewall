@@ -11,6 +11,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/achievements.php';
 require_once __DIR__ . '/../../includes/level.php';
+require_once __DIR__ . '/../../includes/fields.php';
 
 $user = requireLogin();
 $user = checkBanned($user);
@@ -31,14 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $newly = lwCheckAchievements((int)$user['id'], true);
     $summary = lwAchievementSummary((int)$user['id']);
 
-    jsonSuccess([
-        'newly_unlocked' => array_map(function ($d) {
+    // 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+    jsonSuccess(lwProjectTop([
+        'newly_unlocked' => lwProjectRows(array_map(function ($d) {
             return ['key' => $d['key'], 'name' => $d['name'], 'icon' => $d['icon'], 'desc' => $d['desc']];
-        }, $newly),
+        }, $newly), lwFieldsRequest(), ['key', 'name', 'icon', 'desc'], ['key']),
         'unlocked' => $summary['unlocked'],
         'total'    => $summary['total'],
         'percent'  => $summary['percent'],
-    ], $newly ? ('解锁了 ' . count($newly) . ' 个新成就') : '暂无新成就');
+    ], lwTopRequest()), $newly ? ('解锁了 ' . count($newly) . ' 个新成就') : '暂无新成就');
 }
 
 // GET
@@ -63,11 +65,13 @@ foreach ($summary['items'] as $it) {
     $groups[$it['group']][] = $it;
 }
 
-jsonSuccess([
-    'items'    => $summary['items'],
+// 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+jsonSuccess(lwProjectTop([
+    'items'    => lwProjectRows($summary['items'], lwFieldsRequest(),
+        ['key', 'name', 'desc', 'icon', 'group', 'unlocked', 'unlocked_at', 'current', 'need', 'percent'], ['key']),
     'groups'   => $groups,
     'unlocked' => $summary['unlocked'],
     'total'    => $summary['total'],
     'percent'  => $summary['percent'],
     'is_me'    => ($_REQUEST['action'] ?? '') !== 'user' || $targetId === (int)$user['id'],
-]);
+], lwTopRequest(), ['items']));

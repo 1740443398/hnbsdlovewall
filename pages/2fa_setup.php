@@ -61,7 +61,7 @@ $csrfToken = generateCSRFToken();
             width: 36px;
             height: 36px;
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -99,7 +99,7 @@ $csrfToken = generateCSRFToken();
         .manual-key .copy-key-btn {
             font-size: 0.75rem;
             background: var(--primary);
-            color: #fff;
+            color: var(--on-solid, #fff);
             border: none;
             border-radius: 4px;
             padding: 4px 10px;
@@ -155,11 +155,11 @@ $csrfToken = generateCSRFToken();
             font-family: inherit;
             transition: all 0.2s ease;
         }
-        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary { background: var(--primary); color: var(--on-solid, #fff); }
         .btn-primary:hover { background: var(--primary-hover); }
         .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
         .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger { background: var(--danger); color: var(--on-solid, #fff); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .spinner {
             display: inline-block;
@@ -208,7 +208,7 @@ $csrfToken = generateCSRFToken();
             background: transparent;
             padding: 2px 8px;
         }
-        .recovery-item button:hover { background: var(--primary); color: #fff; }
+        .recovery-item button:hover { background: var(--primary); color: var(--on-solid, #fff); }
         .toast {
             position: fixed;
             top: 20px; left: 50%;

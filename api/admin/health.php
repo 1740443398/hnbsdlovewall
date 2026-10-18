@@ -27,6 +27,37 @@ if (!checkPermission($admin, 'view_health')) {
     jsonError('无权限查看系统健康状态', 403);
 }
 
+// ---------------------------------------------------------------------------
+// 致命错误兜底：把「光秃秃的 500」变成一个能看懂的 JSON。
+//
+// 背景：这个接口在共享主机上 500 过一次，前端只看到 500，什么都拿不到，
+// 后台「系统健康」整块变成「网络错误，无法完成体检」—— 完全没法排查。
+// PHP 的 E_ERROR（内存超限、调用了被 disable_functions 关掉的函数等）是
+// **catch 不住的**，只能用 shutdown 回调在进程结束前接管输出。
+// ---------------------------------------------------------------------------
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if (!$e) {
+        return;
+    }
+    $fatal = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+    if (!in_array((int)$e['type'], $fatal, true)) {
+        return;
+    }
+    if (headers_sent()) {
+        return;
+    }
+    while (ob_get_level() > 0) {
+        @ob_end_clean();
+    }
+    header('Content-Type: application/json; charset=utf-8', true, 500);
+    echo json_encode([
+        'success' => false,
+        'message' => '体检接口致命错误：' . $e['message'] . ' @ ' . basename((string)$e['file']) . ':' . (int)$e['line'],
+        'data'    => null,
+    ], JSON_UNESCAPED_UNICODE);
+});
+
 $action = $_POST['action'] ?? 'check';
 $root   = dirname(__DIR__, 2);
 $dataDir = $root . '/data';
@@ -102,11 +133,12 @@ foreach ($requiredExt as $ext) {
     }
 }
 
+// 【2026-10-18】共享主机把 disk_total_space / disk_free_space 放进了 disable_functions：
+// function_exists() 仍然返回 true，但一调用就是 fatal（Uncaught Error: Call to undefined
+// function disk_total_space），整页 500。这里不再探测磁盘 —— 面板上那两个数字本来就只是
+// 给站长看一眼，运营商给的配额也不受我们控制，用不到。
 $diskFree = $diskTotal = 0;
-if (function_exists('disk_free_space')) {
-    $diskFree  = (float)@disk_free_space($root);
-    $diskTotal = (float)@disk_total_space($root);
-}
+$diskAvailable = false;
 $diskPercent = $diskTotal > 0 ? round($diskFree / $diskTotal * 100, 1) : 0;
 
 $dirs = [
@@ -130,8 +162,10 @@ $environment = [
     'sapi'          => PHP_SAPI,
     'extensions'    => $extStatus,
     'missing_ext'   => $missingExt,
-    'disk_free'     => lwFmtBytes($diskFree),
-    'disk_total'    => lwFmtBytes($diskTotal),
+    'disk_available' => $diskAvailable,
+    // 主机禁用磁盘函数时不再给数字，前端看到 available=false 就显示「主机不提供」
+    'disk_free'     => $diskAvailable ? lwFmtBytes($diskFree) : '—',
+    'disk_total'    => $diskAvailable ? lwFmtBytes($diskTotal) : '—',
     'disk_percent'  => $diskPercent,
     'dirs'          => $dirStatus,
     'https'         => defined('IS_SECURE') ? IS_SECURE : false,

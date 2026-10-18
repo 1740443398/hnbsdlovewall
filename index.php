@@ -131,6 +131,10 @@ $categories = [
                             <button class="sort-tab active" data-sort="latest"><?= t('home.latest') ?></button>
                             <button class="sort-tab" data-sort="hot"><?= t('home.hot') ?></button>
                             <a class="sort-tab" href="<?= SITE_URL ?>/pages/ranking.php"><?= t('rank.page_title') ?></a>
+                            <a class="sort-tab sort-tab-room" href="<?= SITE_URL ?>/pages/room.php" title="进入公共聊天室">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                聊天室
+                            </a>
                         </div>
                     </div>
 
@@ -274,11 +278,39 @@ $categories = [
             <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · 蕭遞版权所有</p>
             <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
             <p style="opacity:.7;font-size:12px;"><?= t('footer.ai_note') ?></p>
+            <p><a href="#sponsor" data-open-sponsor style="color:inherit;text-decoration:underline dotted;">支持我们</a></p>
         </div>
     </footer>
 
     <script>
     (function(){
+      /**
+       * 赞助窗的「主动打开」：页脚入口只放一个按钮，弹窗本体放在首页，
+       * 其它页面点了就带 #sponsor 回首页 —— 避免在每个页面重复渲染一份十六进制二维码。
+       */
+      function openSponsor(){
+        var m = document.getElementById('sponsorModal');
+        if (!m) { location.href = '/index.php#sponsor'; return; }
+        m.style.display = 'flex';
+        var list = document.getElementById('sponsorList');
+        if (list && !list.dataset.loaded) {
+          list.dataset.loaded = '1';
+          fetch('/api/sponsor.php', { credentials: 'same-origin' })
+            .then(function(r){ return r.json(); })
+            .then(function(res){
+              if (!res || !res.success || !res.data) return;
+              var amt = res.data.current_amount || res.data.total_amount || 0;
+              var el = document.getElementById('sponsorAmount');
+              if (el) el.textContent = Number(amt).toFixed(2);
+            }).catch(function(){});
+        }
+      }
+      window.lwOpenSponsor = openSponsor;
+      if (location.hash === '#sponsor') setTimeout(openSponsor, 400);
+      document.querySelectorAll('[data-open-sponsor]').forEach(function(b){
+        b.addEventListener('click', function(e){ e.preventDefault(); openSponsor(); });
+      });
+
       var spClose = document.querySelectorAll('.sponsor-close');
       for (var i=0; i<spClose.length; i++) {
         spClose[i].onclick = function(){ var m=document.getElementById('sponsorModal'); if(m) m.style.display='none'; };

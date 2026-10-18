@@ -303,26 +303,18 @@
       taps = taps.filter(function (ts) { return now - ts < TAP_WINDOW_MS; });
       taps.push(now);
 
-      // 始终接管这次点击：单次点击延迟放行跳转，连点凑够 5 次则改为触发彩蛋。
-      // 否则第一次点击就会跳走，永远凑不满 5 次。
-      e.preventDefault();
-
+      // 只在「够彩蛋次数」时才接管点击；单次点击必须放行默认跳转。
+      // 早期这里无条件 e.preventDefault()，再用 300ms 定时器手动跳转 ——
+      // 结果任何脚本异常或页面禁用跳转时，站名就彻底点不动了。
       if (taps.length >= TAP_NEEDED) {
+        e.preventDefault();
         taps = [];
         if (navTimer) {
           window.clearTimeout(navTimer);
           navTimer = null;
         }
         celebrate();
-        return;
       }
-
-      var href = logo.getAttribute('href');
-      if (navTimer) window.clearTimeout(navTimer);
-      navTimer = window.setTimeout(function () {
-        navTimer = null;
-        if (href) window.location.href = href;
-      }, 300);
     });
   }
 

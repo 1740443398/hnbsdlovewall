@@ -13,19 +13,24 @@ if (!function_exists('lw_do_notification_read')) {
         $action = (string)($in['action'] ?? 'read');
         $fs = getFS();
 
+        // 【2026-10-18 站长要求】已读即从列表移除，不保留任何数据。
+        // 以前是 is_read=true 留在表里，结果：通知表只增不减（线上已经 658 条），
+        // 用户点了「全部已读」列表还在，等于什么都没发生。
+        // 现在 read 直接删那一行，read_all 直接清空该用户的全部通知。
+        // 好处：存储只跟「未读」成正比，不会再无限膨胀。
         if ($action === 'read_all') {
             $all = $fs->find('notifications', ['user_id' => $user['id']]);
             $n = 0;
             foreach ($all as $item) {
-                if (!empty($item['is_read'])) {
-                    continue;
+                try {
+                    $fs->delete('notifications', (int)$item['id']);
+                    $n++;
+                } catch (Exception $e) {
+                    error_log('notification purge failed: ' . $e->getMessage());
                 }
-                $item['is_read'] = true;
-                $fs->update('notifications', $item['id'], $item);
-                $n++;
             }
-            // 文案保持与旧接口一致（前端会直接展示这句），条数放在 data 里供 UI 自行使用
-            return lwActionResult(true, '已全部标记为已读', ['marked' => $n]);
+            return lwActionResult(true, $n > 0 ? ('已清理 ' . $n . ' 条通知') : '没有需要清理的通知',
+                ['marked' => $n, 'removed' => $n]);
         }
 
         if ($action === 'read') {
@@ -38,9 +43,9 @@ if (!function_exists('lw_do_notification_read')) {
             if (!$n || (int)($n['user_id'] ?? 0) !== (int)$user['id']) {
                 return lwActionFail('通知不存在');
             }
-            $n['is_read'] = true;
-            $fs->update('notifications', $id, $n);
-            return lwActionResult(true, '已标记为已读', ['marked' => 1, 'id' => $id]);
+            // 读了就删 —— 用户不需要「已读历史」，服务器也不需要替他们存着
+            $fs->delete('notifications', (int)$n['id']);
+            return lwActionResult(true, '已读', ['marked' => 1, 'removed' => 1, 'id' => $id]);
         }
 
         return lwActionFail('无效操作');

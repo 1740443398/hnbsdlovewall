@@ -41,27 +41,91 @@ if (!function_exists('lwAchievementDefs')) {
      */
     function lwAchievementDefs(): array
     {
+        // hidden = true 的成就不在成就墙里显示条件，解锁前是「???」，
+        // 解锁后才露出真名与描述（彩蛋性质，别在 UI 上剧透）。
         return [
+            // ---------------- 内容 ----------------
             ['key' => 'first_post',   'name' => '初来乍到', 'desc' => '发布第一条动态',        'icon' => '🌱', 'group' => '内容', 'metric' => 'post_count',      'need' => 1],
+            ['key' => 'post_3',       'name' => '冒个泡',   'desc' => '累计发布 3 条动态',     'icon' => '🫧', 'group' => '内容', 'metric' => 'post_count',      'need' => 3],
+            ['key' => 'post_5',       'name' => '常驻选手', 'desc' => '累计发布 5 条动态',     'icon' => '📌', 'group' => '内容', 'metric' => 'post_count',      'need' => 5],
             ['key' => 'post_10',      'name' => '笔耕不辍', 'desc' => '累计发布 10 条动态',    'icon' => '✍️', 'group' => '内容', 'metric' => 'post_count',      'need' => 10],
+            ['key' => 'post_20',      'name' => '稳定输出', 'desc' => '累计发布 20 条动态',    'icon' => '📝', 'group' => '内容', 'metric' => 'post_count',      'need' => 20],
+            ['key' => 'post_30',      'name' => '高产作者', 'desc' => '累计发布 30 条动态',    'icon' => '🖋️', 'group' => '内容', 'metric' => 'post_count',      'need' => 30],
             ['key' => 'post_50',      'name' => '内容创作者', 'desc' => '累计发布 50 条动态',  'icon' => '📚', 'group' => '内容', 'metric' => 'post_count',      'need' => 50],
+            ['key' => 'post_100',     'name' => '百帖达成', 'desc' => '累计发布 100 条动态',   'icon' => '🏛️', 'group' => '内容', 'metric' => 'post_count',      'need' => 100],
+            ['key' => 'post_200',     'name' => '半壁江山', 'desc' => '累计发布 200 条动态',   'icon' => '🗼', 'group' => '内容', 'metric' => 'post_count',      'need' => 200],
+
+            // ---------------- 互动 ----------------
+            ['key' => 'comment_1',    'name' => '开口说话', 'desc' => '发表第一条评论',        'icon' => '💭', 'group' => '互动', 'metric' => 'comment_count',   'need' => 1],
+            ['key' => 'comment_5',    'name' => '话匣子',   'desc' => '发表 5 条评论',         'icon' => '🗨️', 'group' => '互动', 'metric' => 'comment_count',   'need' => 5],
             ['key' => 'comment_10',   'name' => '热心互动', 'desc' => '发表 10 条评论',        'icon' => '💬', 'group' => '互动', 'metric' => 'comment_count',   'need' => 10],
+            ['key' => 'comment_30',   'name' => '楼中楼常客', 'desc' => '发表 30 条评论',      'icon' => '🧵', 'group' => '互动', 'metric' => 'comment_count',   'need' => 30],
+            ['key' => 'comment_50',   'name' => '坛友',     'desc' => '发表 50 条评论',        'icon' => '🎙️', 'group' => '互动', 'metric' => 'comment_count',   'need' => 50],
             ['key' => 'comment_100',  'name' => '评论家',   'desc' => '发表 100 条评论',       'icon' => '🗣️', 'group' => '互动', 'metric' => 'comment_count',   'need' => 100],
+            ['key' => 'comment_300',  'name' => '评论区之王', 'desc' => '发表 300 条评论',     'icon' => '👑', 'group' => '互动', 'metric' => 'comment_count',   'need' => 300],
+
+            ['key' => 'likes_1',      'name' => '第一颗星', 'desc' => '收到第一个赞',          'icon' => '✨', 'group' => '互动', 'metric' => 'likes_received',  'need' => 1],
+            ['key' => 'likes_10',     'name' => '被看见了', 'desc' => '累计收到 10 个赞',      'icon' => '💛', 'group' => '互动', 'metric' => 'likes_received',  'need' => 10],
             ['key' => 'likes_50',     'name' => '人气之星', 'desc' => '累计收到 50 个赞',      'icon' => '⭐', 'group' => '互动', 'metric' => 'likes_received',  'need' => 50],
+            ['key' => 'likes_100',    'name' => '小有名气', 'desc' => '累计收到 100 个赞',     'icon' => '🌠', 'group' => '互动', 'metric' => 'likes_received',  'need' => 100],
+            ['key' => 'likes_300',    'name' => '广受好评', 'desc' => '累计收到 300 个赞',     'icon' => '🎖️', 'group' => '互动', 'metric' => 'likes_received',  'need' => 300],
             ['key' => 'likes_500',    'name' => '众望所归', 'desc' => '累计收到 500 个赞',     'icon' => '🌟', 'group' => '互动', 'metric' => 'likes_received',  'need' => 500],
+
+            // ---------------- 社交 ----------------
+            ['key' => 'fans_1',       'name' => '有人关注', 'desc' => '获得第 1 位关注者',     'icon' => '🫂', 'group' => '社交', 'metric' => 'fans',            'need' => 1],
+            ['key' => 'fans_5',       'name' => '小圈子',   'desc' => '获得 5 位关注者',       'icon' => '🍀', 'group' => '社交', 'metric' => 'fans',            'need' => 5],
             ['key' => 'fans_10',      'name' => '初露锋芒', 'desc' => '获得 10 位关注者',      'icon' => '👥', 'group' => '社交', 'metric' => 'fans',            'need' => 10],
+            ['key' => 'fans_50',      'name' => '小网红',   'desc' => '获得 50 位关注者',      'icon' => '📣', 'group' => '社交', 'metric' => 'fans',            'need' => 50],
             ['key' => 'fans_100',     'name' => '意见领袖', 'desc' => '获得 100 位关注者',     'icon' => '🎯', 'group' => '社交', 'metric' => 'fans',            'need' => 100],
+            ['key' => 'fans_300',     'name' => '校园名人', 'desc' => '获得 300 位关注者',     'icon' => '🏆', 'group' => '社交', 'metric' => 'fans',            'need' => 300],
+
+            // ---------------- 坚持 ----------------
+            ['key' => 'checkin_1',    'name' => '今日已到', 'desc' => '完成第一次签到',        'icon' => '✅', 'group' => '坚持', 'metric' => 'checkin_total',   'need' => 1],
+            ['key' => 'checkin_3',    'name' => '三天打鱼', 'desc' => '连续签到 3 天',         'icon' => '🐟', 'group' => '坚持', 'metric' => 'checkin_streak',  'need' => 3],
             ['key' => 'checkin_7',    'name' => '七日之约', 'desc' => '连续签到 7 天',         'icon' => '📅', 'group' => '坚持', 'metric' => 'checkin_streak',  'need' => 7],
+            ['key' => 'checkin_15',   'name' => '半月不断', 'desc' => '连续签到 15 天',        'icon' => '🌗', 'group' => '坚持', 'metric' => 'checkin_streak',  'need' => 15],
             ['key' => 'checkin_30',   'name' => '月度坚持', 'desc' => '连续签到 30 天',        'icon' => '🏅', 'group' => '坚持', 'metric' => 'checkin_streak',  'need' => 30],
+            ['key' => 'checkin_60',   'name' => '两月如一', 'desc' => '连续签到 60 天',        'icon' => '🕯️', 'group' => '坚持', 'metric' => 'checkin_streak',  'need' => 60],
+            ['key' => 'checkin_total_30',  'name' => '签到常客', 'desc' => '累计签到 30 天',   'icon' => '📆', 'group' => '坚持', 'metric' => 'checkin_total',   'need' => 30],
             ['key' => 'checkin_100',  'name' => '百炼成钢', 'desc' => '累计签到 100 天',       'icon' => '💎', 'group' => '坚持', 'metric' => 'checkin_total',   'need' => 100],
+            ['key' => 'checkin_365',  'name' => '一年之期', 'desc' => '累计签到 365 天',       'icon' => '🗓️', 'group' => '坚持', 'metric' => 'checkin_total',   'need' => 365],
+
+            // ---------------- 成长 ----------------
+            ['key' => 'level_2',      'name' => '初出茅庐', 'desc' => '成长等级达到 Lv.2',     'icon' => '🌿', 'group' => '成长', 'metric' => 'level',           'need' => 2],
             ['key' => 'level_5',      'name' => '小有成就', 'desc' => '成长等级达到 Lv.5',     'icon' => '🔰', 'group' => '成长', 'metric' => 'level',           'need' => 5],
+            ['key' => 'level_8',      'name' => '渐入佳境', 'desc' => '成长等级达到 Lv.8',     'icon' => '🌈', 'group' => '成长', 'metric' => 'level',           'need' => 8],
             ['key' => 'level_10',     'name' => '达人之路', 'desc' => '成长等级达到 Lv.10',    'icon' => '🚀', 'group' => '成长', 'metric' => 'level',           'need' => 10],
+            ['key' => 'level_15',     'name' => '登堂入室', 'desc' => '成长等级达到 Lv.15',    'icon' => '🎓', 'group' => '成长', 'metric' => 'level',           'need' => 15],
             ['key' => 'level_20',     'name' => '登峰造极', 'desc' => '成长等级达到 Lv.20',    'icon' => '👑', 'group' => '成长', 'metric' => 'level',           'need' => 20],
-            ['key' => 'topic_5',      'name' => '话题达人', 'desc' => '在 5 个不同话题下发过帖', 'icon' => '🏷️', 'group' => '内容', 'metric' => 'topic_count',     'need' => 5],
+            ['key' => 'pioneer',      'name' => '元老级用户', 'desc' => '注册满 365 天',       'icon' => '🕰️', 'group' => '成长', 'metric' => 'days_since_reg',  'need' => 365],
+
+            // ---------------- 内容广度 ----------------
+            ['key' => 'topic_1',      'name' => '开了个话题', 'desc' => '在 1 个话题下发过帖', 'icon' => '🏷️', 'group' => '内容', 'metric' => 'topic_count',     'need' => 1],
+            ['key' => 'topic_3',      'name' => '多面手',   'desc' => '在 3 个不同话题下发过帖', 'icon' => '🎨', 'group' => '内容', 'metric' => 'topic_count',   'need' => 3],
+            ['key' => 'topic_5',      'name' => '话题达人', 'desc' => '在 5 个不同话题下发过帖', 'icon' => '🧭', 'group' => '内容', 'metric' => 'topic_count',   'need' => 5],
+            ['key' => 'topic_10',     'name' => '百科全书', 'desc' => '在 10 个不同话题下发过帖', 'icon' => '📖', 'group' => '内容', 'metric' => 'topic_count',  'need' => 10],
+
+            // ---------------- 注册时长 ----------------
+            ['key' => 'days_7',       'name' => '一周新人', 'desc' => '注册满 7 天',           'icon' => '🌱', 'group' => '成长', 'metric' => 'days_since_reg',  'need' => 7],
+            ['key' => 'days_30',      'name' => '满月啦',   'desc' => '注册满 30 天',          'icon' => '🌙', 'group' => '成长', 'metric' => 'days_since_reg',  'need' => 30],
+            ['key' => 'days_100',     'name' => '百日在校', 'desc' => '注册满 100 天',         'icon' => '🏫', 'group' => '成长', 'metric' => 'days_since_reg',  'need' => 100],
+
+            // ---------------- 彩蛋（可见） ----------------
             ['key' => 'night_owl',    'name' => '夜猫子',   'desc' => '在 0:00–5:00 之间发过动态', 'icon' => '🦉', 'group' => '彩蛋', 'metric' => 'night_post', 'need' => 1],
             ['key' => 'early_bird',   'name' => '早起的鸟儿', 'desc' => '在 5:00–7:00 之间发过动态', 'icon' => '🐦', 'group' => '彩蛋', 'metric' => 'early_post', 'need' => 1],
-            ['key' => 'pioneer',      'name' => '元老级用户', 'desc' => '注册满 365 天',        'icon' => '🕰️', 'group' => '成长', 'metric' => 'days_since_reg',  'need' => 365],
             ['key' => 'anon_help',    'name' => '匿名天使', 'desc' => '发布过匿名求助或失物招领', 'icon' => '🎭', 'group' => '彩蛋', 'metric' => 'anon_helpful',    'need' => 1],
+
+            // ---------------- 隐藏成就（解锁前显示「???」） ----------------
+            ['key' => 'hd_ghost',        'name' => '隐身人',     'desc' => '累计发布 10 条匿名动态', 'icon' => '👻', 'group' => '隐藏', 'metric' => 'anon_posts',        'need' => 10, 'hidden' => true],
+            ['key' => 'hd_photographer', 'name' => '无图不欢',   'desc' => '发布 20 条带图动态',     'icon' => '📷', 'group' => '隐藏', 'metric' => 'image_posts',       'need' => 20, 'hidden' => true],
+            ['key' => 'hd_novelist',     'name' => '长篇大论',   'desc' => '发过一条 2000 字以上的动态', 'icon' => '📜', 'group' => '隐藏', 'metric' => 'post_chars',   'need' => 2000, 'hidden' => true],
+            ['key' => 'hd_replier',      'name' => '常驻评论区', 'desc' => '在别人的动态下评论 200 次', 'icon' => '🪶', 'group' => '隐藏', 'metric' => 'comment_on_others', 'need' => 200, 'hidden' => true],
+            ['key' => 'hd_max_level',    'name' => '满级玩家',   'desc' => '成长等级达到 Lv.30',     'icon' => '🌌', 'group' => '隐藏', 'metric' => 'level',             'need' => 30, 'hidden' => true],
+            ['key' => 'hd_kilo_likes',   'name' => '千赞达成',   'desc' => '累计收到 1000 个赞',     'icon' => '💫', 'group' => '隐藏', 'metric' => 'likes_received',    'need' => 1000, 'hidden' => true],
+            ['key' => 'hd_year_round',   'name' => '年轮',       'desc' => '累计签到 365 天',        'icon' => '🌳', 'group' => '隐藏', 'metric' => 'checkin_total',     'need' => 365, 'hidden' => true],
+            ['key' => 'hd_streak_100',   'name' => '百日不断',   'desc' => '连续签到 100 天',        'icon' => '🔥', 'group' => '隐藏', 'metric' => 'checkin_streak',    'need' => 100, 'hidden' => true],
+            ['key' => 'hd_old_soul',     'name' => '两年老友',   'desc' => '注册满 730 天',          'icon' => '🍂', 'group' => '隐藏', 'metric' => 'days_since_reg',    'need' => 730, 'hidden' => true],
+            ['key' => 'hd_topic_15',     'name' => '话题收割机', 'desc' => '在 15 个不同话题下发过帖', 'icon' => '🧩', 'group' => '隐藏', 'metric' => 'topic_count',    'need' => 15, 'hidden' => true],
         ];
     }
 }
@@ -99,6 +163,10 @@ if (!function_exists('lwAchievementStats')) {
         $early = 0;
         $anonHelp = 0;
         $myPostIds = [];
+        // 隐藏成就用的额外统计量（都在同一个循环里顺手数，不额外读表）
+        $anonPosts = 0;      // 匿名动态条数
+        $imagePosts = 0;     // 带图动态条数
+        $postChars = 0;      // 单帖最大字数
         $helpfulCats = ['lost_found', 'study_help', 'study', 'help'];
         foreach ((array)$fs->read('posts') as $p) {
             if ((int)($p['user_id'] ?? 0) !== $userId) {
@@ -112,6 +180,17 @@ if (!function_exists('lwAchievementStats')) {
             $pid = (int)($p['id'] ?? 0);
             if ($pid > 0) {
                 $myPostIds[$pid] = true;
+            }
+
+            if (!empty($p['is_anonymous'])) {
+                $anonPosts++;
+            }
+            if (!empty($p['images']) && is_array($p['images'])) {
+                $imagePosts++;
+            }
+            $chars = mb_strlen(trim((string)($p['content'] ?? '')));
+            if ($chars > $postChars) {
+                $postChars = $chars;
             }
 
             $tags = function_exists('lwExtractTags') ? lwExtractTags((string)($p['content'] ?? '') . ' ' . (string)($p['title'] ?? '')) : [];
@@ -137,12 +216,17 @@ if (!function_exists('lwAchievementStats')) {
         // ---- 评论数 ----
         $commentCount = 0;
         $myCommentIds = [];
+        $commentOnOthers = 0;
         foreach ((array)$fs->read('comments') as $c) {
             if ((int)($c['user_id'] ?? 0) === $userId) {
                 $commentCount++;
                 $cid = (int)($c['id'] ?? 0);
                 if ($cid > 0) {
                     $myCommentIds[$cid] = true;
+                }
+                // 「在别人的帖下评论」——自己给自己评论不算，避免刷成就
+                if (!isset($myPostIds[(int)($c['post_id'] ?? 0)])) {
+                    $commentOnOthers++;
                 }
             }
         }
@@ -209,6 +293,10 @@ if (!function_exists('lwAchievementStats')) {
             'early_post'      => $early,
             'anon_helpful'    => $anonHelp,
             'days_since_reg'  => $days,
+            'anon_posts'      => $anonPosts,
+            'image_posts'     => $imagePosts,
+            'post_chars'      => $postChars,
+            'comment_on_others' => $commentOnOthers,
         ];
     }
 }
@@ -350,18 +438,23 @@ if (!function_exists('lwAchievementSummary')) {
             $metric = $def['metric'];
             $val = (int)($stats[$metric] ?? 0);
             $need = max(1, (int)$def['need']);
+            // 隐藏成就：解锁前连名字和条件都不给看（否则「隐藏」就没意义了）。
+            // 进度也不透 —— 只告诉用户「有这么个东西」，怎么拿自己摸索。
+            $hidden = !empty($def['hidden']);
+            $masked = $hidden && !$isOn;
             $items[] = [
                 'key'          => $def['key'],
-                'name'         => $def['name'],
-                'desc'         => $def['desc'],
-                'icon'         => $def['icon'],
+                'name'         => $masked ? '???' : $def['name'],
+                'desc'         => $masked ? '这是一个隐藏成就，达成条件保密' : $def['desc'],
+                'icon'         => $masked ? '❓' : $def['icon'],
                 'group'        => $def['group'],
+                'hidden'       => $hidden,
                 'unlocked'     => $isOn,
                 'unlocked_at'  => $isOn ? (string)$unlocked[$def['key']] : '',
-                'current'      => min($val, $need),
-                'need'         => $need,
-                'remaining'    => $isOn ? 0 : max(0, $need - $val),
-                'percent'      => $isOn ? 100.0 : round(min(100, $val / $need * 100), 1),
+                'current'      => $masked ? 0 : min($val, $need),
+                'need'         => $masked ? 0 : $need,
+                'remaining'    => $masked ? 0 : ($isOn ? 0 : max(0, $need - $val)),
+                'percent'      => $masked ? 0.0 : ($isOn ? 100.0 : round(min(100, $val / $need * 100), 1)),
             ];
         }
 
@@ -372,6 +465,49 @@ if (!function_exists('lwAchievementSummary')) {
             'total'    => $total,
             'percent'  => $total > 0 ? round($count / $total * 100, 1) : 0.0,
         ];
+    }
+}
+
+if (!function_exists('lwUnlockAllAchievements')) {
+    /**
+     * 一次性解锁**全部**成就（站长专用）。
+     *
+     * 用途：站长账号作为展示位，成就墙应当是「集齐」状态；
+     * 也方便在群里演示整套成长体系，不用真去刷几百条评论。
+     *
+     * 注意：
+     *   - 只写 user_achievements 那一行，不写通知（几十条通知会刷爆消息中心）；
+     *   - 已解锁的时间戳**保持不变**，只补没解锁的，重复执行安全。
+     *
+     * @return int 本次新解锁的数量
+     */
+    function lwUnlockAllAchievements(int $userId): int
+    {
+        if ($userId <= 0) {
+            return 0;
+        }
+        $cur = lwAchievementRow($userId);
+        $unlocked = $cur['unlocked'];
+        $now = date('Y-m-d H:i:s');
+        $added = 0;
+        foreach (lwAchievementDefs() as $def) {
+            $k = $def['key'];
+            if (isset($unlocked[$k])) {
+                continue;
+            }
+            $unlocked[$k] = $now;
+            $added++;
+        }
+        if ($added === 0) {
+            return 0;
+        }
+        $fs = getFS();
+        if ($cur['row_id']) {
+            $fs->update('user_achievements', $cur['row_id'], ['unlocked' => $unlocked]);
+        } else {
+            $fs->insert('user_achievements', ['user_id' => $userId, 'unlocked' => $unlocked]);
+        }
+        return $added;
     }
 }
 

@@ -1,0 +1,403 @@
+/* ==========================================================================
+   liquid-glass.css —— 全局液态玻璃（独立作用域，绝不污染原有样式）
+   与 liquid-glass.js 配套。所有选择器均以以下前缀/根类收敛：
+     #lw-lg-canvas            流体 Canvas 背景层
+     html.lw-lg-on            液态玻璃总开关开启态
+     html.lw-miuix            总开关关闭时的 MIUIX 色彩主题回退
+     .lw-dock / .lw-dock-*    桌面 Dock 栏（仅桌面渲染）
+     .lw-lg-switch-*          设置面板开关控件
+   关闭总开关后本文件所有视觉规则均不生效（canvas 被销毁、类被摘除）。
+   ========================================================================== */
+
+/* ---------- 0. 流体 Canvas 背景层 ---------- */
+#lw-lg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;                 /* 沉到所有内容之下 */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--lw-dur-slow, 480ms) var(--lw-ease-standard, ease);
+  /* 关闭总开关时会 remove，此处仅兜底 */
+}
+html.lw-lg-on #lw-lg-canvas { opacity: 1; }
+/* 页面不可见时暂停绘制（JS 侧同步停帧，这里再加一层保护） */
+html.lw-lg-hidden #lw-lg-canvas { opacity: 0; }
+
+/* 无 Canvas 支持的降级：用固定渐变代替流体 */
+@supports not (background: paint(x)) {
+  html.lw-lg-on body::before {
+    content: "";
+    position: fixed;
+    inset: -20%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(38% 42% at 22% 28%, var(--lw-lg-c1, rgba(47, 91, 154, .42)), transparent 70%),
+      radial-gradient(42% 46% at 78% 24%, var(--lw-lg-c2, rgba(201, 169, 110, .38)), transparent 72%),
+      radial-gradient(46% 50% at 50% 82%, var(--lw-lg-c3, rgba(88, 158, 200, .34)), transparent 74%);
+    filter: blur(48px) saturate(135%);
+    animation: lw-lg-drift 26s ease-in-out infinite alternate;
+  }
+}
+@keyframes lw-lg-drift {
+  from { transform: translate3d(-3%, -2%, 0) scale(1.02); }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
+}
+
+/* ---------- 1. 组件玻璃材质（分项：组件液态玻璃） ----------
+   只增强既有卡片/面板/模态，不改其布局与尺寸。
+   用 backdrop-filter 提供磨砂，用极细高光描边提供「液体边缘」。 */
+html.lw-lg-on .lw-glass,
+html.lw-lg-on .card,
+html.lw-lg-on .uc-section .uc-card,
+html.lw-lg-on .modal:not(.show) { /* 仅作占位，避免 eslint 空规则告警 */ }
+
+html.lw-lg-on [class*="lw-glass"],
+html.lw-lg-on .site-modal-box,
+html.lw-lg-on .uc-section {
+  position: relative;
+  backdrop-filter: blur(var(--lw-lg-blur, 18px)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--lw-lg-blur, 18px)) saturate(150%);
+  background-color: color-mix(in srgb, var(--card-bg, #fff) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 78%, transparent);
+}
+/* 组件液态玻璃关闭（分项开关）：摘除材质，保留布局 */
+html.lw-lg-on.lw-lg-no-gloss [class*="lw-glass"],
+html.lw-lg-on.lw-lg-no-gloss .site-modal-box,
+html.lw-lg-on.lw-lg-no-gloss .uc-section {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: var(--card-bg, #fff);
+  border-color: var(--border, #e2e8f0);
+}
+
+/* 玻璃高光扫过（仅玻璃开启时） */
+html.lw-lg-on:not(.lw-lg-no-gloss) [class*="lw-glass"]::after,
+html.lw-lg-on:not(.lw-lg-no-gloss) .site-modal-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, .28) 0%,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  mix-blend-mode: screen;
+  opacity: .7;
+}
+
+/* ---------- 2. 桌面 Dock 栏（分项：Dock 流体光） ---------- */
+.lw-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translate(-50%, 0) scale(1);
+  z-index: 940;                 /* 低于模态(约1000)，高于内容 */
+  display: none;                /* 默认隐藏；JS 判定桌面 + 开关开启才显示 */
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 22px;
+  /* 玻璃底 */
+  background: color-mix(in srgb, var(--card-bg, #1b2030) 52%, transparent);
+  border: 1px solid color-mix(in srgb, #fff 22%, transparent);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .35);
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  transform-origin: 50% 120%;
+  will-change: transform, border-radius;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+html.lw-dock-on .lw-dock { display: flex; }
+
+/* 流光层：跟随鼠标/拖拽，用 CSS 变量定位 */
+.lw-dock-light {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: .9;
+}
+.lw-dock-light::before {
+  content: "";
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  left: var(--lw-dock-light-x, 50%);
+  top: var(--lw-dock-light-y, 50%);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    var(--lw-lg-light, rgba(140, 190, 255, .55)) 0%,
+    transparent 62%
+  );
+  filter: blur(6px);
+  transition: left 90ms linear, top 90ms linear, opacity 200ms ease;
+}
+
+/* Dock 图标：悬停缩放回弹；点击不触发拖拽（拖拽只在空白 handle 上） */
+.lw-dock-item {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  background: transparent;
+  transition: transform 220ms var(--lw-ease-spring, cubic-bezier(.34, 1.56, .64, 1));
+}
+.lw-dock-item:hover,
+.lw-dock-item:focus-visible {
+  transform: translateY(-8px) scale(1.22);
+  outline: none;
+}
+.lw-dock-item:active { transform: translateY(-2px) scale(1.08); }
+.lw-dock-item svg { width: 24px; height: 24px; display: block; }
+
+/* 拖拽中的整体形变（JS 会动态设置 border-radius / scaleX） */
+.lw-dock.is-dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+/* ---------- 3. 设置面板开关控件（个人中心 / 后台共用） ---------- */
+.lw-lg-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.lw-lg-switch-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border, #cbd5e1) 80%, transparent);
+  transition: background var(--lw-dur-base, 200ms) var(--lw-ease-standard, ease);
+}
+html.lw-lg-on .lw-lg-switch-track { background: color-mix(in srgb, var(--primary, #2F5B9A) 78%, transparent); }
+.lw-lg-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .28);
+  transition: transform var(--lw-dur-base, 200ms) var(--lw-ease-spring, cubic-bezier(.34, 1.56, .64, 1));
+}
+html.lw-lg-on .lw-lg-switch-knob { transform: translateX(20px); }
+.lw-lg-switch.is-disabled { opacity: .5; pointer-events: none; }
+
+/* 设置面板（个人中心 / 后台共用的行布局） */
+.lw-lg-panel {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--card-bg, #fff);
+}
+.lw-lg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.lw-lg-row:last-child { border-bottom: none; }
+.lw-lg-row-main { min-width: 0; }
+.lw-lg-row-title { font-weight: 600; color: var(--text-primary, #1f2430); }
+.lw-lg-row-desc { margin-top: 3px; font-size: .85em; color: var(--text-secondary, #64748b); }
+.lw-lg-sub { transition: opacity var(--lw-dur-base, 200ms) ease; }
+.lw-lg-sub.is-off { opacity: .45; pointer-events: none; }
+
+/* ---------- 4. MIUIX 回退主题（总开关关闭时启用） ----------
+   通过 html.lw-miuix 提供一套温和、低饱和、偏「MIUI 风」的色板，
+   仅用 CSS 变量覆盖，不改动任何既有选择器结构。 */
+html.lw-miuix {
+  --primary: #3482FF;
+  --primary-hover: #2668D6;
+  --accent: #FF8A3D;
+  --card-bg: #FFFFFF;
+  --border: #E8EAF0;
+  --lw-dur-base: 180ms;
+  --lw-ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --lw-ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+}
+html.lw-miuix.dark-theme {
+  --primary: #5B9BFF;
+  --primary-hover: #7FB2FF;
+  --accent: #FFA05C;
+  --card-bg: #16181D;
+  --border: #2A2E38;
+}
+/* MIUIX 下禁用一切玻璃与流体，确保「回到原始基础 UI」 */
+html.lw-miuix #lw-lg-canvas,
+html.lw-miuix .lw-dock { display: none !important; }
+html.lw-miuix .site-modal-box,
+html.lw-miuix .uc-section {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ---------- 5. 入场动效 + 平滑滚动（克制、可关闭） ----------
+   通过 html.lw-lg-on 收敛，总开关关闭即完全失效。 */
+html.lw-lg-on .lw-lg-enter {
+  animation: lw-lg-enter var(--lw-dur-slow, 420ms) var(--lw-ease-standard, cubic-bezier(.2,0,0,1)) both;
+}
+@keyframes lw-lg-enter {
+  from { opacity: 0; transform: translateY(14px) scale(.99); filter: blur(4px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+html.lw-lg-on .lw-lg-enter-stagger > * {
+  animation: lw-lg-enter var(--lw-dur-slow, 420ms) var(--lw-ease-standard, cubic-bezier(.2,0,0,1)) both;
+}
+html.lw-lg-on .lw-lg-enter-stagger > *:nth-child(1) { animation-delay: 0ms; }
+html.lw-lg-on .lw-lg-enter-stagger > *:nth-child(2) { animation-delay: 40ms; }
+html.lw-lg-on .lw-lg-enter-stagger > *:nth-child(3) { animation-delay: 80ms; }
+html.lw-lg-on .lw-lg-enter-stagger > *:nth-child(4) { animation-delay: 120ms; }
+html.lw-lg-on .lw-lg-enter-stagger > *:nth-child(5) { animation-delay: 160ms; }
+html.lw-lg-on .lw-lg-enter-stagger > *:nth-child(n+6) { animation-delay: 200ms; }
+
+/* 平滑滚动（由 JS 仅在「非减少动态」且总开关开启时给 html 加 lw-lg-smooth） */
+html.lw-lg-smooth { scroll-behavior: smooth; }
+
+/* ---------- 6. 移动端适配（无 Dock，仅轻量玻璃 + 触控优化） ---------- */
+@media (max-width: 899px) {
+  /* 移动端强制不显示 Dock（双保险，Dock 创建逻辑本就排除） */
+  .lw-dock { display: none !important; }
+  /* 移动端降低模糊半径，减轻 GPU 负担 */
+  html.lw-lg-on [class*="lw-glass"],
+  html.lw-lg-on .site-modal-box,
+  html.lw-lg-on .uc-section {
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+  }
+  /* 触控目标保证 44px 最小点击区 */
+  .lw-lg-switch { min-height: 44px; }
+  .lw-lg-switch-track { width: 48px; height: 26px; }
+  .lw-lg-switch-knob { width: 22px; height: 22px; }
+  html.lw-lg-on .lw-lg-switch-knob { transform: translateX(22px); }
+}
+
+/* ---------- 7. 无障碍：尊重「减少动态效果」偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #lw-lg-canvas { display: none; }
+  .lw-dock-item:hover,
+  .lw-dock-item:focus-visible { transform: none; }
+  .lw-dock-light::before { transition: none; }
+  html.lw-lg-on .lw-lg-enter,
+  html.lw-lg-on .lw-lg-enter-stagger > * { animation: none; }
+  html.lw-lg-smooth { scroll-behavior: auto; }
+}
+
+/* ==========================================================================
+   8. 通知系统升级（液态玻璃 + 优先级 + 归类 + 静默 + 历史）
+      独立作用域前缀 .lw-ntf-；不依赖总开关也能用，但开启总开关时叠加玻璃质感。
+      —— 不改动任何既有通知接口/表结构，纯前端增强（分类/优先级由 type 推导）。
+   ========================================================================== */
+
+/* 8.1 面板容器玻璃化（覆盖 style.css 的 .notification-panel 基础外观） */
+html.lw-lg-on .notification-panel {
+  background: color-mix(in srgb, var(--card-bg) 78%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-color: var(--lw-lg-border, rgba(255,255,255,.28));
+  box-shadow: 0 18px 50px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.28);
+}
+
+/* 8.2 头部：标题 + 分类标签页 + 静默开关 */
+.lw-ntf-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 0.875rem 0.5rem;
+}
+.lw-ntf-title { font-size: 0.9rem; font-weight: 600; flex: 1; }
+.lw-ntf-silent {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.72rem; color: var(--text-muted);
+  padding: 0.35rem 0.5rem; border-radius: var(--radius-xs);
+  cursor: pointer; min-height: 2rem; touch-action: manipulation;
+}
+.lw-ntf-silent:hover { background: var(--bg-secondary); }
+.lw-ntf-silent.is-on { color: var(--primary); }
+.lw-ntf-silent svg { width: 15px; height: 15px; }
+
+.lw-ntf-tabs {
+  display: flex; gap: 0.25rem; padding: 0 0.875rem 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.lw-ntf-tab {
+  font-size: 0.78rem; color: var(--text-secondary);
+  padding: 0.35rem 0.7rem; border-radius: var(--radius-full);
+  cursor: pointer; white-space: nowrap; touch-action: manipulation;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.lw-ntf-tab:hover { background: var(--bg-secondary); }
+.lw-ntf-tab.is-active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.lw-ntf-tab .lw-ntf-tab-n { opacity: 0.7; margin-left: 2px; }
+
+/* 8.3 列表项：优先级色条 + 图标色 + 未读点 + 到达动效 */
+.lw-ntf-list { flex: 1; overflow-y: auto; }
+.notification-item.lw-ntf-item { padding-left: 1.05rem; }
+.notification-item.lw-ntf-item::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--lw-ntf-bar, transparent); border-radius: 0 2px 2px 0;
+}
+.lw-ntf-item[data-pri="high"] { --lw-ntf-bar: var(--danger, #ef4444); }
+.lw-ntf-item[data-pri="normal"] { --lw-ntf-bar: var(--primary, #3b82f6); }
+.lw-ntf-item[data-pri="low"] { --lw-ntf-bar: var(--border, #cbd5e1); }
+.lw-ntf-item[data-cat="system"] .notif-icon { background: var(--bg-secondary); color: var(--text-secondary); }
+.lw-ntf-item[data-cat="pm"] .notif-icon { background: var(--primary-light); color: var(--primary); }
+.lw-ntf-item[data-pri="high"] .notif-icon { background: color-mix(in srgb, var(--danger, #ef4444) 14%, transparent); color: var(--danger, #ef4444); }
+.lw-ntf-item .lw-ntf-cat {
+  display: inline-block; font-size: 0.62rem; line-height: 1;
+  padding: 2px 5px; margin-right: 0.35rem; border-radius: 4px;
+  background: var(--bg-secondary); color: var(--text-muted); vertical-align: middle;
+}
+.lw-ntf-item .lw-ntf-dot {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--primary);
+}
+.lw-ntf-item.unread .lw-ntf-dot { display: block; }
+.lw-ntf-item .lw-ntf-dot { display: none; }
+
+/* 柔和到达动效：新拉取的项滑入 + 微微发光 */
+.lw-ntf-new { animation: lw-ntf-arrive 460ms var(--lw-ease-spring, cubic-bezier(.34,1.56,.64,1)) both; }
+@keyframes lw-ntf-arrive {
+  0% { opacity: 0; transform: translateY(-10px) scale(.98); }
+  60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+  100% { opacity: 1; transform: none; box-shadow: none; }
+}
+
+/* 8.4 底部：加载更多 / 查看全部历史 */
+.lw-ntf-foot {
+  padding: 0.6rem; text-align: center;
+  border-top: 1px solid var(--border-light);
+}
+.lw-ntf-more {
+  font-size: 0.8rem; color: var(--primary); cursor: pointer;
+  padding: 0.5rem; border-radius: var(--radius-xs); min-height: 2.4rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
+}
+.lw-ntf-more:hover { background: var(--bg-secondary); }
+.lw-ntf-more[disabled] { color: var(--text-muted); cursor: default; }
+
+/* 8.5 静默时段命中：面板内提示条 */
+.lw-ntf-qu

@@ -129,34 +129,175 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         require __DIR__ . '/../includes/seo_meta.php';
     ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
     <style>
-        .post-follow-meta{display:inline-flex;align-items:center;gap:0.75rem;margin-left:0.625rem;vertical-align:middle;flex-wrap:wrap;}
-        .follow-link{background:none;border:none;color:var(--text-secondary);font-size:0.8rem;cursor:pointer;padding:2px 0.25rem;font-family:inherit;transition:color .2s;}
-        .follow-link:hover{color:var(--primary);}
-        .follow-link b{font-weight:700;color:var(--text);}
-        .follow-link:hover b{color:var(--primary);}
-        @media (max-width:480px){.post-follow-meta{width:100%;margin-left:0;margin-top:0.5rem;}}
-        .comment-floor{color:var(--text-tertiary);font-size:0.75rem;margin-right:0.375rem;opacity:.8;font-family:monospace;}
-        .comment-children{margin-left:2.75rem;margin-top:0.5rem;}
-        .comment-children > .comment-item + .comment-item{margin-top:0.5rem;}
-        .comment-reply{margin-top:0;padding:0.625rem 0.75rem;background:var(--bg-secondary,#EDF1F5);border-radius:0.625rem;border-bottom:none;gap:0.5625rem;}
-        .comment-reply .comment-avatar{width:1.625rem;height:1.625rem;flex:0 0 26px;}
-        .comment-reply .comment-header{gap:0.375rem;}
-        .comment-reply .comment-text{font-size:0.9rem;margin-top:2px;}
-        .comment-replyto{display:inline-flex;align-items:center;color:var(--text-secondary);font-size:0.76rem;margin-left:0.375rem;background:var(--surface,#fff);border-radius:9999px;padding:1px 0.5625rem;line-height:1.6;max-width:12em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;}
-        .comment-replyto b{color:var(--primary);font-weight:600;}
-        .comment-actions{display:flex;gap:0.75rem;margin-top:0.375rem;align-items:center;flex-wrap:wrap;}
-        .comment-reply-btn,.comment-delete-btn{background:none;border:none;color:var(--text-secondary);font-size:0.78rem;cursor:pointer;padding:0;font-family:inherit;display:inline-flex;align-items:center;gap:0.1875rem;transition:color .2s;}
-        .comment-reply-btn:hover{color:var(--primary);}
-        .comment-delete-btn:hover{color:#e74c3c;}
-        .comment-replies-toggle{background:var(--primary-light,#eef3fb);border:none;color:var(--primary);font-size:0.76rem;font-weight:600;cursor:pointer;padding:0.1875rem 0.6875rem;border-radius:9999px;font-family:inherit;transition:filter .2s;}
-        .comment-replies-toggle:hover{filter:brightness(.96);}
-        @media (max-width:480px){.comment-children{margin-left:1.125rem;}.comment-reply{padding:0.5625rem 0.625rem;}}
-        .post-detail-poll{margin-top:1.125rem;padding:1rem;border:1px solid var(--border-color);border-radius:0.75rem;background:var(--surface,#fff);}
-        .post-detail-poll .poll-question{font-size:0.98rem;font-weight:700;color:var(--text);margin-bottom:0.75rem;}
-        .post-detail-poll-empty .empty-hint{color:var(--text-tertiary);font-weight:600;}
-        .post-detail-poll-empty .empty-tip{font-size:0.8rem;color:var(--text-tertiary);margin-top:2px;}
+        /* ================= 详情页重做 =================
+         * 旧版的「怪」来自三处：
+         *   ① 分类徽章、标题、作者行挤在同一个 div 里，作者行里又混进了关注按钮和计数，
+         *      信息密度忽高忽低，眼睛找不到落点；
+         *   ② 正文与操作栏之间没有视觉分层，点赞/收藏像"贴在正文上"；
+         *   ③ 评论头像用的是裸 img，和别处带框头像不是一套。
+         * 重做原则：**一条竖轴、三段呼吸** —— 标题区（分类→标题→作者）→ 正文区 → 互动区。
+         * 所有间距用同一套 4 的倍数，卡片圆角与站内一致，不再出现"这一块特别挤"。
+         * ============================================ */
+        .post-detail-card {
+            padding: clamp(1.125rem, 2.4vw, 1.875rem);
+            border-radius: 1.25rem;
+            background: var(--card-bg, var(--surface, #fff));
+            border: 1px solid var(--border-glass, rgba(16,24,40,.08));
+            box-shadow: 0 6px 24px rgba(16,24,40,.06);
+        }
+        .post-detail-header {
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+            padding-bottom: 1.125rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border-light, #E9EEF4);
+        }
+        .post-detail-header .category-badge { align-self: flex-start; }
+        .post-detail-title {
+            margin: 0;
+            font-size: clamp(1.25rem, 3.2vw, 1.7rem);
+            line-height: 1.42;
+            letter-spacing: -.015em;
+            font-weight: 750;
+            color: var(--text);
+            word-break: break-word;
+        }
+        /* 作者行：头像 | 名字+头衔 | 时间/关注数（右对齐） */
+        .post-detail-meta {
+            display: flex;
+            align-items: center;
+            gap: .625rem;
+            flex-wrap: wrap;
+            font-size: .82rem;
+            color: var(--text-secondary);
+        }
+        .post-detail-meta .author-name { font-weight: 650; color: var(--text); font-size: .9rem; }
+        .post-detail-meta .post-follow-meta {
+            margin-left: auto;   /* 关注信息推到右侧，主体信息群保持紧凑 */
+            display: inline-flex;
+            align-items: center;
+            gap: .75rem;
+            flex-wrap: wrap;
+        }
+        .follow-link {
+            background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+            color: var(--text-secondary); font-size: .78rem; transition: color .18s;
+        }
+        .follow-link:hover { color: var(--primary); }
+        .follow-link b { font-weight: 700; color: var(--text); }
+        .follow-link:hover b { color: var(--primary); }
+
+        /* 正文：加宽行距、首行不缩进、图片统一圆角 */
+        .post-detail-content {
+            font-size: .95rem;
+            line-height: 1.85;
+            color: var(--text);
+            margin-bottom: 1.5rem;
+            word-break: break-word;
+        }
+        .post-detail-content img { border-radius: .75rem; }
+        .post-images { gap: .5rem; }
+        .post-images .post-image { border-radius: .75rem; }
+
+        /* 操作栏：居中一条，与正文之间用浅底分隔，而不是硬边框 */
+        .post-detail-actions {
+            display: flex; align-items: center; gap: .375rem; flex-wrap: wrap;
+            padding: .625rem .75rem;
+            margin: 0 0 1.5rem;
+            border: none;
+            border-radius: .875rem;
+            background: var(--bg-secondary, #F5F8FB);
+        }
+        .post-detail-actions .action-btn { border-radius: .625rem; }
+        .post-detail-actions .view-count { margin-left: auto; }
+
+        /* 投票 */
+        .post-detail-poll {
+            margin: 0 0 1.5rem; padding: 1rem 1.125rem;
+            border: 1px solid var(--border-light, #E9EEF4);
+            border-radius: .875rem;
+            background: var(--surface, #fff);
+        }
+        .post-detail-poll .poll-question { font-size: .95rem; font-weight: 700; margin-bottom: .75rem; }
+        .post-detail-poll-empty .empty-hint { color: var(--text-tertiary); font-weight: 600; }
+        .post-detail-poll-empty .empty-tip { font-size: .8rem; color: var(--text-tertiary); margin-top: 2px; }
+
+        /* 评论 */
+        .comments-section { padding-top: .25rem; }
+        .comments-title {
+            display: flex; align-items: center; gap: .4rem;
+            font-size: 1rem; font-weight: 700; color: var(--text);
+            margin: 0 0 .875rem;
+        }
+        .comment-item {
+            display: flex; align-items: flex-start; gap: .625rem;
+            padding: .75rem 0;
+            border-bottom: 1px solid var(--border-light, #F0F3F7);
+        }
+        .comment-item:last-child { border-bottom: none; }
+        .comment-body { flex: 1 1 auto; min-width: 0; }
+        .comment-header { display: flex; align-items: center; gap: .375rem; flex-wrap: wrap; font-size: .8rem; }
+        .comment-author { font-weight: 650; color: var(--text); }
+        .comment-time { color: var(--text-tertiary, #9AA7B8); font-size: .74rem; }
+        .comment-text { margin: .25rem 0 0; font-size: .9rem; line-height: 1.75; color: var(--text); word-break: break-word; }
+        .comment-floor { color: var(--text-tertiary); font-size: .72rem; opacity: .75; font-family: ui-monospace, monospace; }
+        .comment-children { margin-left: 2.5rem; margin-top: .25rem; }
+        .comment-children > .comment-item + .comment-item { margin-top: .25rem; }
+        .comment-reply {
+            margin-top: 0; padding: .625rem .75rem;
+            background: var(--bg-secondary, #F5F8FB);
+            border-radius: .625rem; border-bottom: none;
+        }
+        .comment-reply .comment-header { gap: .3rem; }
+        .comment-reply .comment-text { font-size: .86rem; margin-top: 2px; }
+        .comment-replyto {
+            display: inline-flex; align-items: center; gap: .25rem;
+            color: var(--text-secondary); font-size: .74rem;
+            background: var(--surface, #fff); border-radius: 9999px;
+            padding: 1px .5rem; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .comment-replyto b { color: var(--primary); font-weight: 600; }
+        .comment-actions { display: flex; gap: .75rem; margin-top: .375rem; align-items: center; flex-wrap: wrap; }
+        .comment-reply-btn, .comment-delete-btn {
+            background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+            color: var(--text-secondary); font-size: .76rem;
+            display: inline-flex; align-items: center; gap: .2rem; transition: color .18s;
+        }
+        .comment-reply-btn:hover { color: var(--primary); }
+        .comment-delete-btn:hover { color: #E2574C; }
+        .comment-replies-toggle {
+            background: var(--primary-light, #EEF3FB); border: none; cursor: pointer; font-family: inherit;
+            color: var(--primary); font-size: .74rem; font-weight: 600;
+            padding: .1875rem .625rem; border-radius: 9999px;
+        }
+
+        /* 评论输入区：整体一块浅底，头像与输入框对齐 */
+        .comment-input-area {
+            display: flex; align-items: flex-start; gap: .625rem;
+            margin-top: 1.125rem; padding: .875rem;
+            background: var(--bg-secondary, #F5F8FB);
+            border-radius: .875rem;
+        }
+        .comment-input-wrap { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: .5rem; }
+        .comment-input-fields textarea {
+            width: 100%; box-sizing: border-box; min-height: 3.25rem; resize: vertical;
+            padding: .625rem .75rem; border-radius: .625rem;
+            border: 1px solid var(--border-light, #E4E9F0);
+            background: var(--surface, #fff); color: var(--text);
+            font-family: inherit; font-size: .88rem; line-height: 1.65;
+        }
+        .comment-input-fields textarea:focus { outline: none; border-color: var(--primary); }
+        .comment-input-wrap .btn { align-self: flex-end; }
+
+        @media (max-width: 480px) {
+            .post-detail-meta .post-follow-meta { margin-left: 0; width: 100%; }
+            .comment-children { margin-left: 1rem; }
+            .post-detail-actions { gap: .25rem; padding: .5rem; }
+        }
     </style>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
@@ -184,11 +325,15 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 <span class="category-badge cat-<?= $post['category'] === 'announcement' ? 'announcement' : htmlspecialchars($cat['icon']) ?>"><?= htmlspecialchars($cat['name']) ?></span>
                 <h1 class="post-detail-title"><?= htmlspecialchars($post['title']) ?></h1>
                 <div class="post-detail-meta">
-                    <?php if (!$isAnonymous && $postUser && !empty($postUser['avatar'])): ?>
-                    <img src="<?= htmlspecialchars($postUser['avatar']) ?>" class="avatar-sm" alt="<?= t('pd.author_avatar') ?>" loading="lazy" decoding="async" onerror="this.src='<?= asset_url('/assets/images/default-avatar.svg') ?>'">
-                    <?php else: ?>
-                    <img src="<?= asset_url('/assets/images/default-avatar.svg') ?>" class="avatar-sm" alt="<?= t('pd.anonymous_avatar') ?>" width="32" height="32" decoding="async">
-                    <?php endif; ?>
+                    <?php
+                    // 作者头像走全站唯一复合件（头像框 + 等级环 + 勋章），匿名时自动降级为默认头像
+                    require_once __DIR__ . '/../includes/avatar.php';
+                    if (!$isAnonymous && $postUser) {
+                        echo lwAvatarComposite($postUser, 'md', ['extra' => 'pd-author-av']);
+                    } else {
+                        echo lwAvatarComposite([], 'md', ['anonymous' => true]);
+                    }
+                    ?>
                     <span class="author-name"><?= $isAnonymous ? t('pd.anonymous_user') : htmlspecialchars($postUser['nickname'] ?? t('pd.anonymous_user')) ?></span>
                     <?php
                     if (!$isAnonymous && $postUser) {
@@ -354,7 +499,12 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                         $replyCount = count($commentChildren[$c['id']] ?? []);
                     ?>
                     <div class="comment-item" id="comment-<?= $c['id'] ?>" data-user-id="<?= (int)($c['user_id'] ?? 0) ?>" data-created-at="<?= htmlspecialchars((string)($c['created_at'] ?? '')) ?>" data-reply-count="<?= $replyCount ?>">
-                        <img src="<?= $cAnonymous || empty($cUser['avatar']) ? asset_url('/assets/images/default-avatar.svg') : htmlspecialchars($cUser['avatar']) ?>" class="comment-avatar avatar-sm" alt="<?= t('pd.comment_avatar') ?>" loading="lazy" decoding="async" width="32" height="32" onerror="this.src='<?= asset_url('/assets/images/default-avatar.svg') ?>'">
+                        <?php
+                        // 评论头像同样走复合件；复用进程内用户缓存，避免逐条查库
+                        echo $cAnonymous || !$cUser
+                            ? lwAvatarComposite([], 'sm', ['anonymous' => true])
+                            : lwAvatarComposite($cUser, 'sm');
+                        ?>
                         <div class="comment-body">
                             <div class="comment-header">
                                 <span class="comment-floor">#<?= $floor ?></span>
@@ -390,7 +540,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
 
                 <?php if ($user): ?>
                 <div class="comment-input-area">
-                    <img src="<?= htmlspecialchars($user['avatar'] ?? '/assets/images/default-avatar.svg') ?>" class="avatar-sm comment-input-avatar" alt="<?= t('pd.my_avatar') ?>" onerror="this.src='/assets/images/default-avatar.svg'">
+                    <?php echo lwAvatarComposite($user, 'sm'); ?>
                     <div class="comment-input-wrap">
                         <div class="comment-input-fields">
                             <textarea id="commentInput" placeholder="<?= t('pd.comment_placeholder') ?>" rows="2"></textarea>
@@ -488,20 +638,42 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             } catch(e) { App.showToast(e.message || __t('pd.load_replies_fail'), 'error'); }
         }
 
+        // 评论头像框：评论区以前**完全不画框**，于是「同一个用户在首页有框、
+        // 在评论里没框」——这就是学生说的「有时候装扮不显示」。
+        // 结构与 includes/avatar.php 的 lwAvatarComposite 对齐：槽位 26px，
+        // 框 inset:0 铺满，头像 inset:1.5px（≈6%）。尺寸全部内联写死。
+        function commentFrameHtml(obj, px) {
+            if (!obj || obj.is_anonymous) return '';
+            var f = obj.author_frame || null;
+            if (!f) return '';
+            var isImg = !!(f.asset && String(f.asset).trim());
+            var cls = 'lw-widget lw-widget-frame' + (isImg ? ' lw-frame-img' : ' ' + App.escapeHtml(f.css_class || ''));
+            var st = 'position:absolute;inset:0;border-radius:50%;pointer-events:none';
+            if (isImg) {
+                st = 'background-image:url(&quot;' + App.escapeHtml(f.asset) + '&quot;);background-size:100% 100%;background-repeat:no-repeat;background-position:center;' + st;
+            }
+            return '<span class="' + cls + '" aria-hidden="true" style="' + st + '"></span>';
+        }
+
         // 头衔徽章统一渲染：obj 为扁平对象，prefix 为 '' 或 'author_'
         function titleBadgeHtml(obj, prefix) {
             prefix = prefix || '';
             var text = obj[prefix + 'title_text'];
             if (!text || obj.is_anonymous) return '';
             var cls = 'user-title', vars;
+            // 站长没指定 title_color 时按底色自动挑前景（白/近黑）：默认彩虹渐变 #ff4757→#a55eea
+            // 配白字只有 3.34~3.90:1，不达 AA（与 PHP 侧 lwReadableFg / main.js pickReadableFg 同算法）
+            var fg = obj[prefix + 'title_color'] || '';
             if (obj[prefix + 'title_rainbow'] == 1) {
+                var tgs = obj[prefix + 'title_gradient_start'] || '#ff4757';
+                var tge = obj[prefix + 'title_gradient_end'] || '#a55eea';
                 cls += ' is-rainbow';
-                vars = '--ut-gs:' + (obj[prefix + 'title_gradient_start'] || '#ff4757') +
-                       ';--ut-ge:' + (obj[prefix + 'title_gradient_end'] || '#a55eea') +
-                       ';--ut-fg:' + (obj[prefix + 'title_color'] || '#fff');
+                vars = '--ut-gs:' + tgs + ';--ut-ge:' + tge +
+                       ';--ut-fg:' + (fg || App.pickReadableFg(tgs, tge));
             } else {
-                vars = '--ut-bg:' + (obj[prefix + 'title_bg_color'] || '#4A90D9') +
-                       ';--ut-fg:' + (obj[prefix + 'title_color'] || '#fff');
+                var tbg = obj[prefix + 'title_bg_color'] || '#4A90D9';
+                vars = '--ut-bg:' + tbg +
+                       ';--ut-fg:' + (fg || App.pickReadableFg(tbg));
             }
             return '<span class="' + cls + '" style="' + vars + '">' + App.escapeHtml(text) + '</span>';
         }
@@ -517,7 +689,13 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             var replyName = rc.reply_to_name || '';
             var delBtn = rc.is_author ? '<button class="comment-delete-btn" onclick="deleteComment(' + rc.id + ')"><span id="delCommentIcon' + rc.id + '"></span><span>' + __t('pd.delete') + '</span></button>' : '';
             var replyTag = replyName ? '<span class="comment-replyto">' + __t('pd.reply_to_pre') + '<b>' + App.escapeHtml(replyName) + '</b></span>' : '';
-            el.innerHTML = '<img src="' + App.escapeHtml(avatarSrc) + '" class="comment-avatar avatar-sm" alt="' + __t('pd.avatar') + '" onerror="this.src=\'/assets/images/default-avatar.svg\'">' +
+            // 与 PHP 端 lwAvatarComposite 同构：.lw-av 槽位 + .lw-av-img 头像
+            // 尺寸内联写死 —— 只靠外部 CSS 时，一旦 pwa_head 的 img{height:auto}
+            // 或样式表未加载，头像就会按原图尺寸铺成大方块（线上真实发生过）
+            el.innerHTML = '<span class="lw-av' + (commentFrameHtml(rc) ? ' has-frame' : '') + '" style="--lw-av:26px;width:26px;height:26px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 26px">' +
+                commentFrameHtml(rc) +
+                '<img src="' + App.escapeHtml(avatarSrc) + '" class="lw-av-img" width="23" height="23" alt="' + __t('pd.avatar') + '" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'" style="position:absolute;left:1.5px;top:1.5px;width:23px;height:23px;border-radius:50%;object-fit:cover;z-index:1">' +
+                '</span>' +
                 '<div class="comment-body"><div class="comment-header">' +
                 '<span class="comment-author">' + authorName + '</span>' + titleBadgeHtml(rc, 'author_') +
                 replyTag +
@@ -701,7 +879,9 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 var titleHtml = titleBadgeHtml(comment, 'author_');
                 var replyTag = (isReply && replyName) ? '<span class="comment-replyto">' + __t('pd.reply_to_pre') + '<b>' + App.escapeHtml(replyName) + '</b></span>' : '';
                 var replyForBtn = isReply ? replyTarget.id : comment.id;
-                commentEl.innerHTML = '<img src="' + App.escapeHtml(avatarSrc) + '" class="comment-avatar avatar-sm" alt="' + __t('pd.comment_avatar') + '" onerror="this.src=\'/assets/images/default-avatar.svg\'">' +
+                commentEl.innerHTML = '<span class="lw-av" style="--lw-av:32px;width:32px;height:32px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 32px">' +
+                    '<img src="' + App.escapeHtml(avatarSrc) + '" class="lw-av-img" width="28" height="28" alt="' + __t('pd.comment_avatar') + '" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'" style="position:absolute;left:2px;top:2px;width:28px;height:28px;border-radius:50%;object-fit:cover">' +
+                    '</span>' +
                     '<div class="comment-body"><div class="comment-header">' +
                     '<span class="comment-author">' + authorName + '</span>' + titleHtml + replyTag +
                     '<span class="comment-time">' + __t('pd.just_now') + '</span></div>' +

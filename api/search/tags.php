@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/post_visibility.php';
 require_once __DIR__ . '/../../includes/text_linkify.php';
+require_once __DIR__ . '/../../includes/fields.php';
 
 /**
  * 话题联想（C25）：返回站内高频话题，供发帖/评论框输入 `#` 时即时提示。
@@ -42,4 +43,12 @@ foreach (array_slice($counts, 0, $limit, true) as $tag => $n) {
     $tags[] = ['tag' => (string) $tag, 'count' => (int) $n];
 }
 
-jsonSuccess(['tags' => $tags, 'total' => count($tags)]);
+// 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+jsonSuccess(lwProjectTop(
+    [
+        'tags' => lwProjectRows($tags, lwFieldsRequest(), ['tag', 'count'], ['tag']),
+        'total' => count($tags),
+    ],
+    lwTopRequest(),
+    ['tags']
+));

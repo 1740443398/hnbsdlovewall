@@ -265,6 +265,20 @@ function recalc() {
     }).catch(function () { showToast('网络错误', 'error'); });
 }
 
+/**
+ * 站长：一键解锁全部成就（含隐藏成就）。
+ * 先弹确认 —— 这是不可逆的展示位操作，点错了只能靠「重置该用户成长数据」撤销。
+ */
+function unlockAllAchievements(uid) {
+    if (!confirm('确定要给这个账号解锁全部成就吗？\n（含隐藏成就，解锁后成就墙会显示「集齐」）')) {
+        return;
+    }
+    api({ action: 'unlock_all_achievements', user_id: uid }).then(function (res) {
+        showToast(res.message || (res.success ? '完成' : '失败'), res.success ? 'success' : 'error');
+        if (res.success) loadGrowth();
+    }).catch(function () { showToast('网络错误', 'error'); });
+}
+
 function openDetail(uid) {
     document.getElementById('detailBody').innerHTML = '<div class="loading-spinner">加载中</div>';
     openModal('detailModal');
@@ -291,6 +305,7 @@ function openDetail(uid) {
             '<div style="border-top:1px solid #e2e8f0;padding-top:10px;max-height:340px;overflow:auto;">' + rows + '</div>' +
             '<div style="margin-top:12px;">' +
             '<button class="btn btn-danger btn-sm" onclick="resetUser(' + d.user.id + ')">重置该用户成长数据</button>' +
+            '<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="unlockAllAchievements(' + d.user.id + ')">解锁全部成就</button>' +
             '</div>';
     }).catch(function () {
         document.getElementById('detailBody').innerHTML = '<p>网络错误</p>';

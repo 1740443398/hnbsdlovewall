@@ -179,11 +179,11 @@ function aiStreamCompletion(array $cfg, array $messages, $timeout, callable $onD
     $count = count($keys);
     $start = $count > 1 ? mt_rand(0, $count - 1) : 0;
     $last  = ['ok' => false, 'status' => 0, 'error' => '', 'key_tries' => 0,
-              'content' => '', 'reasoning' => ''];
+              'content' => '', 'reasoning' => '', 'usage' => null];
 
     for ($i = 0; $i < $count; $i++) {
         $idx = ($start + $i) % $count;
-        $acc = ['content' => '', 'reasoning' => ''];
+        $acc = ['content' => '', 'reasoning' => '', 'usage' => null];
         $started = false;   // 是否已经开始吐内容
         $status  = 0;
         $errBody = '';
@@ -227,6 +227,11 @@ function aiStreamCompletion(array $cfg, array $messages, $timeout, callable $onD
                             $errBody = json_encode($d, JSON_UNESCAPED_UNICODE);
                             continue;
                         }
+                        // 用量统计：OpenAI 兼容端点在流末尾单独发一帧 {usage:{...}}，
+                        // 有的（如智谱）会挂在 choices 同级。两种都收，供后台审计 token。
+                        if (isset($d['usage']) && is_array($d['usage'])) {
+                            $acc['usage'] = $d['usage'];
+                        }
                         $delta = $d['choices'][0]['delta'] ?? null;
                         if (!is_array($delta)) {
                             continue;
@@ -269,6 +274,7 @@ function aiStreamCompletion(array $cfg, array $messages, $timeout, callable $onD
             $last['ok']        = true;
             $last['content']   = $acc['content'];
             $last['reasoning'] = $acc['reasoning'];
+            $last['usage']     = $acc['usage'];
             $last['error']     = '';
             return $last;
         }
@@ -280,6 +286,7 @@ function aiStreamCompletion(array $cfg, array $messages, $timeout, callable $onD
         $last['error']    = $errMsg;
         $last['content']  = $acc['content'];
         $last['reasoning'] = $acc['reasoning'];
+        $last['usage']     = $acc['usage'];
 
         // 已经开始吐字了就不能再换 Key（会导致回答重复），直接结束
         if ($started) {
@@ -334,7 +341,8 @@ function aiChatCompletion(array $cfg, array $messages, $timeout = 60) {
                 error_log('[love_wall] AI 客户端：第 ' . ($i + 1) . ' 把 Key 才成功（前 ' . $i . ' 把不可用，共 ' . $count . ' 把）');
             }
             return ['ok' => true, 'status' => 200, 'resp' => $resp, 'error' => '',
-                    'unconfigured' => false, 'key_tries' => $i + 1];
+                    'unconfigured' => false, 'key_tries' => $i + 1,
+                    'usage' => isset($resp['usage']) && is_array($resp['usage']) ? $resp['usage'] : null];
         }
 
         $errMsg = (is_array($resp) && isset($resp['error']['message']))

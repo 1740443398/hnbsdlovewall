@@ -160,13 +160,6 @@ function aiPostLine(array $p, array $names, bool $withBody = false)
 }
 
 /** 相对时间（复用站内 timeAgo） */
-function aiAgo($ts)
-{
-    if (!$ts) {
-        return '';
-    }
-    return timeAgo(is_numeric($ts) ? date('Y-m-d H:i:s', (int)$ts) : (string)$ts);
-}
 
 /** 统一的块返回 */
 function aiBlock(string $text, string $source): array

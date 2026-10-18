@@ -44,6 +44,37 @@ function adminHeader($title, $adminUser, $csrfToken) {
             .replace(/'/g, '&#39;');
     }
 
+    /* 在给定的一组背景色里挑「最不容易糊」的前景色，返回 '#FFFFFF' 或 '#10161F'。
+       用途：称号徽章的底色是站长自选的（默认彩虹渐变 #ff4757→#a55eea），
+       而前景色过去写死 #fff —— 实测白字落在这些默认底色上只有 3.34~3.90:1，
+       不达 WCAG AA 正文 4.5:1，站长一选偏亮的底色称号就糊在背景里。
+       与前台 main.js 的 pickReadableFg、PHP 的 lwReadableFg 同一算法。 */
+    function readableFg() {
+        var lum = function (hex) {
+            var h = String(hex || '').replace('#', '');
+            if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+            if (!/^[0-9a-f]{6}$/i.test(h)) return null;
+            var c = [0, 2, 4].map(function (i) {
+                var v = parseInt(h.substr(i, 2), 16) / 255;
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+        };
+        var best = '#FFFFFF', bestWorst = -1;
+        var cands = ['#FFFFFF', '#10161F'];
+        for (var i = 0; i < cands.length; i++) {
+            var lf = lum(cands[i]), worst = null;
+            for (var j = 0; j < arguments.length; j++) {
+                var lb = lum(arguments[j]);
+                if (lb === null) continue;   // rgb()/hsl()/具名色，解析不了就跳过
+                var ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
+                worst = (worst === null) ? ratio : Math.min(worst, ratio);
+            }
+            if (worst !== null && worst > bestWorst) { bestWorst = worst; best = cands[i]; }
+        }
+        return best;
+    }
+
     function showToast(msg, type) {
         var toast = document.createElement('div');
         toast.className = 'toast toast-' + (type || 'success');
@@ -175,13 +206,17 @@ function adminHeader($title, $adminUser, $csrfToken) {
             --primary: #111827;
             --primary-hover: #000000;
             --primary-light: #f1f5f9;
-            --success: #10b981;
+            /* 语义色取「深阶」：后台原用 Tailwind 500 亮阶（#10b981 / #f59e0b / #ef4444 / #3b82f6），
+               白字压在上面只有 2.5~3.8:1、它们自己当徽章文字压浅底也只有 2.5~3.7:1，全不达标。
+               改为与前台 style.css 同一组深阶（白字 4.8~5.9:1，压浅底同样 ≥4.7:1），
+               顺带把两套 UI 的语义配色拉齐。 */
+            --success: #277A4C;
             --success-light: #ecfdf5;
-            --warning: #f59e0b;
+            --warning: #8A5A0B;
             --warning-light: #fffbeb;
-            --danger: #ef4444;
+            --danger: #C2453F;
             --danger-light: #fef2f2;
-            --info: #3b82f6;
+            --info: #2773C4;
             --info-light: #eff6ff;
             --border: #e2e8f0;
             --border-light: #f1f5f9;
@@ -200,6 +235,27 @@ function adminHeader($title, $adminUser, $csrfToken) {
             --sidebar-active: #111827;
             --text-sidebar: #64748b;
             --text-sidebar-active: #111827;
+
+            /* ── 「实底 + 文字」成对前景色 / 反白容器 ─────────────────────────────
+               后台有自己的令牌集（不加载前台 style.css），所以这一组必须在这里重复定义，
+               否则页面里 color: var(--on-solid, #fff) 取不到值、直接退化成 #fff —— 等于白改。
+
+               浅色：--on-solid 用白字（语义色都够深，5.5:1 以上）。
+               暗色：语义色为了在深底上可见被提亮成亮阶（--primary:#5B8CC9、
+               --success:#4CAF7D、--warning:#D0A24C、--danger:#E06A64），白字只剩
+               2.35~3.48:1，不达 WCAG AA 正文 4.5:1；换成近黑字后是 5.2~7.7:1。 */
+            --on-solid: #FFFFFF;
+            --on-accent: #10161F;
+            --invert-bg: #1e293b;
+            --invert-fg: #FFFFFF;
+            --invert-hover: rgba(255, 255, 255, 0.16);
+
+            /* 提示条四型（与前台 style.css 同名同色，保持两套 UI 观感一致） */
+            --toast-fg: #FFFFFF;
+            --toast-success: #1E7A4C;
+            --toast-warning: #8A5A0B;
+            --toast-danger: #A9312B;
+            --toast-info: #1D5A9E;
         }
 
         /* ===== 后台暗色模式（D34）：以 html.dark-theme 覆盖同名变量 =====
@@ -237,6 +293,21 @@ function adminHeader($title, $adminUser, $csrfToken) {
             --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.5);
             --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
             --shadow-lg: 0 8px 32px rgba(0,0,0,0.55);
+
+            /* 暗色下换成「亮底近黑字」：语义实底 5.2~7.7:1（白字只剩 2.35~3.48:1）。
+               --invert-* 用于反白容器（toast/气泡）：暗色必须翻成亮底近黑字。 */
+            --on-solid: #10161F;
+            --on-accent: #10161F;
+            --invert-bg: #E4E9F0;
+            --invert-fg: #10161F;
+            --invert-hover: rgba(0, 0, 0, 0.10);
+
+            /* 提示条同步翻成亮底近黑字 */
+            --toast-fg: #10161F;
+            --toast-success: #4CAF7D;
+            --toast-warning: #D0A24C;
+            --toast-danger: #E06A64;
+            --toast-info: #5C9BE0;
         }
         html.dark-theme body { background: var(--bg); color: var(--text); }
         html.dark-theme .top-bar { background: rgba(20,28,40,0.82); }
@@ -325,7 +396,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
         .sidebar-nav a:hover { background: var(--sidebar-hover); color: var(--text); transform: translateX(2px); }
         .sidebar-nav a.active {
             background: var(--primary);
-            color: #ffffff;
+            color: var(--on-solid, #fff);
         }
         .sidebar-nav a .nav-icon { font-size: 18px; width: 24px; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
         .sidebar-nav a .nav-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -428,7 +499,10 @@ function adminHeader($title, $adminUser, $csrfToken) {
         .admin-theme-toggle .tt-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .admin-theme-toggle .tt-icon svg rect, .admin-theme-toggle .tt-icon svg circle { fill: none; }
         @media (max-width: 768px) {
-            .admin-theme-toggle .tt-text { display: none; }
+            /* 以前是 display:none，只靠图标。图标 SVG 一旦没注入（脚本报错/缓存旧版），
+           这个按钮就变成一个**空白的圆角方块**，用户完全不知道它是什么 ——
+           站长发来的截图正是这个现象。改成始终显示文字，图标丢了也不影响可用性。 */
+        .admin-theme-toggle .tt-text { display: inline; }
             .admin-theme-toggle { padding: 0 10px; }
         }
         .top-bar-title { display: flex; flex-direction: column; }
@@ -533,7 +607,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
         }
         .filter-btn:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
         .filter-btn:active { transform: scale(0.97); }
-        .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .filter-btn.active { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); }
         .section {
             background: var(--card-bg);
             border-radius: var(--card-radius);
@@ -583,7 +657,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
         .badge-warning { background: var(--warning-light); color: var(--warning); }
         .badge-danger { background: var(--danger-light); color: var(--danger); }
         .badge-info { background: var(--info-light); color: var(--info); }
-        .badge-super { background: var(--primary); color: #fff; }
+        .badge-super { background: var(--primary); color: var(--on-solid, #fff); }
         .badge-admin { background: var(--primary-light); color: var(--primary); }
         .badge-user { background: var(--input-bg); color: var(--text-muted); }
         .btn {
@@ -601,14 +675,14 @@ function adminHeader($title, $adminUser, $csrfToken) {
             white-space: nowrap;
         }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
-        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary { background: var(--primary); color: var(--on-solid, #fff); }
         .btn-primary:hover { background: var(--primary-hover); }
-        .btn-success { background: var(--success); color: #fff; }
-        .btn-success:hover { background: #059669; }
-        .btn-danger { background: var(--danger); color: #fff; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-warning { background: var(--warning); color: #fff; }
-        .btn-warning:hover { background: #d97706; }
+        .btn-success { background: var(--success); color: var(--on-solid, #fff); }
+        .btn-success:hover { background: #1F6A42; }
+        .btn-danger { background: var(--danger); color: var(--on-solid, #fff); }
+        .btn-danger:hover { background: #A63A34; }
+        .btn-warning { background: var(--warning); color: var(--on-solid, #fff); }
+        .btn-warning:hover { background: #744C09; }
         .btn-outline {
             background: transparent;
             border: 1px solid var(--border);
@@ -728,7 +802,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
         }
         .pagination button:hover { background: var(--input-bg); transform: translateY(-1px); }
         .pagination button:active { transform: scale(0.97); }
-        .pagination button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .pagination button.active { background: var(--primary); color: var(--on-solid, #fff); border-color: var(--primary); }
         .pagination button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
         .pagination .page-info { font-size: 13px; color: var(--text-secondary); padding: 0 8px; }
         .modal-overlay {
@@ -784,6 +858,38 @@ function adminHeader($title, $adminUser, $csrfToken) {
             display: flex;
             justify-content: flex-end;
             gap: 8px;
+            /* 后台 .modal 的背景是 var(--card-bg)（不透明），但底部按钮区在滚动容器内，
+               窄屏吸底时若不显式给底色，正文会从按钮下方透出。这里统一给实心底色，
+               与 .modal 同色，视觉无缝且不透明。 */
+            background: var(--card-bg, #ffffff);
+        }
+        /* 窄屏：弹窗改为「头尾固定、正文内滚」，避免按钮区随内容滚走或被正文透出 */
+        @media (max-width: 768px) {
+            .modal {
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .modal-header {
+                flex-shrink: 0;
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                background: var(--card-bg, #ffffff);
+            }
+            .modal-body {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .modal-footer {
+                flex-shrink: 0;
+                position: sticky;
+                bottom: 0;
+                z-index: 2;
+                background: var(--card-bg, #ffffff);
+            }
         }
         .toast {
             position: fixed;
@@ -792,7 +898,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
             z-index: 300;
             padding: 14px 20px;
             border-radius: var(--radius);
-            color: #fff;
+            color: var(--toast-fg, #fff);
             font-size: 14px;
             font-weight: 600;
             box-shadow: 0 8px 28px rgba(0,0,0,0.12);
@@ -803,8 +909,8 @@ function adminHeader($title, $adminUser, $csrfToken) {
             from { opacity: 0; transform: translateX(40px); }
             to { opacity: 1; transform: translateX(0); }
         }
-        .toast-success { background: var(--success); }
-        .toast-error { background: var(--danger); }
+        .toast-success { background: var(--toast-success, #1E7A4C); }
+        .toast-error { background: var(--toast-danger, #A9312B); }
         .filter-row {
             display: flex;
             gap: 12px;
@@ -993,7 +1099,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
             top: 2px;
             width: 6px;
             height: 10px;
-            border: solid #fff;
+            border: solid var(--on-solid, #fff);
             border-width: 0 2px 2px 0;
             transform: rotate(45deg);
         }
@@ -1135,6 +1241,11 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <a href="/admin/settings.php" class="<?= $page === 'settings.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> 站点设置
             </a>
+            <?php if (checkPermission($adminUser, 'manage_liquid_glass')): ?>
+            <a href="/admin/liquid_glass.php" class="<?= $page === 'liquid_glass.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 21c-5 0-9-3.6-9-8 0-3.6 3.6-9 9-9s9 5.4 9 9c0 1.4-1.1 2.4-2.4 2.4h-1.7c-.8 0-1.4.6-1.4 1.4 0 .3.1.6.3.9.2.3.3.6.3 1 0 1.1-1.1 2.3-3.1 2.3z"/></svg></span> 液态玻璃管控
+            </a>
+            <?php endif; ?>
             <a href="/admin/feature_votes.php" class="<?= $page === 'feature_votes.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/></svg></span> 功能投票
             </a>
@@ -1144,6 +1255,12 @@ function adminHeader($title, $adminUser, $csrfToken) {
             </a>
             <a href="/admin/checkin_rules.php" class="<?= $page === 'checkin_rules.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> 签到规则
+            </a>
+            <a href="/admin/widgets.php" class="<?= $page === 'widgets.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><circle cx="12" cy="12" r="2.5"/></svg></span> 装扮管理
+            </a>
+            <a href="/admin/shop.php" class="<?= $page === 'shop.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18l-1.5 12.5a2 2 0 0 1-2 1.5h-11a2 2 0 0 1-2-1.5z"/><path d="M8 6a4 4 0 0 1 8 0"/><line x1="9" y1="13" x2="15" y2="13"/></svg></span> 商城管理
             </a>
             <?php endif; ?>
             <?php if (checkPermission($adminUser, 'manage_sensitive_words')): ?>
@@ -1176,6 +1293,16 @@ function adminHeader($title, $adminUser, $csrfToken) {
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M18 16.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></span> AI 调用记录
             </a>
             <?php endif; ?>
+            <?php if ($adminUser['role'] === 'super_admin'): ?>
+            <a href="/admin/ai_settings.php" class="<?= $page === 'ai_settings.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> AI 设置
+            </a>
+            <?php endif; ?>
+            <?php if ($adminUser['role'] === 'super_admin'): ?>
+            <a href="/admin/layout_settings.php" class="<?= $page === 'layout_settings.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></span> 自适应布局
+            </a>
+            <?php endif; ?>
             <a href="/admin/ip_blacklist.php" class="<?= $page === 'ip_blacklist.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span> IP黑名单
             </a>
@@ -1194,6 +1321,19 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <a href="/admin/reports.php" class="<?= $page === 'reports.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> 举报管理
             </a>
+            <?php endif; ?>
+            <?php if (checkPermission($adminUser, 'view_app_devices') || checkPermission($adminUser, 'manage_app_push')): ?>
+            <div class="nav-section">移动端（App）</div>
+            <?php if (checkPermission($adminUser, 'view_app_devices')): ?>
+            <a href="/admin/app_users.php" class="<?= $page === 'app_users.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> App 装机台账
+            </a>
+            <?php endif; ?>
+            <?php if (checkPermission($adminUser, 'manage_app_push')): ?>
+            <a href="/admin/app_push.php" class="<?= $page === 'app_push.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span> 系统通知推送
+            </a>
+            <?php endif; ?>
             <?php endif; ?>
         </nav>
         <div class="sidebar-footer">
@@ -1215,7 +1355,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
                 <h1 class="page-title"><?= xss_clean($title) ?></h1>
             </div>
             <div class="top-actions">
-                <button type="button" class="admin-theme-toggle" id="adminThemeToggle" aria-label="主题"><span class="tt-icon"></span><span class="tt-text"></span></button>
+                <button type="button" class="admin-theme-toggle" id="adminThemeToggle" aria-label="主题"><span class="tt-icon"></span><span class="tt-text">主题</span></button>
                 <a href="/">← 返回前台</a>
             </div>
         </div>

@@ -10,6 +10,7 @@
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/user_blocks.php';
+require_once __DIR__ . '/../../includes/fields.php';
 
 $user = requireMember('屏蔽功能需要注册账号后才能使用');
 $user = checkBanned($user);
@@ -46,7 +47,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         ];
     }
 
-    jsonSuccess(['list' => $list, 'total' => count($list)]);
+    // 字段投影（E14）：不传 fields/top 时与改造前完全一致。
+    jsonSuccess(lwProjectTop(
+        [
+            'list' => lwProjectRows($list, lwFieldsRequest(),
+                ['user_id', 'nickname', 'qq', 'avatar', 'blocked_at'], ['user_id']),
+            'total' => count($list),
+        ],
+        lwTopRequest(),
+        ['list']
+    ));
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

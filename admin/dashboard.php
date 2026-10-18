@@ -556,7 +556,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 .donut-legend em { font-style: normal; color: var(--text-secondary); width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
 /* 活跃时段热力：24 格两行，深浅由 --v 控制 */
 .heat { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
-.heat-cell { aspect-ratio: 1 / 1; border-radius: 4px; background: var(--primary); opacity: var(--v, .1); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #fff; }
+.heat-cell { aspect-ratio: 1 / 1; border-radius: 4px; background: var(--primary); opacity: var(--v, .1); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: var(--on-solid, #fff); }
 .dash-hint { font-size: 11px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
 .dash-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 13px; }
 /* 待办中心 */
@@ -565,7 +565,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 .todo-list a { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px; text-decoration: none; color: var(--text); font-size: 13px; }
 .todo-list a:hover { color: var(--primary); }
 .todo-list b { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
-.todo-list b.hot { color: #fff; background: var(--danger); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.todo-list b.hot { color: var(--on-solid, #fff); background: var(--danger); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
 
 .dashboard-grid {
     display: grid;
