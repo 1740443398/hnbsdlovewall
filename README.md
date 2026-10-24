@@ -420,3 +420,61 @@ Edit `config/constants.php` to customize:
 - The **list branches** of `users.php`, `posts.php` and `announcements.php` under `api/admin/` still lack fine-grained permission checks (all write endpoints are checked)
 - The Android "desktop UA" behaviour has not yet been fully validated on a real device
 - The launcher's "public IP mode" only warns that the built-in server does not listen externally; for LAN/WAN access you still need your own port forwarding or Apache/Nginx
+
+---
+
+## Changelog
+
+### 2026-10-24 — 体验、性能与教学内容更新
+
+**界面与体验**
+
+- 交互式图表：4 种类型（折线 / 面积 / 柱状 / 环形）、按天 / 周 / 月粒度、悬浮详情、彩色渐变
+- 全站 SVG 图标悬停动效（放大 / 旋转 / 脉冲 / 抖动）
+- 骨架屏、点击涟漪、无障碍跳转链接、图片尺寸占位（防布局抖动）
+- 用户下拉菜单独立滚动（菜单项多时不超出屏幕）
+- 底部 dock 栏滚动时自动隐藏（向下滚收起、向上滚出现、到页面底部也收起）
+- 控制台 SLATE 艺术字签名 + 开发者提示
+- 桌面端评论输入区左侧空白修复
+- 游客可见动态数 3 → 5
+
+**性能与缓存**
+
+- 接口分档 HTTP 缓存：静态数据 1 天、信息流 1 分钟、用户私有数据不缓存
+- 游客访问公开页走 `public` 缓存，登录页保持 `private, no-cache`
+- 请求级读缓存：同一次请求内重复读表不再重复解析 JSON
+- 缓存失效由写操作主动触发，不存在读到旧数据的窗口
+
+**内容审核（三层）**
+
+- 关键词层：12 类违规词库，命中 ≥85 分直接拒绝
+- 结构层：重复字符、链接堆叠、全大写等模式检测
+- AI 层：语义判断，**只做建议不做最终裁决**（AI 单独永远不能拒绝内容）
+- 审核结果落到帖子记录上，后台可按违规类型筛选
+
+**国际化**
+
+- 帖子发布时静默翻译（响应发出后异步执行，不阻塞用户）
+- 切换界面语言时帖子内容自动切换对应语言版本，首次生成后缓存
+- 支持 简体中文 / 繁體中文 / English 三种界面语言
+- RSS 支持内容协商：浏览器看到说明页，阅读器拿到 XML
+
+**后台**
+
+- 服务器空间监控：上传文件 / 用户数据 / 静态资源 / 程序代码四项占用 + 百分比
+- 审核队列、内容审核面板、数据看板
+- 数据趋势图（发帖 / 评论 / 新用户 / 点赞）
+
+**安全**
+
+- 接口 HMAC 签名（timestamp + nonce 防重放），支持 `off / optional / required` 三档
+- JS 混淆产物：标识符重命名 + 字符串 base64 进数组，体积仅增 1.2~1.6 倍
+- PHP2Shell 缓解层：内存上限、请求体限制、OOM 告警
+
+**修复**
+
+- 帖子作者归属：按备份纠正 6 条被误改的 `user_id`
+- 图片查看器叠两层：`Lightbox` 未暴露到 `window.App`，导致四套查看器各自触发。现在统一由 `main.js` 的 Lightbox 处理，并加了同 tick 幂等保护
+- 面积图与折线图无区别：多系列时填充条件失效
+- 环形图数据太少：从「按系列」改为「按时间点」分段
+- RSS 浏览器访问显示原始 XML：真实浏览器的 `Accept` 里也含 `application/xml`，改为按 q 值判断首选类型
