@@ -1,0 +1,62 @@
+# ===== 本地开发环境 =====
+.idea/
+.trae/
+start_server.bat
+
+# ===== 运行时数据与用户内容（切勿上传，内含真实用户数据）=====
+data/
+uploads/
+music/
+data_backup_*/
+*_backup_*/
+*.lock
+*.json.lock
+*.tmp
+*.sync_tmp_*
+*.bak
+*.orig
+*.swp
+*.rej
+
+# ===== 二进制产物 / 大文件 =====
+# 注：download/ 下的 APK 有意纳入仓库（方便访客直接下载安装）
+*.jks
+*.keystore
+keystore.properties
+*.zip
+
+# ===== 本机专属配置（含SMTP授权码 / 同步密钥 / AI密钥，绝不进入开源版）=====
+config/mail_config.php
+config/sync_config.php
+config/sync_nonces.json
+/config/ai_config.php
+
+# ===== 本地打包/脚本产物（非源码，不上传）=====
+love_wall.zip
+_setup_git_gh.py
+fonts/
+.shots/
+.workbuddy/
+.wbapp_*
+
+# ===== 构建工具依赖（本地压缩/构建用，非源码）=====
+.buildtools/
+node_modules/
+
+# ===== 本机专用的一次性运维脚本（含同步/挑战流程，不上传）=====
+_challenge_solve.php
+_sync_write_local.php
+_sync_pull.json
+_pull_prod.php
+_ref_*
+_tmp_*
+_verify_*
+_bk_*
+_zipcheck*
+
+# ===== 系统 / 编辑器 =====
+Thumbs.db
+.DS_Store
+
+_lwtest/
+_lwapp/

@@ -1,0 +1,303 @@
+/**
+ * 校园交流墙 · 彩蛋样式
+ * 仅服务于 assets/js/easter-eggs.js：彩带画布、文案气泡，以及 404 页面中央的教室小场景。
+ * 颜色一律取自 style.css 的 :root 设计令牌（都带兜底值），不引入任何外部资源。
+ */
+
+/* ---------- 彩带画布 ---------- */
+
+.lw-egg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ---------- 文案气泡 ---------- */
+
+.lw-egg-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 14vh;
+  z-index: 10000;
+  max-width: min(86vw, 460px);
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.85));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.9));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  box-shadow: 0 8px 28px rgba(47, 91, 154, 0.16);
+  color: var(--text, #2D3748);
+  font-family: var(--font-display, serif);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.lw-egg-toast-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ---------- 404 教室小场景 ---------- */
+
+.lw-scene {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.lw-scene-room {
+  position: relative;
+  height: 190px;
+  border-radius: var(--radius-md, 14px);
+  border: 1px solid var(--border-glass, rgba(226, 232, 240, 0.72));
+  /* 上半墙 + 地面：两道渐变叠出「墙脚线」，颜色全部来自设计令牌 */
+  background:
+    linear-gradient(180deg, rgba(47, 91, 154, 0) 66%, rgba(47, 91, 154, 0.06) 66%, rgba(47, 91, 154, 0.1) 100%),
+    linear-gradient(180deg, var(--bg-secondary, #EDF1F5) 0%, var(--primary-light, #E7EEF7) 66%, var(--bg, #F4F6F9) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+}
+
+.lw-scene-room::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 66%;
+  height: 1px;
+  background: var(--border, #E9EEF4);
+}
+
+/* 可点击的热区：默认无按钮外观，只留一点点反馈 */
+.lw-hotspot {
+  position: absolute;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.lw-hotspot:focus-visible {
+  outline: 2px solid var(--primary, #2F5B9A);
+  outline-offset: 4px;
+}
+
+.lw-hotspot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lw-egg-active {
+  filter: drop-shadow(0 0 10px rgba(201, 169, 110, 0.6));
+}
+
+/* 吊灯 */
+.lw-lamp {
+  top: 0;
+  left: 56%;
+  width: 66px;
+  height: 104px;
+}
+
+.lw-lamp:hover {
+  transform: scale(1.04);
+}
+
+/* 灯光晕（放在 svg 下层） */
+.lw-lamp::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  width: 122px;
+  height: 122px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 169, 110, 0.42) 0%, rgba(201, 169, 110, 0.13) 44%, rgba(201, 169, 110, 0) 70%);
+  pointer-events: none;
+}
+
+.lw-lamp svg {
+  position: relative;
+}
+
+.lw-lamp-cord {
+  stroke: var(--text-muted, #A0AEC0);
+  stroke-width: 2;
+}
+
+.lw-lamp-shade {
+  fill: url(#lwLampGrad);
+}
+
+.lw-lamp-bulb {
+  fill: #FFF8E7;
+}
+
+/* 窗 */
+.lw-window {
+  top: 18px;
+  left: 20px;
+  width: 130px;
+  height: 98px;
+}
+
+.lw-window:hover {
+  transform: scale(1.03);
+}
+
+.lw-win-pane {
+  fill: url(#lwWinSky);
+}
+
+.lw-win-moon {
+  fill: var(--accent-light, #F8F3E7);
+}
+
+.lw-win-star {
+  fill: #FFFFFF;
+  opacity: 0.9;
+}
+
+.lw-win-bar {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3;
+}
+
+.lw-win-frame {
+  fill: none;
+  stroke: var(--border, #E9EEF4);
+  stroke-width: 3;
+}
+
+/* 纸飞机 */
+.lw-plane {
+  bottom: 12px;
+  left: 58%;
+  width: 72px;
+  height: 44px;
+  transform: rotate(-6deg);
+}
+
+.lw-plane:hover {
+  transform: rotate(-6deg) scale(1.06);
+}
+
+.lw-plane-body {
+  fill: var(--primary, #2F5B9A);
+  opacity: 0.85;
+}
+
+.lw-plane-fold {
+  fill: var(--primary-dark, #1E3A63);
+  opacity: 0.7;
+}
+
+.lw-plane-path {
+  fill: none;
+  stroke: var(--text-muted, #A0AEC0);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+}
+
+/* 场景下方的文案 */
+.lw-scene-caption {
+  min-height: 1.7em;
+  margin-top: 14px;
+  color: var(--text-secondary, #718096);
+  font-family: var(--font-display, serif);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.lw-scene-caption-show {
+  opacity: 1;
+  transform: none;
+}
+
+.lw-scene-hint {
+  margin-top: 6px;
+  color: var(--text-muted, #A0AEC0);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* 窄屏：整体收一档，避免窗与纸飞机挤在一起 */
+@media (max-width: 380px) {
+  .lw-scene-room {
+    height: 168px;
+  }
+
+  .lw-window {
+    top: 16px;
+    left: 16px;
+    width: 112px;
+    height: 86px;
+  }
+
+  .lw-lamp {
+    width: 58px;
+    height: 92px;
+  }
+
+  .lw-plane {
+    left: 54%;
+    width: 64px;
+    height: 40px;
+  }
+}
+
+/* 尊重「减少动态效果」：只留淡入淡出，去掉呼吸与位移 */
+@media (prefers-reduced-motion: reduce) {
+  .lw-egg-toast {
+    transform: translate(-50%, 0);
+    transition: opacity 0.3s ease;
+  }
+
+  .lw-scene-caption {
+    transform: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .lw-hotspot,
+  .lw-hotspot:hover,
+  .lw-plane,
+  .lw-plane:hover {
+    transition: none;
+  }
+
+  .lw-egg-active {
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lw-lamp::before {
+    animation: lwLampPulse 4.5s ease-in-out infinite;
+  }
+
+  @keyframes lwLampPulse {
+    0%, 100% { opacity: 0.72; }
+    50% { opacity: 1; }
+  }
+}
