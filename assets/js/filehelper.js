@@ -211,6 +211,15 @@
         $('fhPeerSelf').classList.add('is-online');
 
         startPoll();
+
+        /* 进房间才建 WebRTC —— 之前忘了调这个函数，
+         * 导致 state.pc 永远是 null，一直提示「通道未就绪」。
+         */
+        state.p2pFailed = false;
+        state.p2pRebuilding = false;
+        initP2P();
+        startP2PWatchdog();
+
         // 更新地址栏，方便刷新后保持房间
         try {
             history.replaceState(null, '', '/filehelper?code=' + code);
@@ -229,6 +238,12 @@
 
         state.role = 'a';
         state.joined = false;   // 还没真正进房间
+
+        /* 记住「这个码是本机生成的」。
+         * enterRoom 会用 history.replaceState 把地址改成 ?code=xxx，
+         * 刷新后 boot() 靠这一条判断自己还是发起方而不是加入方。
+         */
+        try { sessionStorage.setItem('fh_my_room', code); } catch (e) { }
 
         var check = function () {
             api('poll', { code: code, role: 'a' }).then(function (res) {
@@ -639,18 +654,47 @@
         xhr.send(fd);
     }
 
-    /** 通道②：WebRTC 点对点 */
+    /** 通道②：WebRTC 点对点（连不上自动降级到网盘） */
     function sendViaP2P(file) {
-        if (!state.pc) {
-            toast('点对点通道未就绪，稍等几秒再试');
+        // 已明确失败过，直接走网盘，别再让用户等
+        if (state.p2pFailed) {
+            sendViaCloud(file);
             return;
         }
+
         if (state.channel && state.channel.readyState === 'open') {
             p2pSendFile(file);
-        } else {
-            toast('正在建立点对点连接…');
-            state.pendingFiles[file.name] = file;
+            return;
         }
+
+        if (!state.pc) {
+            // 通道还没建（不该发生，但兜一下）
+            initP2P();
+        }
+
+        var placeholder = addPlaceholder(file.name, file.size, '点对点 · 建立连接');
+        state.pendingFiles[file.name] = file;
+        state.pendingEls = state.pendingEls || {};
+        state.pendingEls[file.name] = placeholder;
+
+        /* 最多等 12 秒。
+         * 局域网直连通常 1~2 秒就通；要打洞的话 3~8 秒；
+         * 超过 12 秒基本可以判定这条路走不通，直接改走网盘，
+         * 比让用户干等一两分钟体验好得多。
+         */
+        var name = file.name;
+        setTimeout(function () {
+            if (state.channel && state.channel.readyState === 'open') return;
+            if (!state.pendingFiles[name]) return;   // 已经发走了
+
+            delete state.pendingFiles[name];
+            if (state.pendingEls[name]) {
+                state.pendingEls[name].remove();
+                delete state.pendingEls[name];
+            }
+            toast('点对点连不上，改走网盘通道');
+            sendViaCloud(file);
+        }, 12000);
     }
 
     function addPlaceholder(name, size, channel) {
@@ -672,59 +716,299 @@
     // =====================================================================
     // WebRTC 建立（P2P 通道）
     // =====================================================================
+    /* =====================================================================
+     * WebRTC 点对点通道
+     * =====================================================================
+     *
+     * 【为什么之前一直「未就绪」】
+     *   1. initP2P() 从来没被调用 —— state.pc 永远是 null
+     *   2. 角色判断还写着 'pc' / 'mobile'，但角色早就改成 'a' / 'b' 了，
+     *      所以即使调用了，发起方和接收方也永远匹配不上
+     *   3. 只配了 STUN，校园网 NAT 严格时打洞失败，没有 TURN 兜底
+     *
+     * 【局域网优先】
+     *   同一 WiFi 下两台设备能直接通过 mDNS 主机名 + 内网 IP 连上，
+     *   走的是本地链路，速度是路由器带宽（几百 Mbps），完全不经过外网。
+     *
+     *   为了确保这种情况被优先选中，我们把 iceCandidatePoolSize 设大，
+     *   让浏览器提前收集候选；并且在选路时统计 host 类型候选 ——
+     *   有 host 候选就说明能直连，不需要中继。
+     */
     function initP2P() {
-        if (state.pc) return;
+        /* 【守卫必须只挡「建 PC」，不能连轮询一起挡掉】
+         *
+         * 原来这里一句 if (state.pc) return; 直接早退。
+         * 发起方的流程是：
+         *   1. 生成配对码 → startWaitingForPeer（此时还没进房间）
+         *   2. 检测到对方进来 → enterRoom → initP2P（第二次）
+         * 如果第一次已经把 pc 建好了，第二次就会早退，
+         * 于是信令轮询永远没启动 —— offer 发出去没人收，
+         * answer 回来也没人读，连接卡死在 checking。
+         *
+         * 现在把两件事拆开：pc 已存在就跳过建连，但轮询照样保证在跑。
+         */
+        if (state.pc) {
+            ensureSignalPolling();
+            return;
+        }
+
         var pc = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            iceServers: [
+                // 局域网 + 公网直连靠 STUN
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                // 校园网/运营商 NAT 严格时兜底（开源 TURN，带宽有限但能通）
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ],
+            iceCandidatePoolSize: 10
         });
         state.pc = pc;
+        state.iceHost = 0;      // host 类型候选数（局域网直连的能力）
+        state.iceRelay = 0;     // relay 类型候选数（走 TURN 中继）
+        state.localIps = [];
 
         pc.onicecandidate = function (e) {
-            if (e.candidate) {
-                api('signal', {
-                    method: 'POST',
-                    body: { type: 'ice', payload: e.candidate }
-                }).catch(function () { });
+            if (!e.candidate) {
+                // 收集结束，判断能不能直连
+                reportLinkQuality();
+                return;
+            }
+            var c = e.candidate;
+            if (c.type === 'host') {
+                state.iceHost++;
+                // 从候选里抠出内网 IP，用于判断是否同网段
+                var m = /(\d+\.\d+\.\d+\.\d+)/.exec(c.candidate || '');
+                if (m && state.localIps.indexOf(m[1]) < 0) {
+                    state.localIps.push(m[1]);
+                }
+            } else if (c.type === 'relay') {
+                state.iceRelay++;
+            }
+            api('signal', {
+                method: 'POST',
+                body: { type: 'ice', payload: c }
+            }).catch(function () { });
+        };
+
+        pc.onconnectionstatechange = function () {
+            if (pc.connectionState === 'connected') {
+                reportLinkQuality();
+            } else if (pc.connectionState === 'failed') {
+                // 连不上就降级，别让用户干等
+                toast('点对点连不上，这个文件会改走网盘');
+                state.p2pFailed = true;
             }
         };
 
-        if (state.role === 'pc') {
-            // 电脑端发起
+        /* 发起方 = a（谁先开房间谁是 a）。
+         * 注意：不再固定「电脑发起」，手机开房间时它也是 a。
+         */
+        if (state.role === 'a') {
             var dc = pc.createDataChannel('file', { ordered: true });
             setupChannel(dc);
 
-            pc.createOffer().then(function (offer) {
-                return pc.setLocalDescription(offer);
-            }).then(function () {
-                return api('signal', {
-                    method: 'POST',
-                    body: { type: 'offer', payload: pc.localDescription }
+            /* 【发 offer 的时机很关键】
+             *
+             * 原来 createOffer 之后立刻 setLocalDescription 就发出去。
+             * 这时候 ICE 候选往往还没收集完 —— offer 里没有候选，
+             * 对方收到后只能干等，而候选又是分多条后面才发出的，
+             * 一旦顺序错乱或丢一条，整轮协商就废掉。
+             *
+             * 正确做法：等 icegatheringstate 变成 complete 再发，
+             * 或者最多等 1.5 秒（有些网络下 host 候选出得慢，
+             * 但也不能无限等）。
+             */
+            var sent = false;
+            var sendOffer = function () {
+                if (sent) return;
+                sent = true;
+                pc.createOffer().then(function (offer) {
+                    return pc.setLocalDescription(offer);
+                }).then(function () {
+                    return api('signal', {
+                        method: 'POST',
+                        body: { type: 'offer', payload: pc.localDescription }
+                    });
+                }).catch(function (e) {
+                    console.warn('createOffer 失败', e);
                 });
-            }).catch(function () { });
+            };
+
+            // ICE 收集完成 → 立刻发
+            pc.onicegatheringstatechange = function () {
+                if (pc.iceGatheringState === 'complete') {
+                    sendOffer();
+                }
+            };
+
+            // 兜底：最多等 1.5 秒，避免慢网络下无限等待
+            setTimeout(sendOffer, 1500);
         } else {
-            // 手机端接收
             pc.ondatachannel = function (e) { setupChannel(e.channel); };
         }
 
-        // 轮询信令
-        var polling = setInterval(function () {
-            if (!state.joined) { clearInterval(polling); return; }
+        ensureSignalPolling();
+    }
+
+    /**
+     * 确保信令轮询在跑（幂等）。
+     *
+     * 抽出来的原因：initP2P 可能被调用多次（等待阶段一次、进房间一次），
+     * 每次都要保证轮询存在，但不能重复建定时器。
+     */
+    function ensureSignalPolling() {
+        if (state.signalTimer) return;   // 已经在跑
+
+        state.signalTimer = setInterval(function () {
+            if (!state.joined) return;   // 没进房间就跳过这一轮，但保留定时器
             api('signal', { method: 'GET' }).then(function (res) {
                 if (!res.success) return;
                 (res.data.messages || []).forEach(function (m) {
                     handleSignal(m);
                 });
             }).catch(function () { });
-        }, 1500);
+        }, 1200);
+    }
 
-        state.signalTimer = polling;
+    /**
+     * 重建 P2P 连接。
+     *
+     * 【为什么要重建】
+     * WebRTC 的 offer 是一次性的：打洞失败之后，
+     * 那条 PC 就废了，继续等只会一直停在 checking。
+     * 所以超时之后必须关掉旧的、建新的、重新走一遍信令。
+     *
+     * 失败最常见的原因：
+     *   1. 对方 tab 在后台被浏览器限流，轮询停了几秒
+     *   2. 两端刚加进来时 ICE 候选还没收集完，offer 就发出去了
+     *   3. 网络切换（WiFi ↔ 4G）
+     * 这些都能靠重建解决，重建一次通常就通了。
+     */
+    function rebuildP2P(reason) {
+        if (state.p2pRebuilding) return;
+        state.p2pRebuilding = true;
+
+        try { if (state.pc) state.pc.close(); } catch (e) { }
+        state.pc = null;
+        state.channel = null;
+
+        // 清掉残留信令，避免旧的 offer/answer 干扰新一轮
+        api('signal').catch(function () { });
+
+        setTimeout(function () {
+            state.p2pRebuilding = false;
+            if (!state.joined) return;
+            initP2P();
+        }, 600);
+
+        if (reason) {
+            // 重建是正常容错行为，不打扰控制台
+        }
+    }
+
+    /**
+     * 启动连接看门狗。
+     *
+     * 进房间后每 3 秒检查一次：如果还没连上，
+     * 且已经等超过 8 秒，就重建一次；最多重建 3 次。
+     * 这样成功率从「看运气」变成「基本都能连上」。
+     */
+    function startP2PWatchdog() {
+        if (state.p2pWatch) clearInterval(state.p2pWatch);
+
+        var tries = 0;
+        var started = Date.now();
+
+        state.p2pWatch = setInterval(function () {
+            if (!state.joined) {
+                clearInterval(state.p2pWatch);
+                state.p2pWatch = null;
+                return;
+            }
+
+            // 已经连上就不管了
+            if (state.channel && state.channel.readyState === 'open') {
+                clearInterval(state.p2pWatch);
+                state.p2pWatch = null;
+                return;
+            }
+
+            var waited = Date.now() - started;
+            if (waited < 8000) return;      // 8 秒内是正常打洞时间，别急
+
+            if (tries >= 3) {
+                // 试了 3 次还不行，标记失败，之后直接走网盘
+                clearInterval(state.p2pWatch);
+                state.p2pWatch = null;
+                state.p2pFailed = true;
+                console.warn('[P2P] 多次尝试仍失败，后续走网盘通道');
+                return;
+            }
+
+            tries++;
+            started = Date.now();
+            rebuildP2P('第 ' + tries + ' 次超时重建');
+        }, 3000);
+    }
+
+    /** 判断当前链路是局域网直连还是走了中继。 */
+    function reportLinkQuality() {
+        var pc = state.pc;
+        if (!pc) return;
+
+        // 优先读 ICE 选中的候选对（最准确）
+        if (pc.getStats) {
+            pc.getStats(null).then(function (stats) {
+                stats.forEach(function (r) {
+                    if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated !== false) {
+                        stats.forEach(function (c) {
+                            if (c.id === r.localCandidateId) {
+                                state.linkType = (c.candidateType === 'host' || c.candidateType === 'srflx')
+                                    ? 'lan' : 'relay';
+                                state.linkLocalIp = c.address || '';
+                            }
+                        });
+                    }
+                });
+                updateLinkBadge();
+            }).catch(function () { });
+        } else {
+            state.linkType = state.iceHost > 0 ? 'lan' : (state.iceRelay > 0 ? 'relay' : 'unknown');
+            updateLinkBadge();
+        }
+    }
+
+    /** 在界面上标出「局域网直连」还是「中继」。 */
+    function updateLinkBadge() {
+        var el = document.getElementById('fhLinkBadge');
+        if (!el) return;
+        if (!state.channel || state.channel.readyState !== 'open') {
+            el.hidden = true;
+            return;
+        }
+        var lan = state.linkType === 'lan';
+        el.hidden = false;
+        el.textContent = lan ? '局域网直连' : (state.linkType === 'relay' ? '中继连接' : '点对点连接');
+        el.className = 'fh-link-badge ' + (lan ? 'is-lan' : 'is-relay');
+        el.title = lan
+            ? '两台设备在同一局域网，文件走本地链路，不经过外网'
+            : '两台设备不在同一局域网，走了中继服务器';
     }
 
     function handleSignal(msg) {
         var pc = state.pc;
         if (!pc) return;
 
-        if (msg.type === 'offer' && state.role === 'mobile') {
+        if (msg.type === 'offer' && state.role === 'b') {
             pc.setRemoteDescription(new RTCSessionDescription(msg.payload)).then(function () {
                 return pc.createAnswer();
             }).then(function (answer) {
@@ -734,9 +1018,11 @@
                     method: 'POST',
                     body: { type: 'answer', payload: pc.localDescription }
                 });
-            }).catch(function () { });
-        } else if (msg.type === 'answer' && state.role === 'pc') {
-            if (pc.signalingState !== 'stable') {
+            }).catch(function (e) {
+                console.warn('应答失败', e);
+            });
+        } else if (msg.type === 'answer' && state.role === 'a') {
+            if (pc.signalingState === 'have-local-offer') {
                 pc.setRemoteDescription(new RTCSessionDescription(msg.payload)).catch(function () { });
             }
         } else if (msg.type === 'ice') {
@@ -752,6 +1038,15 @@
 
         dc.onopen = function () {
             toast('点对点通道已建立');
+
+            /* 通道一开就刷新一次链路徽标。
+             *
+             * 加入方（b）自己没有 createOffer，ICE 收集完的时机
+             * 和发起方不一样，只靠 onicecandidate 里那次 reportLinkQuality()
+             * 有时来不及（候选还没选中）。channel open 是最可靠的时机，
+             * 两端都在这里补一次，保证徽标一定显示。
+             */
+            setTimeout(function () { reportLinkQuality(); }, 500);
             // 有排队的文件就发出去
             Object.keys(state.pendingFiles).forEach(function (name) {
                 p2pSendFile(state.pendingFiles[name]);
@@ -857,6 +1152,9 @@
             api('leave').catch(function () { });
             stopPoll();
             if (state.signalTimer) clearInterval(state.signalTimer);
+            if (state.p2pWatch) clearInterval(state.p2pWatch);
+            // 断开就清掉「本机房间」标记，否则下次带同一个码进来会误认成发起方
+            try { sessionStorage.removeItem('fh_my_room'); } catch (e) { }
             location.href = '/filehelper';
         });
 
@@ -942,10 +1240,42 @@
     function boot() {
         bind();
 
-        // 带 code 进来 = 手机扫码，强制以手机身份加入
+        /* 带 code 进来要区分两种人：
+         *
+         *   ① 自己刚点了「生成配对码」的发起方
+         *   ② 别人扫码/手输配对码过来的加入方
+         *
+         * 原来这里无条件 state.role = 'b'，结果发起方一改变地址栏
+         * （enterRoom 里 replaceState 会跳成 ?code=xxx）
+         * 就把自己也变成了「加入方」。两端全是 b，
+         * 谁都不发 offer —— P2P 永远连不上，这是「一直显示通道未就绪」的真正根源。
+         *
+         * 判定方式：sessionStorage 里记了「这个码是我生成的」→ 我是发起方。
+         */
         if (state.code && state.code.length === 6) {
-            state.role = 'b';
-            joinRoom(state.code);
+            var myCode = '';
+            try { myCode = sessionStorage.getItem('fh_my_room') || ''; } catch (e) { }
+
+            if (myCode === state.code) {
+                /* 本机建的房间 → 我是发起方。
+                 *
+                 * 【为什么要先标 joined】
+                 * enterRoom 里会建 WebRTC 并启动信令轮询，
+                 * 而轮询体第一行是 if (!state.joined) return。
+                 * 之前这里没设 joined=true，直接进 enterRoom，
+                 * 结果定时器建好了、也一直在 tick，
+                 * 但每一轮都被这行挡掉 —— 一次信令都没取过。
+                 *
+                 * 「自己是 room 的创建者」就意味着房间已经存在、
+                 * 自己当然算已进房间，所以这里必须置 true。
+                 */
+                state.role = 'a';
+                state.joined = true;
+                enterRoom(state.code);
+            } else {
+                state.role = 'b';       // 别人的房间 = 加入方
+                joinRoom(state.code);
+            }
         }
 
         // 页面隐藏时停轮询，回到前台再开（省电也省请求）

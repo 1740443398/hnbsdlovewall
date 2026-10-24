@@ -841,12 +841,39 @@ switch ($action) {
 
         // 读取对方的信令
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            /* 读取属于自己的信令，读完立刻清空。
+             *
+             * 【为什么必须清空】
+             * WebRTC 信令是「一次性」的：offer / answer 只能处理一次，
+             * ICE 候选攒成一批也没意义。
+             * 原来只读不清，两端每 1.2 秒都读到同一批老消息，
+             * 于是 setRemoteDescription 反复失败、
+             * 旧 offer 一直盖住新 offer —— 连接永远停在 checking。
+             *
+             * 顺带兼容旧房间的 pc/mobile 槽位：一并取出并清掉。
+             */
             $box = $room['signal'][$role] ?? [];
-            fhOk(['messages' => $box]);
+            $legacy = $role === 'a' ? 'pc' : 'mobile';
+            if (!empty($room['signal'][$legacy])) {
+                $box = array_merge($room['signal'][$legacy], $box);
+            }
+
+            $dirty = !empty($room['signal'][$role]) || !empty($room['signal'][$legacy]);
+            if ($dirty) {
+                unset($room['signal'][$role], $room['signal'][$legacy]);
+                lwFhWriteRoom($code, $room);
+            }
+
+            fhOk(['messages' => array_values($box)]);
         }
 
-        // 写入信令（发给对方）
-        $to = $role === 'pc' ? 'mobile' : 'pc';
+        /* 写入信令（发给对方）。
+         *
+         * 角色已经改成中性的 a / b，这里原来还写着 pc / mobile，
+         * 结果信令被塞进一个根本不存在的槽位 ——
+         * 对方永远收不到 offer，P2P 自然永远连不上。
+         */
+        $to = $role === 'a' ? 'b' : 'a';
         if (!empty($FH_BODY)) {
             $msg = $FH_BODY;
         } else {

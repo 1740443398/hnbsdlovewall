@@ -100,6 +100,31 @@
 .fh-pair-desc { font-size: 12px; color: var(--fh-text-3); margin: 0 0 16px; }
 
 /* 卡片底部的小字说明 */
+/* 链路状态徽标：明确告诉用户「走的是局域网还是外网」 */
+.fh-link-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.fh-link-badge.is-lan {
+    background: #EAF7F1;
+    color: #178A62;
+    border: 1px solid #C5E9D8;
+}
+.fh-link-badge.is-relay {
+    background: #FEF8EC;
+    color: #B06A16;
+    border: 1px solid #F3E0BE;
+}
+.fh-link-badge[hidden] {
+    display: none !important;
+}
+
 .fh-pair-foot {
     font-size: 11px;
     color: var(--fh-text-3);

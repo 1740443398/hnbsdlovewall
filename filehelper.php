@@ -115,6 +115,7 @@ if (is_file($fhCfgFile)) {
         <div class="fh-peers">
             <span class="fh-peer" id="fhPeerSelf"><i></i>本机</span>
             <span class="fh-peer" id="fhPeerOther"><i></i>等待对方…</span>
+            <span class="fh-link-badge" id="fhLinkBadge" hidden></span>
         </div>
         <button type="button" class="fh-btn fh-btn-ghost fh-btn-sm" id="fhLeaveBtn">断开</button>
     </div>
