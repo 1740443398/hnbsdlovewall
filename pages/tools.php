@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 
 $fs = getFS();
 
@@ -828,6 +829,19 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
             <div class="tools-category">
                 <div class="tools-category-title"><?= t('tools.cat_time') ?></div>
                 <div class="tool-grid">
+                    <a class="tool-card" href="/filehelper" style="text-decoration:none;color:inherit">
+                        <div class="icon-wrap">
+                            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                                <defs><linearGradient id="fhGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4F7FE0"/><stop offset="100%" stop-color="#2F5B9A"/></linearGradient></defs>
+                                <rect x="6" y="10" width="30" height="24" rx="4" fill="url(#fhGrad)"/>
+                                <rect x="14" y="38" width="10" height="3" rx="1.5" fill="#4F7FE0" opacity=".7"/>
+                                <rect x="26" y="24" width="22" height="30" rx="4" fill="#22B07D"/>
+                                <path d="M33 36h10M38 31v10" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="tool-name">文件传输助手</div>
+                    </a>
+
                     <div class="tool-card" onclick="openTool('pomodoro')">
                         <div class="icon-wrap">
                             <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -1339,13 +1353,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
     require __DIR__ . '/../includes/mobile_bottom_nav.php';
     ?>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · <?= t('tools.copyright') ?></p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <script>
     let activeModal = null;

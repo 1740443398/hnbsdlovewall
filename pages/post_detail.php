@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 require_once __DIR__ . '/../includes/translate.php';
 
 $postId = intval($_REQUEST['id'] ?? 0);
@@ -655,13 +656,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         </div>
     </div>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars(SITE_NAME) ?> · <?= t('pd.copyright') ?></p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <script>
         let likeState = <?= $isLiked ? 'true' : 'false' ?>;

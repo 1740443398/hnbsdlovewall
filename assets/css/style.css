@@ -426,6 +426,26 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   white-space: nowrap;
 }
 
+/* 顶栏用户下拉菜单
+ *
+ * 【2026-10-24 修：菜单项太多时无法滚动】
+ *
+ * 原来写的是 overflow: hidden，本意是让圆角裁掉子元素的直角。
+ * 但菜单项已经有 15+ 项（个人主页/我的帖子/收藏/发现/成长/装扮/房间/
+ * 商城/文件/工具/AI/备份/搜索/全部功能/管理后台/退出），
+ * 在 768px 高的笔记本窗口上会超出视口，底部的「退出登录」根本点不到，
+ * 而且 overflow:hidden 让滚动条也出不来。
+ *
+ * 改成 overflow-y: auto 并限高：
+ *   - max-height 用 100vh 减顶栏，保证菜单永远不超出屏幕
+ *   - overscroll-behavior: contain 防止滚到底带动整页滚动
+ *   - 圆角靠子项的 border-radius 维持，不再依赖裁剪
+ *
+ * 注意：这条规则必须留在 style.css 里。commercial.css 也有同名规则，
+ * 但 style.css 在它之后加载（pwa_head.php 第 232 行 vs 第 227 行），
+ * 后加载的同优先级规则会覆盖前者 —— 之前那次修复写在 commercial.css
+ * 里，正是被这里顶掉的。
+ */
 .user-dropdown {
   position: absolute;
   top: calc(100% + 0.5rem);
@@ -435,13 +455,65 @@ html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  overflow: hidden;
   display: none;
   z-index: 10;
   padding: 0.375rem;
   animation: fadeInDown 0.18s ease;
+
+  /* 独立滚动 */
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 91, 154, 0.28) transparent;
+}
+
+.user-dropdown::-webkit-scrollbar { width: 6px; }
+.user-dropdown::-webkit-scrollbar-track { background: transparent; }
+.user-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(47, 91, 154, 0.24);
+  border-radius: 3px;
+}
+.user-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(47, 91, 154, 0.42);
 }
 .user-dropdown.show { display: block; }
+
+/* 【兜底】无论页面别处再怎么写 overflow，下拉菜单都必须能滚动。
+ *
+ * 为什么需要 !important：
+ *   加载顺序是 commercial.css -> style.css -> ux-polish.css，
+ *   后面还有几处针对 .user-dropdown 的合并选择器（玻璃拟态背景）。
+ *   任何一处引入 overflow: hidden 都会让滚动失效，而且这种问题
+ *   在开发机上用宽屏根本复现不出来，只能在窄窗口才发现。
+ *
+ * 这里显式锁死滚动相关属性，代价是这四条不能被别处覆盖 ——
+ * 但菜单滚动本来就不该被覆盖。
+ */
+.user-dropdown.show {
+  max-height: calc(100vh - 88px);
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+}
+
+/* 菜单里的分组标题在滚动时吸顶，长菜单里能知道自己在哪一段 */
+.user-dropdown .dropdown-group-title {
+  position: sticky;
+  top: -0.375rem;
+  z-index: 2;
+  background: var(--card-bg, #fff);
+  margin: 0 -0.375rem;
+  padding: 0.375rem 0.75rem 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .user-dropdown.show {
+    max-height: calc(100dvh - 120px);
+  }
+}
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }

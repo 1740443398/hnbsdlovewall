@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/totp.php';
 require_once __DIR__ . '/../includes/level.php';
@@ -1510,9 +1511,7 @@ if ($inviteEnabled && $tab === 'invite') {
         </div>
     </div>
 
-    <footer class="site-footer">
-        <p>&copy; <?= date('Y') ?> <?= t('uc.footer_site') ?></p>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <?php
     // 停在「收藏」标签时高亮底部导航的收藏项，其余标签都算「我的」

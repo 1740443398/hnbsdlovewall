@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/site_footer.php';
 
 $fs = getFS();
 
@@ -336,15 +337,7 @@ $categories = [
         </div>
     </div>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · 蕭遞版权所有</p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-            <p style="opacity:.7;font-size:12px;"><?= t('footer.ai_note') ?></p>
-            <p><a href="#sponsor" data-open-sponsor style="color:inherit;text-decoration:underline dotted;">支持我们</a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter(['sponsor' => true]); ?>
 
     <script>
     (function(){

@@ -293,6 +293,19 @@ require_once __DIR__ . '/../includes/i18n.php';
 // 「Call to undefined function lw_icon()」白屏 —— includes/ 下是函数，autoloader 只管类。
 require_once __DIR__ . '/../includes/icons.php';
 
+/* 【CLI 下跳过 WAF / 反爬 / 请求体检查】
+ *
+ * 这些中间件全都依赖 HTTP 上下文（REQUEST_URI、UA、IP、CONTENT_TYPE）。
+ * 命令行里它们全是空的，于是：
+ *   - WAF 看到空 URI 当成可疑路径 → 403
+ *   - 反爬看到空 UA → 拦截
+ * 结果 tools/ 下的维护脚本（清理、迁移、诊断）一个都跑不起来。
+ *
+ * CLI 不是攻击面（攻击者无法在服务器上执行 php 命令），
+ * 所以直接跳过这一段；常量、函数、存储层的加载不受影响。
+ */
+if (PHP_SAPI !== 'cli') {
+
 WAF::init();
 
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
@@ -328,6 +341,8 @@ if ($isApiRequest && $_SERVER['REQUEST_METHOD'] === 'POST') {
         ], JSON_UNESCAPED_UNICODE));
     }
 }
+
+}  // end if (PHP_SAPI !== 'cli')
 
 // SSE（流式）端点必须在 require 本文件之前 define('LW_NO_GZIP', 1)：
 // gzip 会把整段响应攒够一块才发，流式就退化成「一次性返回」，思考过程也就没法实时同步了。

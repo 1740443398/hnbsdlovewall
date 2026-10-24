@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 
 $fs = getFS();
 
@@ -305,13 +306,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
     require __DIR__ . '/../includes/mobile_bottom_nav.php';
     ?>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · <?= t('tools.copyright') ?></p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <?php // E18 xlsx 体积 929KB，仅在点名页「导入 Excel」时才按需加载（见 rollCallReadExcel 的动态注入），不再随页面常驻。 ?>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/zh_convert.php';
 
@@ -629,13 +630,7 @@ if ($editPostId > 0) {
         </div>
     </div>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p>本平台为学生自发搭建交流平台，不属于淮南市北师大实验中学官方平台</p>
-            <p>&copy; 2026 <?= htmlspecialchars(SITE_NAME) ?> · 蕭遞版权所有</p>
-            <p>GitHub 开源地址（可点击跳转）：<a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <?php
     $mobileNavActive = 'compose';
