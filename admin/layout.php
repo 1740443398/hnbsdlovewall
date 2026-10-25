@@ -1303,6 +1303,9 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <a href="/admin/selfheal.php" class="<?= $page === 'selfheal.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span> 自恢复守护
             </a>
+            <a href="/admin/invite_graph.php" class="<?= $page === 'invite_graph.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg></span> 邀请关系图
+            </a>
             <div class="nav-section">日志与安全</div>
             <a href="/admin/filehelper_log.php" class="<?= $page === 'filehelper_log.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> 文件传输记录

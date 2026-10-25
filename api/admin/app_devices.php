@@ -34,12 +34,26 @@ $fs    = getFS();
 $all   = $fs->read('app_devices');
 $all   = is_array($all) ? $all : [];
 
+/* 【按人归并】同机型 + 同账号 = 同一个人。
+ *
+ * 一个人卸载重装会换 device_id，只按设备数统计会把装机量系统性高估。
+ * lwAppUsers() 把台账合并成「人」，并保留 installs 字段说明重装过几次。
+ *
+ * 列表默认按人展示；传 raw=1 可看原始设备流水（排查问题用）。
+ */
+$showRaw = !empty($_REQUEST['raw']) && $_REQUEST['raw'] !== '0';
+
 // ---- 筛选 ----
 $keyword = trim((string)($_REQUEST['keyword'] ?? ''));
 if ($keyword !== '' && function_exists('sanitizeInput')) {
     $keyword = (string)sanitizeInput($keyword);
 }
 $onlyBound = !empty($_REQUEST['only_bound']) && $_REQUEST['only_bound'] !== '0' && $_REQUEST['only_bound'] !== 'false';
+
+if (!$showRaw) {
+    // 归并成人（每人的 model / last_seen 已取最近一次）
+    $all = lwAppUsers($all);
+}
 
 $rows = $all;
 if ($onlyBound) {
@@ -88,9 +102,16 @@ foreach ($rows as $d) {
     $u    = $uid > 0 ? ($users[$uid] ?? null) : null;
     $last = strtotime((string)($d['last_seen'] ?? '')) ?: 0;
     $devices[] = [
-        'device_id'        => mb_substr((string)($d['device_id'] ?? ''), 0, 12),
+        'device_id'        => $showRaw
+            ? mb_substr((string)($d['device_id'] ?? ''), 0, 12)
+            : mb_substr((string)($d['device_ids'][0] ?? ''), 0, 12),
+        'device_count'     => (int)($d['installs'] ?? 1),
+        'device_ids'       => (array)($d['device_ids'] ?? []),
         'user_id'          => $uid,
-        'nickname'         => $u ? (string)($u['nickname'] ?? '') : '',
+        // 归并后昵称可能已经在记录里，优先用
+        'nickname'         => (string)($d['nickname'] ?? '') !== ''
+            ? (string)$d['nickname']
+            : ($u ? (string)($u['nickname'] ?? '') : ''),
         'qq'               => (string)($d['qq'] ?? ($u['qq'] ?? '')),
         'model'            => (string)($d['model'] ?? ''),
         'brand'            => (string)($d['brand'] ?? ''),
@@ -111,6 +132,7 @@ jsonSuccess([
         'page'        => $page,
         'limit'       => $limit,
         'total_pages' => $totalPages,
+        'mode'        => $showRaw ? 'devices' : 'users',
     ],
     'stats'      => lwAppStats($fs),
 ]);

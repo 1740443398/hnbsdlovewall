@@ -164,6 +164,178 @@ if (!defined('LW_TRANSLATE_LOADED')) {
         }
     }
 
+    /* ==========================================================================
+     * AI 静默主动翻译（多语言覆盖）
+     * --------------------------------------------------------------------------
+     * 【和原来的区别】
+     * 原来只做「中 ↔ 英」对向翻译：中文帖译成英文，外文帖译成中文。
+     * 但实际使用里还有两种情况：
+     *   1. 繁体用户 —— 简体帖对他们是「能看懂但别扭」，也该给个繁中版
+     *   2. 日韩同学 —— 英文未必比母语好懂
+     *
+     * 现在改成「常见语言全覆盖」：
+     *   - 原文语言识别后，按需生成简体 / 繁体 / 英文 / 日文 / 韩文
+     *   - **懒生成**：不是一次性全翻（那样 5 倍配额），而是谁真的切到那个语言才翻
+     *   - 全都走异步队列，用户无感
+     *
+     * 【为什么不预生成全部】
+     * GLM 一次翻译约 1~3 秒。一篇文章翻 5 种语言就是 5~15 秒配额。
+     * 而绝大多数读者只用一种语言 —— 预生成等于给 80% 用不上的内容付费。
+     * 懒生成把成本压到「实际被阅读的语言数」。
+     * ==========================================================================
+     */
+
+    /** 支持的目标语言（顺序即优先级）。 */
+    function lwTranslateLangs(): array
+    {
+        return [
+            'zh_CN' => '简体中文',
+            'zh_TW' => '繁體中文',
+            'en'    => 'English',
+            'ja'    => '日本語',
+            'ko'    => '한국어',
+        ];
+    }
+
+    /** 站点语言 → 翻译目标语言。 */
+    function lwSiteLangToTarget(string $siteLang): string
+    {
+        $map = [
+            'zh_CN' => 'zh_CN',
+            'zh_TW' => 'zh_TW',
+            'zh'    => 'zh_CN',
+            'en'    => 'en',
+            'ja'    => 'ja',
+            'ko'    => 'ko',
+        ];
+        return $map[$siteLang] ?? 'zh_CN';
+    }
+
+    /**
+     * 按需翻译成指定语言并缓存。
+     *
+     * @param int    $postId 帖子 ID
+     * @param string $target 目标语言（zh_CN / zh_TW / en / ja / ko）
+     * @return array|null 翻译结果，失败返回 null
+     */
+    function lwTranslatePostTo(int $postId, string $target): ?array
+    {
+        if ($postId <= 0) {
+            return null;
+        }
+        $allowed = array_keys(lwTranslateLangs());
+        if (!in_array($target, $allowed, true)) {
+            return null;
+        }
+
+        try {
+            $fs = getFS();
+            $post = $fs->findById('posts', $postId);
+            if (!$post) {
+                return null;
+            }
+
+            // 已有该语言缓存 → 直接返回
+            $cache = $post['translations'] ?? [];
+            if (is_array($cache) && !empty($cache[$target]['text'])) {
+                return $cache[$target];
+            }
+
+            $title   = (string)($post['title'] ?? '');
+            $content = (string)($post['content'] ?? '');
+            $joined  = trim($title . "\n" . $content);
+            if (mb_strlen($joined) < 4) {
+                return null;
+            }
+
+            $from = lwDetectLang($joined);
+
+            // 原文就是目标语言 → 不需要翻译，直接当缓存写回
+            $fromTarget = lwSiteLangToTarget($from === 'zh' ? 'zh_CN' : $from);
+            if ($fromTarget === $target) {
+                $self = [
+                    'title' => $title,
+                    'text'  => $content,
+                    'from'  => $target,
+                    'to'    => $target,
+                    'at'    => date('Y-m-d H:i:s'),
+                    'self'  => true,
+                ];
+                $cache[$target] = $self;
+                $fs->update('posts', $postId, ['translations' => $cache]);
+                return $self;
+            }
+
+            $tTitle = $title !== '' ? lwTranslateText($title, $from, $target) : null;
+            $tBody  = lwTranslateText($content, $from, $target);
+            if ($tBody === null && $tTitle === null) {
+                return null;
+            }
+
+            $entry = [
+                'title' => (string)($tTitle ?? ''),
+                'text'  => (string)($tBody ?? ''),
+                'from'  => $from,
+                'to'    => $target,
+                'at'    => date('Y-m-d H:i:s'),
+            ];
+            $cache[$target] = $entry;
+            $fs->update('posts', $postId, ['translations' => $cache]);
+
+            return $entry;
+        } catch (Throwable $e) {
+            error_log('lwTranslatePostTo #' . $postId . ' -> ' . $target . ': ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 静默预翻「另一种中文」。
+     *
+     * 简体用户发的帖子，繁体用户点进来会读得别扭。
+     * 中文↔中文互转很快（同语系），且几乎一半读者会受益，
+     * 所以这一对值得预生成，其余的懒生成就行。
+     */
+    function lwQueueZhVariant(int $postId): void
+    {
+        static $queued = [];
+        if ($postId <= 0 || isset($queued[$postId])) {
+            return;
+        }
+        $queued[$postId] = true;
+
+        register_shutdown_function(function () use ($postId) {
+            if (function_exists('fastcgi_finish_request')) {
+                @fastcgi_finish_request();
+            }
+            @ignore_user_abort(true);
+            @set_time_limit(25);
+
+            try {
+                $fs = getFS();
+                $post = $fs->findById('posts', $postId);
+                if (!$post) {
+                    return;
+                }
+                $joined = trim((string)($post['title'] ?? '') . "\n" . (string)($post['content'] ?? ''));
+                if (mb_strlen($joined) < 4) {
+                    return;
+                }
+                $from = lwDetectLang($joined);
+                if ($from !== 'zh') {
+                    return;   // 只有中文帖才需要繁简互转
+                }
+                // 判断是简体还是繁体
+                $hasTW = preg_match('/[體臺灣繁體們個時間說話來對這個]/u', $joined);
+                $target = $hasTW ? 'zh_CN' : 'zh_TW';
+                lwTranslatePostTo($postId, $target);
+            } catch (Throwable $e) {
+                error_log('lwQueueZhVariant #' . $postId . ': ' . $e->getMessage());
+            }
+        });
+    }
+
+
     /**
      * 排一个延迟翻译任务（响应发出后执行）。
      *

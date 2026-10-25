@@ -72,13 +72,35 @@ if (!verifyCaptcha('register', $_POST['captcha'] ?? '')) {
 // 新生验证题（二选一，答对方可注册）—— 由站点档案开关控制，只有线上版启用
 // （比赛演示版 LW_REGISTER_GATE=false，整段跳过，前端也不会渲染题目）
 // 归一化：忽略空白与全半角标点；Q1 允许把整句呼号「我自豪，我是北师淮实人」照抄进来
-if (LW_REGISTER_GATE) {
+/* ── 进站门槛：邀请码 或 新生验证题，二选一 ─────────────────────────────
+ *
+ * 【为什么允许邀请码免答题】
+ * 新生验证题（校训 / 校长姓名）是为了挡住「外面的人随便注册」。
+ * 但一位已经在站内的同学把邀请码发给他的同桌——这个动作本身就完成了
+ * 同样的验证：发码的人认识被邀请的人，并且愿意为他背书。
+ *
+ * 与其让被邀请的人再答一遍校训，不如认这个邀请关系。
+ * 邀请码是 7 位、由站内成员一对一发出的，猜中概率极低。
+ *
+ * 【关键：邀请码必须是真实存在的】
+ * 光看「填了个像邀请码的字符串」就放行是不行的 —— 那样门槛形同虚设，
+ * 随便填 "AAAAAAA" 就能进。所以必须先 lwInviteFindInviter() 查出邀请人，
+ * 查得到才免答，查不到仍然走验证题。
+ */
+$inviteCodeRaw = trim((string)($_POST['invite_code'] ?? $_POST['invite'] ?? ''));
+$inviteInviter = null;
+if ($inviteCodeRaw !== '') {
+    $inviteInviter = lwInviteFindInviter($inviteCodeRaw);
+}
+
+if (LW_REGISTER_GATE && $inviteInviter === null) {
+    // 没有有效邀请码 → 必须答对新生验证题
     $gateQ = $_POST['gate_q'] ?? '';
     $gateA = $_POST['gate_a'] ?? '';
     $gateNorm = preg_replace('/[\s\x{3000}。，、！？；：·．,!?.;:~～_\-—]+/u', '', $gateA);
     $gateAnswers = ['1' => '我是北师淮实人', '2' => '郝波'];
     if (!isset($gateAnswers[$gateQ])) {
-        jsonError('请选择并回答验证问题');
+        jsonError('请选择并回答验证问题（或填写邀请码）');
     }
     $gateExpected = $gateAnswers[$gateQ];
     $gateFull = ($gateQ === '1') ? ('我自豪' . $gateExpected) : $gateExpected;
@@ -87,6 +109,7 @@ if (LW_REGISTER_GATE) {
     }
     unset($gateQ, $gateA, $gateNorm, $gateAnswers, $gateExpected, $gateFull);
 }
+// 有有效邀请码：跳过验证题，直接放行（邀请关系在下面落库）
 
 $qq = sanitizeInput($_POST['qq'] ?? '');
 $password = $_POST['password'] ?? '';

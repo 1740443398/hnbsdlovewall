@@ -132,12 +132,23 @@ if (!function_exists('lw_do_post_create')) {
          */
         require_once __DIR__ . '/../moderation.php';
 
-        if ($category === 'announcement') {
-            // 管理员发公告：只做关键词与结构层，省掉 AI 的几秒延迟
-            $modResult = lwModerateContent($title, $content, $user, ['skip_ai' => true]);
-        } else {
-            $modResult = lwModerateContent($title, $content, $user);
-        }
+        /* 【审核改为「同步门禁 + 异步复核」】
+         *
+         * 原来这里同步跑 AI 审核：GLM 接口 1~3 秒，加上主机 1 秒响应，
+         * 用户点「发布」要等 4~6 秒才看到结果 —— 体感就是「卡住发不出去」。
+         *
+         * 但审核不必挡在用户面前：
+         *   - 关键词层 / 结构层是纯本地计算，几毫秒出结果，**它们才该做门禁**
+         *   - AI 层是用来「捞漏网的」，晚几秒完全不影响体验
+         *
+         * 所以现在：
+         *   1. 同步只跑关键词 + 结构层（毫秒级），决定 published / pending / reject
+         *   2. 帖子立刻返回给用户
+         *   3. AI 在响应结束后异步复核，只有 >=60 分才回滚成待审
+         *
+         * AI 依然没有最终裁决权 —— 它最多把帖子转成待审，不会直接拒绝。
+         */
+        $modResult = lwModerateContent($title, $content, $user, ['skip_ai' => true]);
 
         // 硬拒绝：直接返回错误，不写库
         if ($modResult['action'] === 'reject') {
@@ -210,6 +221,18 @@ if (!function_exists('lw_do_post_create')) {
         if ($status === 'published') {
             require_once __DIR__ . '/../translate.php';
             lwQueueTranslation((int)$post['id']);
+
+            /* 繁简静默互转：中文↔中文同语系，翻译很快，
+             * 且几乎一半读者会受益，所以这一对值得预生成。
+             * 其他语言（英/日/韩）懒生成 —— 谁真的切过去才翻，省配额。 */
+            lwQueueZhVariant((int)$post['id']);
+
+            /* AI 异步复核：排在响应之后，用户完全无感。
+             * 只有 AI 给出 >=60 分才回滚成待审，避免误伤正常内容。 */
+            if ($category !== 'announcement') {   // 公告是管理员发的，不必复核
+                require_once __DIR__ . '/../ai_review.php';
+                lwQueueAiReview((int)$post['id'], $title, $content);
+            }
         }
 
         // 正文里 @到的同学 → 站内通知。
