@@ -318,9 +318,24 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         }
 
         /* 输入区本身占满剩余宽度，不参与收缩到 0 */
+        /* 输入区占满剩余宽度。flex-basis 用 0 而不是 auto，
+         * 否则 textarea 的 cols 默认值（20）会参与计算，把宽度算小。 */
         .comment-input-area > .comment-input-wrap {
             flex: 1 1 0%;
             min-width: 0;
+            width: auto;
+        }
+
+        /* 双保险：万一 .lw-av 的基础样式没加载（缓存/合并问题），
+         * 这里再钉一次尺寸。内联的 --lw-av 已经在 <span> 上写好了。 */
+        .comment-input-area > span.lw-av {
+            display: inline-block;
+            position: relative;
+            flex: 0 0 auto;
+            width: var(--lw-av, 32px);
+            height: var(--lw-av, 32px);
+            border-radius: 50%;
+            overflow: visible;
         }
 
         /* 提交按钮靠右，但不撑出一整行 */

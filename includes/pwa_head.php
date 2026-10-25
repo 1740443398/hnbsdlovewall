@@ -78,6 +78,10 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
            看起来就是"头像框里只剩几根线和下面一个圆圈"。
            :not([class*=lw-]) 把头像复合件、挂件层全部放行。 */
         img{max-width:100%;height:auto}
+        /* 头像复合件的基础几何：没有这一段的话 <span class="lw-av"> 只是 inline，
+         * 只有 --lw-av 变量而没有宽高，在 flex 容器里会被拉伸并推挤相邻内容，
+         * 表现就是「输入框左边一大块空白」。 */
+        .lw-av{display:inline-block;position:relative;flex:0 0 auto;width:var(--lw-av,44px);height:var(--lw-av,44px);vertical-align:middle;border-radius:50%}
         img[class*="lw-av"], img[class*="lw-widget"], img[class*="lw-avatar"]{height:revert;max-width:none}
         .container{max-width:960px;margin:0 auto;padding:0 14px}
         .top-bar{height:56px;display:flex;align-items:center}

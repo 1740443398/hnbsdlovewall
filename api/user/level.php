@@ -88,17 +88,27 @@ $mine = lwLevelRow((int)$user['id']);
 [$rank, $total] = lwLevelRank((int)$user['id']);
 $ach = lwAchievementSummary((int)$user['id']);
 
+/* 站长账号的等级是荣誉性质：显示 100 级 / 积分 ∞，不走经验公式。
+ *
+ * 100 级需要的经验是天文数字（50*(n-1)*n ≈ 49.5 万），
+ * 靠发帖攒要到天荒地老。而站长这个等级本来就不是「攒出来的」，
+ * 所以直接覆盖展示值，真实经验照常记录在库里。
+ */
+$isOwner = function_exists('lwIsOwner') && lwIsOwner($user);
+$lvShown = $isOwner ? (int)lwUserLevel($user) : (int)$mine['level'];
+$lvTitle = $isOwner ? lwUserLevelTitle($user) : (string)$mine['title'];
+
 jsonSuccess([
     'enabled'     => lwLevelEnabled(),
-    'level'       => $mine['level'],
-    'title'       => $mine['title'],
-    'exp'         => $mine['exp'],
+    'level'       => $lvShown,
+    'title'       => $lvTitle,
+    'exp'         => $isOwner ? '∞' : $mine['exp'],
     'level_start' => $mine['level_start'],
     'level_end'   => $mine['level_end'],
-    'progress'    => $mine['progress'],
-    'to_next'     => $mine['to_next'],
-    'percent'     => $mine['percent'],
-    'is_max'      => $mine['is_max'],
+    'progress'    => $isOwner ? 100 : $mine['progress'],
+    'to_next'     => $isOwner ? 0 : $mine['to_next'],
+    'percent'     => $isOwner ? 100 : $mine['percent'],
+    'is_max'      => $isOwner ? true : $mine['is_max'],
     'today_exp'   => $mine['today_exp'],
     'daily_cap'   => lwLevelDailyCap(),
     'rank'        => $rank,

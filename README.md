@@ -82,6 +82,87 @@ All state lives in `data/_selfheal.json` (atomic write + `.bak`), with a rolling
 event log in `data/_selfheal_log.jsonl`. The admin page shows breaker state,
 error-rate window, disk headroom, and every self-heal event.
 
+### Invitation System
+
+Invitation is the site's only growth path, and it does triple duty:
+entry gate, attribution, and reward.
+
+- **Invite code skips the entrance quiz.** New-student verification (school slogan /
+  principal's name) exists to keep outsiders out. But when a member hands their code
+  to a classmate, that act already proves the same thing.
+  The server **verifies the code actually exists** via `lwInviteFindInviter()` first —
+  a made-up string still sends you back to the quiz, so the gate stays intact.
+- Registration page offers a **"Answer quiz / Use invite code"** switch, and supports
+  `?invite=CODE` deep links.
+- **Invite relationship graph** (`admin/invite_graph.php`): an expandable tree of who
+  invited whom, with a **"re-invited N"** badge showing second-level spread.
+- **Abuse detection**: 10 minutes with 5+ signups under one inviter is flagged red —
+  the usual signature of reward farming.
+
+### AI Moderation: Sync Gate + Async Review
+
+Posting used to run AI review synchronously. GLM takes 1-3 s, and the host adds
+~1 s — users waited 4-6 s, assumed it hung, tapped again, and hit the rate limit.
+
+Now split in two:
+
+| Stage | What runs | Cost |
+|---|---|---|
+| **Sync gate** | keyword + structural scan (pure local) | ~2 ms |
+| **Async review** | AI scan after the response is flushed (`fastcgi_finish_request`) | user-invisible |
+
+The AI can **only demote a post to pending** at score >= 60 — it never rejects.
+See `includes/ai_review.php`.
+
+### Idle-time AI Translation
+
+Posts get silently translated at publish time (zh<->en plus Simplified/Traditional).
+Historical posts and ja/ko are filled in later, when the server is idle:
+
+- `lwTranslatePostTo($postId, $lang)` — translate to `zh_CN` / `zh_TW` / `en` / `ja` / `ko`, cached per post
+- `lwQueueZhVariant()` — pre-generate the other Chinese variant at publish time
+  (same language family, fast, benefits roughly half of readers)
+- `tools/ai_translate_idle.php` — batch job that **backs off during daytime** (08:00-23:00)
+
+Deliberate trade-off: English / Japanese / Korean are **not** pre-generated.
+Translating one post into 5 languages costs 5-15 s of quota, while most readers use
+exactly one language — so those are generated lazily, on first read.
+
+```bash
+php tools/ai_translate_idle.php --stats          # how many posts are pending
+php tools/ai_translate_idle.php --limit=20       # process 20
+php tools/ai_translate_idle.php --force          # ignore the daytime check
+```
+
+### App Install Stats: Deduplicated by Person
+
+A single person reinstalling changes `device_id`, so counting devices
+systematically overstates installs.
+
+Dedup key: **same device model + same account = same person**
+
+| Has user_id | Has model | Dedup key |
+|---|---|---|
+| yes | yes | `user_id + model` |
+| yes | no | `user_id` |
+| no | yes | `model` |
+| no | no | `device_id` (no merging) |
+
+The admin card now leads with **"installs (deduplicated)"** and notes the raw
+device count beside it. On the reference deployment, 11 device rows collapse to 2 people.
+
+### Cloud Drive Cleanup
+
+Third-party drive deletions can be blocked by a stuck task queue on their side,
+returning "task in progress" for *every* delete request — even for non-existent IDs,
+which proves it is an account-level lock, not a per-file problem.
+
+- Failed deletions are recorded in `data/filehelper/pending_cloud.json`
+- Retried opportunistically on room creation / large-file uploads (25% chance)
+- `tools/cloud_cleanup.php` forces a retry; `--stats` shows the backlog
+
+File references are preserved, so nothing is silently orphaned.
+
 ### User System
 - QQ-based registration and login
 - QQ number change request (submitted in user center, approved by admin) and admin review panel

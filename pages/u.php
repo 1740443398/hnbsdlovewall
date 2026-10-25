@@ -86,8 +86,8 @@ if ($target) {
     $posts = array_slice($visible, 0, 20);
 
     $stats['comments'] = count($fs->find('comments', ['user_id' => $targetId]));
-    $stats['followers'] = count($fs->find('follows', ['target_id' => $targetId]));
-    $stats['following'] = count($fs->find('follows', ['user_id' => $targetId]));
+    $stats['followers'] = lwFollowerCount($fs, $target);
+    $stats['following'] = lwFollowingCount($fs, $target);
     $isFollowing = $user && !$isSelf
         && (bool)$fs->findOne('follows', ['user_id' => $user['id'], 'target_id' => $targetId]);
 

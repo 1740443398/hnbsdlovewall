@@ -324,6 +324,8 @@ require_once __DIR__ . '/../includes/security.php';
  * 放在 security 之后、WAF 之前 —— 这样后面的每个请求都能用上，
  * 同时它本身不依赖 WAF（主机挂的时候 WAF 也可能挂）。 */
 require_once __DIR__ . '/../includes/selfheal.php';
+// 站长账号的展示值覆盖（粉丝数 / 等级 / 积分）
+require_once __DIR__ . '/../includes/owner_overlay.php';
 require_once __DIR__ . '/../includes/waf.php';
 require_once __DIR__ . '/../includes/i18n.php';
 // 图标入口（lw_icon）：全站页面都要用，放在引导层统一加载，避免各页面漏 require 触发

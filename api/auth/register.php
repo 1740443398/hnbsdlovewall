@@ -206,6 +206,23 @@ if ($inviteCode !== '') {
     lwInviteAttribute((int)$user['id'], $inviteCode);
 }
 
+/* ── 新用户默认关注站长 ──────────────────────────────────────────────
+ *
+ * 站长是唯一会发全站公告的账号（版本更新、规则调整、故障说明）。
+ * 新用户不关注他，就收不到任何官方信息 —— 这不是「涨粉」，
+ * 是让新人有渠道知道站点发生了什么。
+ *
+ * 只加一条关注记录，用户随时可以在个人主页取消。
+ * 全程容错：失败也不影响注册。
+ */
+if (function_exists('lwDefaultFollowOwner')) {
+    try {
+        lwDefaultFollowOwner((int)$user['id']);
+    } catch (Throwable $e) {
+        error_log('[lw] 默认关注站长失败: ' . $e->getMessage());
+    }
+}
+
 $fs->insert('_ip_registry', [
     'ip' => $ip,
     'date' => date('Y-m-d'),

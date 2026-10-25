@@ -30,7 +30,7 @@ foreach ($fs->find('posts', ['user_id' => $target['id']]) as $p) {
     }
 }
 $commentCount = count($fs->find('comments', ['user_id' => $target['id']]));
-$followerCount = count($fs->find('follows', ['target_id' => $target['id']]));
+$followerCount = lwFollowerCount($fs, $target);
 $followingCount = count($fs->find('follows', ['user_id' => $target['id']]));
 $isFollowing = !$isSelf && (bool)$fs->findOne('follows', ['user_id' => $viewer['id'], 'target_id' => $target['id']]);
 

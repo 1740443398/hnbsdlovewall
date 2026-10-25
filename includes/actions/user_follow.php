@@ -63,7 +63,7 @@ if (!function_exists('lw_do_user_follow')) {
         }
 
         // 动态计算目标用户的粉丝数，避免计数不一致
-        $followerCount = count($fs->find('follows', ['target_id' => $targetId]));
+        $followerCount = lwFollowerCount($fs, $fs->findById('users', $targetId) ?: array());
 
         return lwActionResult(true, $message, [
             'follower_count' => $followerCount,
