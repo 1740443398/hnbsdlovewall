@@ -35,15 +35,27 @@ function asset_url($file) {
     if ($ext !== 'js' && $ext !== 'css') {
         return $file;
     }
-    /* 三级优先级：.obf（混淆） > .min（压缩） > 源文件
+    /* 优先级：**体积更小的那个** > 源文件
      *
-     * 为什么把 .obf 放最前：
-     *   .min 只是压缩（可读性差但能还原），.obf 才是真正的混淆
-     *   （标识符重命名 + 字符串 base64 进数组）。线上应该用 .obf。
+     * 【为什么不再无条件优先 .obf】
+     * 原来固定 .obf > .min > 源。但混淆会把字符串搬进数组、
+     * 加一堆运行时解包代码，体积反而暴涨：
+     *     enhancements.js      524 KB
+     *     enhancements.min.js  333 KB   ← 最小
+     *     enhancements.obf.js  824 KB   ← 混淆后反而大了 57%
+     *     main.js              189 KB
+     *     main.min.js          109 KB   ← 最小
+     *     main.obf.js          275 KB   ← 大了 45%
+     *
+     * 在「每个请求固定 ~950ms」的主机上，体积差 2.5 倍直接体现在
+     * 首屏时间上。用户反馈的「卡到发不出帖子」很大一部分来自这里。
+     *
+     * 现在改成：.obf 和 .min 都存在时，选字节数更小的那个。
+     * 混淆的「防逆向」价值仍然保留（当它确实更小时），
+     * 但不再为了混淆白白多传一倍流量。
      *
      * 为什么不直接覆盖 main.js：
-     *   本地开发要读源码调试。保留 .obf 独立文件，改源码后跑一次
-     *   混淆脚本生成 .obf 即可，源文件永远人可读。
+     *   本地开发要读源码调试。保留独立产物，改源码后跑构建脚本生成即可。
      *
      * 为什么不比 mtime：
      *   踩过两次 —— FTP 上传会重置 mtime，两边先后关系随时变；
@@ -52,18 +64,39 @@ function asset_url($file) {
     $min = preg_replace('/\.(js|css)$/i', '.min.$1', $file);
     $minPath = $root . $min;
 
-    // 只对 JS 做混淆（CSS 混淆意义不大），且文件必须存在
+    // 候选：源文件总是可用
+    $cands = [['rel' => $file, 'abs' => $src]];
+
+    // 只对 JS 考虑混淆（CSS 混淆意义不大）
     if ($ext === 'js') {
         $obf = preg_replace('/\.js$/i', '.obf.js', $file);
         if (is_file($root . $obf)) {
-            return $obf;
+            $cands[] = ['rel' => $obf, 'abs' => $root . $obf];
+        }
+    }
+    if (is_file($minPath)) {
+        $cands[] = ['rel' => $min, 'abs' => $minPath];
+    }
+
+    // 选体积最小的（源文件一般不参与竞争，但它兜底）
+    $best = null;
+    $bestSize = PHP_INT_MAX;
+    foreach ($cands as $c) {
+        $sz = @filesize($c['abs']);
+        if ($sz === false || $sz <= 0) {
+            continue;
+        }
+        // 源文件只在没有构建产物时才用
+        if ($c['rel'] === $file && count($cands) > 1) {
+            continue;
+        }
+        if ($sz < $bestSize) {
+            $bestSize = $sz;
+            $best = $c['rel'];
         }
     }
 
-    if (is_file($minPath)) {
-        return $min;
-    }
-    return $file;
+    return $best !== null ? $best : $file;
 }
 
 /**
@@ -287,6 +320,10 @@ spl_autoload_register(function($class) {
 
 require_once __DIR__ . '/../includes/filestorage.php';
 require_once __DIR__ . '/../includes/security.php';
+/* 自恢复守护：熔断 / 数据自愈 / 磁盘保护 / 保护模式。
+ * 放在 security 之后、WAF 之前 —— 这样后面的每个请求都能用上，
+ * 同时它本身不依赖 WAF（主机挂的时候 WAF 也可能挂）。 */
+require_once __DIR__ . '/../includes/selfheal.php';
 require_once __DIR__ . '/../includes/waf.php';
 require_once __DIR__ . '/../includes/i18n.php';
 // 图标入口（lw_icon）：全站页面都要用，放在引导层统一加载，避免各页面漏 require 触发

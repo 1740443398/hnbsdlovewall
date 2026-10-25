@@ -45,6 +45,43 @@ When redistributing, ship `LICENSE`, `THIRD_PARTY_LICENSES.md` and `licenses/` t
 - Every outgoing email carries the site URL in its footer
 - Roll call / check-in page (`pages/rollcall.php`)
 
+### File Transfer Helper (`/filehelper`)
+
+A WeChat-Web-style transfer assistant that works **without login** and burns files after delivery.
+
+- **Three-tier channel selection by size**, fully automatic:
+  - `<= 20 MB` - relayed through this server, auto-deleted after **1 minute**
+  - `20 MB ~ 1 GB` - **WebRTC peer-to-peer**; the file never touches the server
+  - `1 GB ~ 3 GB` - uploaded **directly from the browser to a third-party drive**,
+    bypassing PHP's upload limit entirely
+- **Any two internet-capable devices can pair** - phone-to-phone, desktop-to-desktop,
+  phone-to-desktop. Roles are neutral (`initiator` / `joiner`) rather than "PC" / "phone".
+- **LAN-direct bonus**: when both devices sit on the same Wi-Fi, WebRTC picks a host
+  candidate and the transfer runs over the local link at router speed. The UI shows a
+  green **"LAN direct"** badge, or an orange **"relayed"** badge otherwise.
+- **Pairing code** rendered as `Code: XXXXXX` plus a scannable QR code.
+- **Automatic fallback**: if P2P cannot connect within 12 s, the file silently switches
+  to the cloud channel instead of leaving the user waiting.
+- **Watchdog**: rebuilds the WebRTC session up to 3 times before giving up.
+- Admin panels: transfer log (IP / filename / size / channel) and cloud-drive
+  configuration with live quota display.
+
+### Self-Healing Guard (`admin/selfheal.php`)
+
+Free shared hosting fails in specific, repeatable ways. This layer walks the site back
+automatically instead of showing a blank page.
+
+| Layer | Trigger | Behaviour |
+|---|---|---|
+| **L1 Circuit breaker** | 5 consecutive failures on one operation | fail fast for 30 s, then half-open probe |
+| **L2 Data self-heal** | corrupted JSON | restore from `.bak`; if that fails, quarantine the bad file and return an empty structure |
+| **L3 Disk guard** | free space < 20 MB | refuse writes and tell the user plainly - **never** pretend a post was published |
+| **L4 Safe mode** | error rate >= 35% over 60 s | disable AI / search / recommendations / widgets; **browsing and posting stay on** |
+
+All state lives in `data/_selfheal.json` (atomic write + `.bak`), with a rolling
+event log in `data/_selfheal_log.jsonl`. The admin page shows breaker state,
+error-rate window, disk headroom, and every self-heal event.
+
 ### User System
 - QQ-based registration and login
 - QQ number change request (submitted in user center, approved by admin) and admin review panel
@@ -225,6 +262,19 @@ A user-supplied AI **shares the exact same core** as the site default, so it kee
 - Safe area adaptation for notched screens
 - Accessibility: site-wide `aria-pressed` state sync, `role="group"` labelling, `aria-live="polite"` toast container, `autocomplete` hints on password fields, keyboard-reachable focus rings
 - High contrast / print / reduced-motion preferences, plus a `forced-colors` fallback for glass panels under Windows forced-colour mode
+
+## Performance notes
+
+The reference deployment runs on a free shared host where **every HTTP request costs
+a fixed ~950 ms** (gateway throttling, independent of payload size). Optimisation is
+therefore driven by **request count**, not bytes:
+
+- All small first-party CSS/JS are bundled by `tools/lw_bundle_assets.py` into
+  `assets/css/bundle.css` + `assets/js/bundle.js` - **24 requests down to 10**.
+- `asset_url()` picks the **smallest** available build (`.obf.js` / `.min.js` / source)
+  rather than always preferring the obfuscated one. Obfuscation can *inflate* files
+  (it grew `enhancements.js` from 524 KB to 824 KB), so size wins over obfuscation.
+- Regenerate bundles after touching any bundled source: `python tools/lw_bundle_assets.py`.
 
 ## Technical Stack
 

@@ -22,6 +22,19 @@ require_once __DIR__ . '/_lib.php';
 if (!function_exists('lw_do_post_create')) {
     function lw_do_post_create(array $user, array $in): array
     {
+        /* 自愈前置检查：磁盘写满时直接拒绝，不要走到一半失败。
+         *
+         * 原来磁盘满了会怎样：写入返回 false，但上层没检查，
+         * 页面照样跳转「发布成功」，用户以为发出去了，
+         * 刷新一看帖子没了 —— 这是最伤人的一类 bug。
+         * 宁可当面说「暂时发不了」，也不能假装成功。
+         */
+        if (class_exists('LWSelfHeal')) {
+            if (!LWSelfHeal::diskOk()) {
+                return lwActionFail('服务器存储空间不足，暂时无法发布。请联系管理员清理。');
+            }
+        }
+
         $category = sanitizeInput(trim((string)($in['category'] ?? '')));
         $title    = trim((string)($in['title'] ?? ''));
         $content  = trim((string)($in['content'] ?? ''));
