@@ -54,6 +54,8 @@ if ($action === 'verify_2fa') {
     $_SESSION['user_role'] = $user['role'];
     session_regenerate_id(true);
     unset($_SESSION['admin_login_temp_user_id'], $_SESSION['admin_login_temp_token']);
+    // 后台登录成功会换发会话：此响应不可被缓存
+    lwMarkSessionCookieWritten();
 
     logUserActivity($userId, 'admin_login', '后台登录成功（2FA验证）');
 
@@ -63,6 +65,7 @@ if ($action === 'verify_2fa') {
         'nickname' => $user['nickname'],
         'role' => $user['role']
     ]]);
+    exit();
 }
 
 $qq = sanitizeInput($_POST['qq'] ?? '');
@@ -112,6 +115,8 @@ $_SESSION['user_id'] = $user['id'];
 $_SESSION['security_stamp'] = $user['security_stamp'];
 $_SESSION['user_role'] = $user['role'];
 session_regenerate_id(true);
+// 后台登录成功会换发会话：此响应不可被缓存
+lwMarkSessionCookieWritten();
 
 logUserActivity($user['id'], 'admin_login', '后台登录成功');
 

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 require_once __DIR__ . '/../includes/security.php';
 
 // 完整版入口：登录用户与游客都能用（游客只读，写操作会被服务端与提示词双重拦下）
@@ -206,11 +207,7 @@ $aiWidgetMode = 'off';
         </div>
     </main>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; <?= date('Y') ?> <?= htmlspecialchars($siteName) ?></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <!-- 核心脚本文件名不含 "chat"：本站所在主机对 URL 含 chat 的请求一律 403（见 includes/ai_widget.php 的说明），改名后即恢复正常，切勿改回 ai_chat_core.js -->
     <script src="<?= asset_url('/assets/js/ai_core.js') ?>?v=<?= asset_ver('/assets/js/ai_core.js') ?>" defer></script>

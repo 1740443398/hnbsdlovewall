@@ -1,0 +1,75 @@
+/* UX 优化包 2026-10-24 */
+
+/* 1. 触控目标最小尺寸：实测 23 个可点元素 < 32px */
+@media (pointer: coarse), (max-width: 640px) {
+    .btn-icon, .mobile-nav-item, .dropdown-item a, .lw-icon-btn,
+    .cat-filter, .sort-tab {
+        min-height: 36px;
+        min-width: 36px;
+    }
+    .btn-icon { box-sizing: content-box; padding: 6px; }
+}
+
+/* 2. 焦点可见性：键盘用户必须能看出焦点在哪 */
+:focus-visible {
+    outline: 2px solid #2F5B9A;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* 3. 减少动效偏好：前庭敏感用户 */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* 4. 正文可读性：超过 68ch 眼睛回扫易串行 */
+.post-content, .article-body, .lw-prose { max-width: 68ch; }
+
+/* 5. 图片加载占位：避免布局跳动 */
+img[loading="lazy"] { background: #f2f4f8; }
+.post-card-images img { background: #f2f4f8; }
+
+/* 6. 长内容折叠：字符数不等于视觉行数 */
+.post-card-content {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 7. 表格窄屏可横向滚动 */
+@media (max-width: 640px) {
+    .table, table.data-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* 8. iOS 输入框不触发页面缩放（font-size < 16px 会被放大） */
+@media (max-width: 640px) {
+    input, textarea, select { font-size: 16px !important; }
+}
+
+/* 9. 安全区适配（刘海 / 底部横条） */
+@supports (padding: max(0px)) {
+    .mobile-bottom-nav { padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+    .site-header { padding-top: max(0px, env(safe-area-inset-top)); }
+}
+
+/* 10. 打印样式：隐藏导航，保留正文 */
+@media print {
+    .site-header, .mobile-bottom-nav, .site-footer, .post-card-actions,
+    .comment-form, .announcement-bar, .guest-bar, button, .btn {
+        display: none !important;
+    }
+    body { background: #fff !important; color: #000 !important; }
+    a[href]::after { content: " (" attr(href) ")"; font-size: 0.8em; color: #666; }
+    .post-content { max-width: none; }
+}

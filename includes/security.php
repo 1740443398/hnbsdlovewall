@@ -77,6 +77,11 @@ function lwCSRFRotateForRetry() {
     $_SESSION['csrf_token_time'] = time();
     unset($_SESSION['csrf_token_prev'], $_SESSION['csrf_token_prev_time']);
     $GLOBALS['lw_fresh_csrf_token'] = $_SESSION['csrf_token'];
+    // 响应体里现在带着一枚可用的令牌，这个响应就**不能再进任何缓存**：
+    // 否则别的访客拿到同一段 JSON，等于拿到别人的 CSRF 令牌（见 http_cache.php 约束 1）。
+    if (function_exists('lwMarkSessionCookieWritten')) {
+        lwMarkSessionCookieWritten();
+    }
 }
 
 function verifyCSRFToken($token) {
@@ -746,12 +751,47 @@ function timeAgo($datetime) {
     return date('Y-m-d H:i', $timestamp);
 }
 
+/**
+ * 统一的 JSON 出口。
+ *
+ * 缓存相关（详见 includes/http_cache.php）：
+ *   1) 编码参数固定（UNESCAPED_UNICODE|UNESCAPED_SLASHES）—— 同一份数据永远得到同一段
+ *      字节，ETag 才是稳定的。早期只带 UNESCAPED_UNICODE，斜杠被转义成 \/ ，体积白增
+ *      约 3%，而且和 FileStorage 落盘格式不一致，两边算不出同一个摘要。
+ *   2) 自动下发 ETag，并处理 If-None-Match → 304。这一层对 no-store 接口同样生效：
+ *      浏览器仍然不会「存下来复用」，但重复回源时可以只收一个 304 头，
+ *      列表页翻回上一页、轮询类接口都能省掉整段 body。
+ */
 function jsonResponse($data, $code = 200) {
+    $body = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($body === false) {
+        // 编码失败（非法 UTF-8 等）：退回单字节转义，绝不吐出空 body
+        $body = (string)json_encode($data, JSON_PARTIAL_OUTPUT_ON_ERROR);
+    }
+
+    // 声明为「公开可共享」的接口：把 session_start() 顺手重发的 PHPSESSID 去掉。
+    // 值本来就没变（重发是 PHP 的默认行为，不是换会话），去掉不改变任何登录态；
+    // 但很多浏览器/代理把「带 Set-Cookie 的响应」当私有内容，公共缓存会因此完全失效 ——
+    // 那正是「公开接口给了共享缓存却永远命不中」的根因。
+    // 注意：真换会话的地方（登录/退出/CSRF 换签）都有 lwMarkSessionCookieWritten() 标记，
+    // 那些响应仍会被静默流走，不会被这里误伤。
+    if (!headers_sent()
+        && !empty($GLOBALS['lw_cache_shared'])
+        && function_exists('lwResponseWritesSessionCookie')
+        && !lwResponseWritesSessionCookie()) {
+        lwStripSessionCookie();
+    }
+
+    // 只有 200 系列才参与条件请求：错误响应不该被 304 掉（否则浏览器会拿着旧的成功结果）
+    if ($code === 200 && function_exists('lwMaybeNotModified')) {
+        lwMaybeNotModified($body, true);
+    }
+
     if (!headers_sent()) {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
     }
-    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    echo $body;
     exit();
 }
 
@@ -897,6 +937,10 @@ function getCurrentUser() {
         session_unset();
         session_destroy();
         session_regenerate_id(true);
+        // 强制下线会换发会话：这条响应不可被缓存（见 http_cache.php 约束 1）
+        if (function_exists('lwMarkSessionCookieWritten')) {
+            lwMarkSessionCookieWritten();
+        }
         return null;
     }
     $cachedUserId = $userId;
@@ -1425,4 +1469,7 @@ function isFirstVisitUnregistered() {
  */
 function markDeviceKnown() {
     setcookie('lw_known', '1', time() + 180 * 24 * 3600, '/', '', IS_SECURE, false);
+    // 同步写进 $_COOKIE：同一次请求里若再判 isFirstVisitUnregistered()，
+    // 不能因为「浏览器要到下一跳才带上新 cookie」而重复走首访分支。
+    $_COOKIE['lw_known'] = '1';
 }

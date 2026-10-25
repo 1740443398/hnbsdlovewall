@@ -15,9 +15,17 @@ if (!hasAcceptedGateway()) {
     exit();
 }
 
-// 首访且未注册的新设备：默认引导去注册
-if (isFirstVisitUnregistered()) {
-    header('Location: ' . SITE_URL . '/pages/register.php');
+// 首访且未注册的新设备：默认引导去注册。
+//
+// 2026-10-22 修复「打开登录页被弹来弹去、根本登不进」：
+//   原逻辑在 302 响应里 setcookie('lw_known')，而注册页自己也会判首访 → 又一次 302 回
+//   登录页；浏览器要等到真正收到一次 200 才保存 cookie，于是 /pages/login.php 与
+//   /pages/register.php 互相重定向 —— 表现就是「登录页打不开 / 一直刷新 / 登录不了」。
+//   现在：① 302 这里就把 lw_known 写进响应；② 带上 once 标记，注册页见到标记直接渲染，
+//   不再做首访跳转。最坏情况只是「新用户先看到登录页」而不是死循环。
+if (isFirstVisitUnregistered() && empty($_GET['once'])) {
+    markDeviceKnown();
+    header('Location: ' . SITE_URL . '/pages/register.php?from_login=1');
     exit();
 }
 
@@ -1029,7 +1037,12 @@ header('Expires: 0');
                         } else {
                             showToast(__t('login.success_redirecting'), 'success');
                             setTimeout(function() {
-                                window.location.href = SITE_URL + '/';
+                                // App 授权登录：如果浏览器里带着配对 cookie，就回授权页签发 token，
+                                // 否则 App 那边永远拿不到登录态（站点默认固定跳首页）。
+                                var m = document.cookie.match(/(?:^|; )lw_pair_code=([0-9a-f]{32})/);
+                                window.location.href = m
+                                    ? SITE_URL + '/app_auth.php'
+                                    : SITE_URL + '/';
                             }, 800);
                         }
                     }

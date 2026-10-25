@@ -1,7 +1,14 @@
 <?php
+// PHP2Shell（CVE-2026-109618/109619）缓解层：必须在任何业务代码之前生效
+require_once __DIR__ . '/../includes/php2shell_guard.php';
+
 require_once __DIR__ . '/constants.php';
 // 邮件发送类（SMTP，QQ 邮箱配置见 config/mail_config.php；该配置已 .gitignore 不入开源版）
 require_once __DIR__ . '/../includes/qqmail.php';
+
+// 缓存分层（分档规则、ETag/304、公开接口共享缓存的唯一入口）。
+// 必须早于任何 header() —— ob_start 要在输出前挂上，否则头已经发了改不了。
+require_once __DIR__ . '/../includes/http_cache.php';
 
 // 静态资源版本号：基于文件最后修改时间，避免浏览器缓存旧版本导致样式/脚本失效
 /**
@@ -28,12 +35,68 @@ function asset_url($file) {
     if ($ext !== 'js' && $ext !== 'css') {
         return $file;
     }
+    /* 优先级：**体积更小的那个** > 源文件
+     *
+     * 【为什么不再无条件优先 .obf】
+     * 原来固定 .obf > .min > 源。但混淆会把字符串搬进数组、
+     * 加一堆运行时解包代码，体积反而暴涨：
+     *     enhancements.js      524 KB
+     *     enhancements.min.js  333 KB   ← 最小
+     *     enhancements.obf.js  824 KB   ← 混淆后反而大了 57%
+     *     main.js              189 KB
+     *     main.min.js          109 KB   ← 最小
+     *     main.obf.js          275 KB   ← 大了 45%
+     *
+     * 在「每个请求固定 ~950ms」的主机上，体积差 2.5 倍直接体现在
+     * 首屏时间上。用户反馈的「卡到发不出帖子」很大一部分来自这里。
+     *
+     * 现在改成：.obf 和 .min 都存在时，选字节数更小的那个。
+     * 混淆的「防逆向」价值仍然保留（当它确实更小时），
+     * 但不再为了混淆白白多传一倍流量。
+     *
+     * 为什么不直接覆盖 main.js：
+     *   本地开发要读源码调试。保留独立产物，改源码后跑构建脚本生成即可。
+     *
+     * 为什么不比 mtime：
+     *   踩过两次 —— FTP 上传会重置 mtime，两边先后关系随时变；
+     *   且源文件改一行就整份退回未压缩版。同步产物属于发布流程的责任。
+     */
     $min = preg_replace('/\.(js|css)$/i', '.min.$1', $file);
     $minPath = $root . $min;
-    if (is_file($minPath) && filemtime($minPath) >= filemtime($src)) {
-        return $min;
+
+    // 候选：源文件总是可用
+    $cands = [['rel' => $file, 'abs' => $src]];
+
+    // 只对 JS 考虑混淆（CSS 混淆意义不大）
+    if ($ext === 'js') {
+        $obf = preg_replace('/\.js$/i', '.obf.js', $file);
+        if (is_file($root . $obf)) {
+            $cands[] = ['rel' => $obf, 'abs' => $root . $obf];
+        }
     }
-    return $file;
+    if (is_file($minPath)) {
+        $cands[] = ['rel' => $min, 'abs' => $minPath];
+    }
+
+    // 选体积最小的（源文件一般不参与竞争，但它兜底）
+    $best = null;
+    $bestSize = PHP_INT_MAX;
+    foreach ($cands as $c) {
+        $sz = @filesize($c['abs']);
+        if ($sz === false || $sz <= 0) {
+            continue;
+        }
+        // 源文件只在没有构建产物时才用
+        if ($c['rel'] === $file && count($cands) > 1) {
+            continue;
+        }
+        if ($sz < $bestSize) {
+            $bestSize = $sz;
+            $best = $c['rel'];
+        }
+    }
+
+    return $best !== null ? $best : $file;
 }
 
 /**
@@ -86,14 +149,20 @@ if (!isset($_SERVER['LW_SHOW_ERRS']) || $_SERVER['LW_SHOW_ERRS'] !== '1') {
 // 接口：含用户私有数据，必须 no-store；
 // 页面：改用 no-cache —— 使用前仍要回服务器校验，安全性不变，但允许 bfcache，
 //       返回时瞬开且表单/滚动位置不丢。
-$_lwReqUri = $_SERVER['REQUEST_URI'] ?? '';
-if (strpos($_lwReqUri, '/api/') !== false) {
-    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-    header('Pragma: no-cache');
-} else {
-    header('Cache-Control: private, no-cache, max-age=0, must-revalidate');
-}
-unset($_lwReqUri);
+// 【2026-10-24】缓存策略统一交给 includes/http_cache.php 的 lwSendCacheHeaders()。
+//
+// 原来这里写死了两档（接口 no-store / 页面 private,no-cache），
+// 结果有两个问题：
+//   1. 它比 http_cache.php 先执行，后者的分档（公开接口 public+swr、
+//      游客公开页 public+60s）会被这里**覆盖**，等于白做；
+//   2. 游客访问首页/排行榜这种「人人相同」的页面也 private，每次都要整页回源。
+//
+// 现在只给一个**兜底**值，真正的分档由 lwSendCacheHeaders() 在业务逻辑之后
+// 按「是否换发会话 / 是否登录 / 是否在公开白名单」精确决定。
+// 兜底用 no-cache（不是 no-store）：即使后续任何环节出错没下发策略，
+// 也至少保证「用前回源校验」，不会出现陈旧页面被长期复用。
+// 接口的 no-store 语义由 lwResolveCachePolicy() 的默认分支保证（非 GET/换发会话 → no-store）。
+header('Cache-Control: private, no-cache, max-age=0, must-revalidate');
 
 // 会话配置在写入任何输出之前设置。
 // 包裹临时关闭 E_DEPRECATED/E_NOTICE：避免弃用/提示先写入输出缓冲，
@@ -251,11 +320,30 @@ spl_autoload_register(function($class) {
 
 require_once __DIR__ . '/../includes/filestorage.php';
 require_once __DIR__ . '/../includes/security.php';
+/* 自恢复守护：熔断 / 数据自愈 / 磁盘保护 / 保护模式。
+ * 放在 security 之后、WAF 之前 —— 这样后面的每个请求都能用上，
+ * 同时它本身不依赖 WAF（主机挂的时候 WAF 也可能挂）。 */
+require_once __DIR__ . '/../includes/selfheal.php';
+// 站长账号的展示值覆盖（粉丝数 / 等级 / 积分）
+require_once __DIR__ . '/../includes/owner_overlay.php';
 require_once __DIR__ . '/../includes/waf.php';
 require_once __DIR__ . '/../includes/i18n.php';
 // 图标入口（lw_icon）：全站页面都要用，放在引导层统一加载，避免各页面漏 require 触发
 // 「Call to undefined function lw_icon()」白屏 —— includes/ 下是函数，autoloader 只管类。
 require_once __DIR__ . '/../includes/icons.php';
+
+/* 【CLI 下跳过 WAF / 反爬 / 请求体检查】
+ *
+ * 这些中间件全都依赖 HTTP 上下文（REQUEST_URI、UA、IP、CONTENT_TYPE）。
+ * 命令行里它们全是空的，于是：
+ *   - WAF 看到空 URI 当成可疑路径 → 403
+ *   - 反爬看到空 UA → 拦截
+ * 结果 tools/ 下的维护脚本（清理、迁移、诊断）一个都跑不起来。
+ *
+ * CLI 不是攻击面（攻击者无法在服务器上执行 php 命令），
+ * 所以直接跳过这一段；常量、函数、存储层的加载不受影响。
+ */
+if (PHP_SAPI !== 'cli') {
 
 WAF::init();
 
@@ -292,6 +380,8 @@ if ($isApiRequest && $_SERVER['REQUEST_METHOD'] === 'POST') {
         ], JSON_UNESCAPED_UNICODE));
     }
 }
+
+}  // end if (PHP_SAPI !== 'cli')
 
 // SSE（流式）端点必须在 require 本文件之前 define('LW_NO_GZIP', 1)：
 // gzip 会把整段响应攒够一块才发，流式就退化成「一次性返回」，思考过程也就没法实时同步了。

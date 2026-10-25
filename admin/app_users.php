@@ -28,11 +28,12 @@ adminHeader('App 装机台账', $adminUser, $csrfToken);
 ?>
 
 <div class="stats-grid" id="appStats">
-    <div class="stat-card"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div><div class="stat-info"><div class="stat-value" id="sTotal">-</div><div class="stat-label">累计装机设备</div></div></div>
-    <div class="stat-card success"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-info"><div class="stat-value" id="sOnline">-</div><div class="stat-label">当前在线（5 分钟内）</div></div></div>
-    <div class="stat-card info"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-info"><div class="stat-value" id="sToday">-</div><div class="stat-label">今日活跃设备</div></div></div>
-    <div class="stat-card info"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></div><div class="stat-info"><div class="stat-value" id="sWeek">-</div><div class="stat-label">近 7 日活跃设备</div></div></div>
-    <div class="stat-card warning"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="stat-info"><div class="stat-value" id="sBound">-</div><div class="stat-label">已登录绑定账号</div></div></div>
+    <div class="stat-card"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="stat-info"><div class="stat-value" id="sUsers">-</div><div class="stat-label">装机人数（去重后）</div></div></div>
+    <div class="stat-card"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div><div class="stat-info"><div class="stat-value" id="sTotal">-</div><div class="stat-label">安装记录数</div></div></div>
+    <div class="stat-card success"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-info"><div class="stat-value" id="sOnline">-</div><div class="stat-label">当前在线人数</div></div></div>
+    <div class="stat-card info"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-info"><div class="stat-value" id="sToday">-</div><div class="stat-label">今日活跃人数</div></div></div>
+    <div class="stat-card info"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></div><div class="stat-info"><div class="stat-value" id="sWeek">-</div><div class="stat-label">近 7 日活跃人数</div></div></div>
+    <div class="stat-card warning"><div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="stat-info"><div class="stat-value" id="sBound">-</div><div class="stat-label">已登录人数</div></div></div>
 </div>
 
 <div class="section">
@@ -120,11 +121,20 @@ adminHeader('App 装机台账', $adminUser, $csrfToken);
     function esc2(v) { return esc(v === null || v === undefined || v === '' ? '-' : v); }
 
     function setStats(st) {
-        document.getElementById('sTotal').textContent = st.total || 0;
-        document.getElementById('sOnline').textContent = st.online || 0;
-        document.getElementById('sToday').textContent = st.today || 0;
-        document.getElementById('sWeek').textContent = st.week || 0;
-        document.getElementById('sBound').textContent = st.bound || 0;
+        /* 展示口径：人数为主，设备数为辅。
+         *
+         * 一个人卸载重装会换 device_id，所以「安装记录数」天然高于真实人数。
+         * 卡片上人数放在最前面，安装记录数缩小显示在旁边，
+         * 管理员一眼就能看出「有多少人」而不是「装了多少次」。
+         */
+        var u = st.users || 0;
+        var t = st.total || 0;
+        document.getElementById('sUsers').textContent = u + (t > u ? '（装 ' + t + ' 次）' : '');
+        document.getElementById('sTotal').textContent = t;
+        document.getElementById('sOnline').textContent = st.users_online || 0;
+        document.getElementById('sToday').textContent = st.users_today || 0;
+        document.getElementById('sWeek').textContent = st.users_week || 0;
+        document.getElementById('sBound').textContent = st.users_bound || 0;
 
         var box = document.getElementById('verDist');
         var vers = st.versions || {};

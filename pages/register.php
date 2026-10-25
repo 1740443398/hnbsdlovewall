@@ -23,10 +23,21 @@ if (!hasAcceptedGateway()) {
     exit();
 }
 
+// 登录页把用户引导过来时（?from_login=1），或用户刚在网关声明页选择登录，
+// 返回时直接渲染登录页 —— 这一条彻底断掉 login ↔ register 的重定向环。
+if (!empty($_GET['from_login']) || ($_SESSION['lw_intent'] ?? '') === 'login') {
+    header('Location: ' . SITE_URL . '/pages/login.php?once=1');
+    exit();
+}
+
 // 防缓存：CSRF_TOKEN 存 session，注册页若被浏览器缓存会沿用旧 token 导致 403。
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
+
+// 设备标记：从登录页跳来时（?from_login=1）立即写 lw_known，避免下一次判首访又跳回去
+// （这条链路曾经形成 login ↔ register 无限重定向，详见 pages/login.php 的注释）。
+markDeviceKnown();
 
 $registerEnabled = getSetting('register_enabled', '1') == '1';
 if (!$registerEnabled) {
@@ -664,6 +675,38 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
         }
 
         /* 新生验证题（二选一）：不用 :has()，选中态由 JS 切换 .selected（老 WebView 兼容） */
+
+        /* 进站方式切换按钮 */
+        .gate-mode-switch {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            background: #F0F3F8;
+            padding: 4px;
+            border-radius: 10px;
+        }
+        .gate-mode-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #5B667A;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .gate-mode-btn.is-active {
+            background: #fff;
+            color: #2F5B9A;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+        }
+        .gate-mode-btn:hover:not(.is-active) {
+            color: #1F2733;
+        }
+
         .gate-q-option {
             display: flex;
             align-items: flex-start;
@@ -858,21 +901,55 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
 
                 <?php if (LW_REGISTER_GATE): ?>
                 <div class="form-group" id="gateGroup">
-                    <label class="form-label" id="gateLabel">新生验证（二选一）</label>
-                    <div class="gate-q-list" role="radiogroup" aria-labelledby="gateLabel">
-                        <label class="gate-q-option">
-                            <input type="radio" name="gate_q" value="1" checked>
-                            <span>Q1：淮实学子呼号——「我自豪，……」请填写省略号处的内容</span>
-                        </label>
-                        <label class="gate-q-option">
-                            <input type="radio" name="gate_q" value="2">
-                            <span>Q2：我们校长的全名（提示：2 个字）</span>
-                        </label>
+                    <label class="form-label" id="gateLabel">进站验证</label>
+
+                    <?php /* 【两种进站方式，二选一】
+                             * 1) 新生验证题 —— 给还没有邀请码的新同学
+                             * 2) 邀请码      —— 给被站内同学邀请进来的人
+                             *
+                             * 邀请码免答题的理由：发码的人认识你、愿意为你背书，
+                             * 这个动作本身就完成了「确认是本校人」的验证。
+                             * 与其让人再答一遍校训，不如认这个邀请关系。
+                             *
+                             * 服务端会真的去查邀请码是否存在 —— 随便填一个不存在的码
+                             * 仍然要回去答题，门槛不会因此破掉。
+                             */ ?>
+
+                    <div class="gate-mode-switch" id="gateModeSwitch">
+                        <button type="button" class="gate-mode-btn is-active" data-mode="question">答验证题</button>
+                        <button type="button" class="gate-mode-btn" data-mode="invite">用邀请码</button>
                     </div>
-                    <div class="input-wrapper">
-                        <input type="text" id="gateAnswer" name="gate_a" class="form-input" placeholder="填写你选中那道题的答案" maxlength="30" autocomplete="off">
+
+                    <div id="gateQuestionBox">
+                        <div class="gate-q-list" role="radiogroup" aria-labelledby="gateLabel">
+                            <label class="gate-q-option">
+                                <input type="radio" name="gate_q" value="1" checked>
+                                <span>Q1：淮实学子呼号——「我自豪，……」请填写省略号处的内容</span>
+                            </label>
+                            <label class="gate-q-option">
+                                <input type="radio" name="gate_q" value="2">
+                                <span>Q2：我们校长的全名（提示：2 个字）</span>
+                            </label>
+                        </div>
+                        <div class="input-wrapper">
+                            <input type="text" id="gateAnswer" name="gate_a" class="form-input" placeholder="填写你选中那道题的答案" maxlength="30" autocomplete="off">
+                        </div>
+                        <div class="form-hint">两题任选其一，答对方可完成注册（本站仅面向本校师生）</div>
                     </div>
-                    <div class="form-hint">两题任选其一，答对方可完成注册（本站仅面向本校师生）</div>
+
+                    <div id="gateInviteBox" hidden>
+                        <div class="input-wrapper">
+                            <input type="text" id="gateInviteInput" class="form-input"
+                                   placeholder="填写站内同学给你的 7 位邀请码"
+                                   maxlength="16" autocomplete="off"
+                                   style="text-transform:uppercase;letter-spacing:2px;font-family:ui-monospace,Menlo,Consolas,monospace;">
+                        </div>
+                        <div class="form-hint">
+                            有邀请码就不用答题，直接注册。
+                            填错或没有邀请码的，切回「答验证题」即可。
+                        </div>
+                    </div>
+
                     <div class="error-message" id="gateError">
                         <span id="gateErrorText"></span>
                     </div>
@@ -1112,6 +1189,61 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
         }
 
         function checkQQRegistered(qq) {
+
+        /* ── 进站方式切换：答验证题 / 用邀请码 ─────────────────────────────
+         *
+         * 两种方式互斥：选了邀请码就不必答题，反之亦然。
+         * 但「填了邀请码」不等于「邀请码有效」—— 是否有效由服务端查证。
+         * 前端不做校验，避免把「哪些码存在」暴露给爬虫。
+         */
+        (function () {
+            var sw = document.getElementById('gateModeSwitch');
+            if (!sw) return;
+
+            var qBox = document.getElementById('gateQuestionBox');
+            var iBox = document.getElementById('gateInviteBox');
+            var iInput = document.getElementById('gateInviteInput');
+            var hidden = document.getElementById('inviteCode');
+            var btns = sw.querySelectorAll('.gate-mode-btn');
+
+            var setMode = function (mode) {
+                for (var i = 0; i < btns.length; i++) {
+                    btns[i].classList.toggle('is-active', btns[i].getAttribute('data-mode') === mode);
+                }
+                if (mode === 'invite') {
+                    if (qBox) qBox.hidden = true;
+                    if (iBox) iBox.hidden = false;
+                    if (iInput) { try { iInput.focus(); } catch (e) {} }
+                } else {
+                    if (qBox) qBox.hidden = false;
+                    if (iBox) iBox.hidden = true;
+                }
+            };
+
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].addEventListener('click', function () {
+                    setMode(this.getAttribute('data-mode'));
+                });
+            }
+
+            // 输入邀请码时同步到隐藏字段（提交用）
+            if (iInput) {
+                iInput.addEventListener('input', function () {
+                    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    if (hidden) hidden.value = this.value;
+                });
+            }
+
+            // 如果 URL 里带了邀请码（?invite=XXXX），直接切到邀请码模式
+            var urlCode = new URLSearchParams(location.search).get('invite')
+                       || new URLSearchParams(location.search).get('code');
+            if (urlCode) {
+                if (iInput) iInput.value = urlCode.toUpperCase();
+                if (hidden) hidden.value = urlCode.toUpperCase();
+                setMode('invite');
+            }
+        })();
+
             var formData = new FormData();
             formData.append('csrf_token', CSRF_TOKEN);
             formData.append('qq', qq);

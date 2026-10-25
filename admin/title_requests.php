@@ -102,7 +102,7 @@ adminHeader('头衔申请', $adminUser, $csrfToken);
         fd.append('csrf_token', CSRF_TOKEN);
         fd.append('action', 'list');
 
-        fetch('/api/admin/title_request_review.php', { method: 'POST', body: fd })
+        fetch('/api/admin/title_request_review.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (done) return;
@@ -133,7 +133,7 @@ adminHeader('头衔申请', $adminUser, $csrfToken);
         fd.append('csrf_token', CSRF_TOKEN);
         fd.append('id', id);
         fd.append('action', action);
-        fetch('/api/admin/title_request_review.php', { method: 'POST', body: fd })
+        fetch('/api/admin/title_request_review.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 alert(res.message || (res.success ? '操作成功' : '操作失败'));

@@ -222,7 +222,7 @@ $uMeLinks = [
 <aside class="u-drawer" id="uDrawer" aria-label="功能菜单">
     <div class="u-drawer-head">
         <?php if ($uIsLogged): ?>
-            <img class="u-drawer-avatar" src="<?= htmlspecialchars($uAvatar) ?>" alt="" onerror="this.style.visibility='hidden'">
+            <img class="u-drawer-avatar" loading="lazy" decoding="async" src="<?= htmlspecialchars($uAvatar) ?>" alt="" onerror="this.style.visibility='hidden'">
             <div class="u-drawer-who">
                 <div class="u-drawer-nick"><?= htmlspecialchars($uNick) ?></div>
                 <div class="u-drawer-sub"><?= $uIsAdmin ? '管理员' : '已登录' ?></div>

@@ -1192,6 +1192,9 @@ function adminHeader($title, $adminUser, $csrfToken) {
             gap: 10px;
         }
     </style>
+    <?php // 交互式图表：必须在 </head> 之前，否则 dashboard 的初始化脚本会因 LwChart 未定义而静默失败 ?>
+    <link rel="stylesheet" href="/assets/css/lw_chart.css?v=<?= @filemtime(__DIR__ . '/../assets/css/lw_chart.css') ?: 1 ?>">
+    <script src="/assets/js/lw_chart.js?v=<?= @filemtime(__DIR__ . '/../assets/js/lw_chart.js') ?: 1 ?>"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -1284,10 +1287,38 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <a href="/admin/backup.php" class="<?= ($page === 'backup.php') ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span> 数据备份/恢复
             </a>
+            <div class="nav-section">运营与数据</div>
+            <a href="/admin/analytics.php" class="<?= $page === 'analytics.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> 数据看板
+            </a>
+            <a href="/admin/moderation.php" class="<?= $page === 'moderation.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span> 内容审核
+            </a>
+            <a href="/admin/review_queue.php" class="<?= $page === 'review_queue.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 审核队列
+            </a>
+            <a href="/admin/filehelper_config.php" class="<?= $page === 'filehelper_config.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.63.73 1.1 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> 网盘中转配置
+            </a>
+            <a href="/admin/selfheal.php" class="<?= $page === 'selfheal.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span> 自恢复守护
+            </a>
+            <a href="/admin/invite_graph.php" class="<?= $page === 'invite_graph.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg></span> 邀请关系图
+            </a>
             <div class="nav-section">日志与安全</div>
+            <a href="/admin/filehelper_log.php" class="<?= $page === 'filehelper_log.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> 文件传输记录
+            </a>
+
             <a href="/admin/operation_logs.php" class="<?= $page === 'operation_logs.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span> 操作日志
             </a>
+            <?php if (($adminUser['role'] ?? '') === 'super_admin'): ?>
+            <a href="/admin/security_alerts.php" class="<?= $page === 'security_alerts.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span> 安全告警
+            </a>
+            <?php endif; ?>
             <?php if (checkPermission($adminUser, 'view_ai_logs')): ?>
             <a href="/admin/ai_logs.php" class="<?= $page === 'ai_logs.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M18 16.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></span> AI 调用记录
@@ -1368,7 +1399,11 @@ function adminFooter() {
         </div>
         </div>
     </div>
-    <script src="<?= function_exists('asset_url') ? asset_url('/admin/assets/js/admin.common.js') : '/admin/assets/js/admin.common.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/admin/assets/js/admin.common.js') : '1' ?>"></script>
+    
+    <?php // 图标动效 CSS（位置无所谓，纯样式）?>
+    <link rel="stylesheet" href="/assets/css/icon-motion.css?v=<?= @filemtime(__DIR__ . '/../assets/css/icon-motion.css') ?: 1 ?>">
+<script src="<?= function_exists('asset_url') ? asset_url('/admin/assets/js/admin.common.js') : '/admin/assets/js/admin.common.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/admin/assets/js/admin.common.js') : '1' ?>"></script>
+    <?php // 交互式图表（必须在任何使用它的脚本之前加载）?>
     <script>
 
     document.getElementById('menuToggle').addEventListener('click', function() {

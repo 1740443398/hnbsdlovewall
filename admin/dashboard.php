@@ -282,17 +282,41 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 <div class="dashboard-grid">
     <div class="dashboard-main">
     <div class="chart-card">
-        <h3>近7日发帖趋势</h3>
-        <div class="bar-chart">
-            <?php foreach ($recent7Days as $day): ?>
-            <div class="bar-item">
-                <div class="bar-value"><?= $day['count'] ?></div>
-                <div class="bar-fill" style="height: <?= max(4, ($day['count'] / max(1, max(array_column($recent7Days, 'count')))) * 100) ?>%"></div>
-                <div class="bar-label"><?= substr($day['date'], 5) ?></div>
+        <div class="chart-toolbar">
+            <h3>数据趋势</h3>
+            <div class="chart-seg" id="typeSeg">
+                <button data-t="line" class="on">折线</button>
+                <button data-t="area">面积</button>
+                <button data-t="bar">柱状</button>
+                <button data-t="donut">环形</button>
             </div>
-            <?php endforeach; ?>
+            <div class="chart-seg" id="grainSeg">
+                <button data-g="day" class="on">按天</button>
+                <button data-g="week">按周</button>
+                <button data-g="month">按月</button>
+            </div>
+        </div>
+        <div id="mainChart" style="min-height:240px"></div>
+        <div class="chart-legend">
+            <span><i style="background:#4F7FE0"></i>发帖</span>
+            <span><i style="background:#22B07D"></i>评论</span>
+            <span><i style="background:#F2994A"></i>新用户</span>
+            <span><i style="background:#BB6BD9"></i>点赞</span>
         </div>
     </div>
+
+    <?php /* ===== 服务器资源占用 ===== */ ?>
+    <div class="res-card" id="resCard">
+        <div class="res-head">
+            <h3>服务器空间</h3>
+            <button type="button" class="res-refresh" id="resRefresh">刷新</button>
+        </div>
+        <div id="resBody">
+            <div style="color:#9AA4B2;font-size:13px;padding:8px 0">正在统计…</div>
+        </div>
+    </div>
+
+
 
             <div class="chart-card">
                 <h3>最近帖子</h3>
@@ -646,6 +670,28 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 @media (prefers-reduced-motion: reduce) {
     .online-live-dot { animation: none; }
 }
+
+/* ===== 资源占用卡片 ===== */
+.res-card{background:#fff;border-radius:14px;padding:18px 20px;margin-top:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+.res-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.res-head h3{margin:0;font-size:15px;font-weight:600;color:#1F2733}
+.res-head .res-refresh{border:0;background:#F0F3F8;color:#4A5568;font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer}
+.res-head .res-refresh:hover{background:#E4E9F1}
+.res-total{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.res-total .num{font-size:28px;font-weight:700;color:#2F5B9A;font-variant-numeric:tabular-nums}
+.res-total .of{font-size:13px;color:#9AA4B2}
+.res-bar{height:8px;background:#EEF1F6;border-radius:4px;overflow:hidden;margin-bottom:6px}
+.res-bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4F7FE0,#22B07D);transition:width .4s ease}
+.res-pct{font-size:12px;color:#9AA4B2;margin-bottom:16px}
+.res-rows{display:flex;flex-direction:column;gap:9px}
+.res-row{display:flex;align-items:center;gap:10px;font-size:13px}
+.res-row .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.res-row .name{flex:1 1 auto;color:#4A5568}
+.res-row .cnt{color:#9AA4B2;font-size:11px}
+.res-row .val{font-variant-numeric:tabular-nums;color:#1F2733;font-weight:600;min-width:62px;text-align:right}
+.res-mem{margin-top:14px;padding-top:12px;border-top:1px solid #EEF1F6;font-size:12px;color:#6B7684;display:flex;gap:18px;flex-wrap:wrap}
+.res-mem b{color:#1F2733;font-variant-numeric:tabular-nums}
+
 </style>
 
 <script>
@@ -721,5 +767,156 @@ adminHeader('数据看板', $adminUser, $csrfToken);
     start();
 })();
 </script>
+<script>
+(function(){
+    var RAW = null;          // 服务端给的原始按天数据
+    var chart = null;
+    var curType = "line";
+    var curGrain = "day";
+
+    /** 把按天数据聚合成周/月。 */
+    function aggregate(rows, grain) {
+        if (grain === "day" || !rows.length) return rows;
+        var map = {};
+        var order = [];
+        rows.forEach(function(r){
+            var d = String(r.date || "");
+            var key;
+            if (grain === "week") {
+                // 用该周周一的日期做 key
+                var dt = new Date(d + "T00:00:00");
+                var day = dt.getDay() || 7;
+                dt.setDate(dt.getDate() - day + 1);
+                key = dt.toISOString().slice(0,10);
+            } else {
+                key = d.slice(0, 7);   // YYYY-MM
+            }
+            if (!map[key]) {
+                map[key] = { date: key, label: key, posts:0, comments:0, users:0, likes:0 };
+                order.push(key);
+            }
+            map[key].posts    += Number(r.posts || 0);
+            map[key].comments += Number(r.comments || 0);
+            map[key].users    += Number(r.users || 0);
+            map[key].likes    += Number(r.likes || 0);
+        });
+        return order.map(function(k){
+            var o = map[k];
+            o.label = (grain === "week") ? ("周 " + o.date.slice(5)) : o.date;
+            return o;
+        });
+    }
+
+    function render() {
+        if (!RAW) return;
+        var rows = aggregate(RAW, curGrain);
+        var series = [
+            { key: "posts",    name: "发帖" },
+            { key: "comments", name: "评论" },
+            { key: "users",    name: "新用户" },
+            { key: "likes",    name: "点赞" },
+        ];
+        if (!chart) {
+            chart = window.LwChart.create(document.getElementById("mainChart"), {
+                type: curType, data: rows, series: series, height: 250
+            });
+        } else {
+            chart.series = series;
+            chart.setData(rows, series);
+        }
+    }
+
+    function load(days) {
+        fetch("/api/admin/analytics.php?action=overview&days=" + days, {credentials:"same-origin"})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+            if (!d.success) return;
+            RAW = d.data.series || [];
+            render();
+        })
+        .catch(function(){});
+    }
+
+    // 图表类型切换
+    document.querySelectorAll("#typeSeg button").forEach(function(b){
+        b.addEventListener("click", function(){
+            document.querySelectorAll("#typeSeg button").forEach(function(x){ x.classList.remove("on"); });
+            b.classList.add("on");
+            curType = b.dataset.t;
+            if (chart) chart.setType(curType);
+        });
+    });
+
+    // 粒度切换
+    document.querySelectorAll("#grainSeg button").forEach(function(b){
+        b.addEventListener("click", function(){
+            document.querySelectorAll("#grainSeg button").forEach(function(x){ x.classList.remove("on"); });
+            b.classList.add("on");
+            curGrain = b.dataset.g;
+            render();
+        });
+    });
+
+    load(30);
+})();
+
+  /* ===== 服务器资源占用 ===== */
+  (function () {
+    var body = document.getElementById("resBody");
+    var btn = document.getElementById("resRefresh");
+    if (!body) return;
+
+    var COLORS = { uploads: "#F2994A", data: "#4F7FE0", assets: "#22B07D", code: "#BB6BD9" };
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+
+    function render(d) {
+      var u = d.usage;
+      if (!u) { body.innerHTML = "暂无数据"; return; }
+      var h = "";
+      h += '<div class="res-total"><span class="num">' + esc(u.total_text) + '</span>';
+      h += '<span class="of">/ ' + esc(u.server_total_text) + '</span></div>';
+      h += '<div class="res-bar"><i style="width:' + Math.min(100, u.percent) + '%"></i></div>';
+      h += '<div class="res-pct">已用 ' + u.percent + '%（不含数据库，数据库容量未知）</div>';
+      h += '<div class="res-rows">';
+      (u.breakdown || []).forEach(function (r) {
+        if (!r.bytes) return;
+        h += '<div class="res-row">';
+        h += '<span class="dot" style="background:' + (COLORS[r.key] || "#9AA4B2") + '"></span>';
+        h += '<span class="name">' + esc(r.label) + ' <span class="cnt">' + r.files + ' 个文件</span></span>';
+        h += '<span class="val">' + esc(r.text) + '</span></div>';
+      });
+      h += "</div>";
+      var m = d.php_memory || {};
+      h += '<div class="res-mem">';
+      h += '<span>本次请求 <b>' + esc(m.used_text || "-") + '</b></span>';
+      h += '<span>峰值 <b>' + esc(m.peak_text || "-") + '</b></span>';
+      h += '<span>上限 <b>' + esc(m.limit || "-") + '</b></span>';
+      h += "</div>";
+      body.innerHTML = h;
+    }
+
+    function load() {
+      body.innerHTML = '<div style="color:#9AA4B2;font-size:13px;padding:8px 0">正在统计…</div>';
+      fetch("/api/admin/resources.php", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j.success) render(j.data);
+          else body.innerHTML = '<div style="color:#D9534F;font-size:13px">' + esc(j.message || "加载失败") + "</div>";
+        })
+        .catch(function () {
+          body.innerHTML = '<div style="color:#D9534F;font-size:13px">加载失败，请刷新重试</div>';
+        });
+    }
+
+    if (btn) btn.addEventListener("click", load);
+    load();
+  })();
+</script>
+
 
 <?php adminFooter(); ?>

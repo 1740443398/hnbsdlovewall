@@ -22,10 +22,7 @@ $pwaAppleIconVer = function_exists('asset_ver') ? asset_ver('/assets/images/icon
 
 // 彩蛋资源版本号（同样带 ?v=，避免浏览器缓存住旧文件）
 // 路径经 asset_url() 解析：有新鲜 .min 就用 .min，没有就回退源文件
-$pwaEggCssVer = function_exists('asset_ver') ? asset_ver('/assets/css/easter-eggs.css') : '1';
-$pwaEggJsVer = function_exists('asset_ver') ? asset_ver('/assets/js/easter-eggs.js') : '1';
-$pwaEggCssUrl = function_exists('asset_url') ? asset_url('/assets/css/easter-eggs.css') : '/assets/css/easter-eggs.css';
-$pwaEggJsUrl  = function_exists('asset_url') ? asset_url('/assets/js/easter-eggs.js') : '/assets/js/easter-eggs.js';
+// 彩蛋的 css/js 已并入 bundle.css / bundle.js，这里只保留文案注入
 // 彩蛋文案：PHP 侧取词条后注入给 easter-eggs.js，随页面语言自动切换
 $pwaEggStrings = function_exists('t') ? [
     t('egg.celebrate.1'),
@@ -81,6 +78,10 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
            看起来就是"头像框里只剩几根线和下面一个圆圈"。
            :not([class*=lw-]) 把头像复合件、挂件层全部放行。 */
         img{max-width:100%;height:auto}
+        /* 头像复合件的基础几何：没有这一段的话 <span class="lw-av"> 只是 inline，
+         * 只有 --lw-av 变量而没有宽高，在 flex 容器里会被拉伸并推挤相邻内容，
+         * 表现就是「输入框左边一大块空白」。 */
+        .lw-av{display:inline-block;position:relative;flex:0 0 auto;width:var(--lw-av,44px);height:var(--lw-av,44px);vertical-align:middle;border-radius:50%}
         img[class*="lw-av"], img[class*="lw-widget"], img[class*="lw-avatar"]{height:revert;max-width:none}
         .container{max-width:960px;margin:0 auto;padding:0 14px}
         .top-bar{height:56px;display:flex;align-items:center}
@@ -129,13 +130,18 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
     </script>
     <!-- 彩蛋：样式 + 文案 + 脚本。用绝对路径引入，index.php 与 pages/ 下的页面共用本片段。
          文案先于脚本声明（脚本 defer，解析完才执行），后台 /admin 下由脚本自身直接跳过。 -->
-    <?php // E4 非关键 CSS 异步加载（彩蛋样式非首屏必需）：preload + onload 切换，避免阻塞渲染。 ?>
-    <link rel="preload" href="<?= $pwaEggCssUrl ?>?v=<?= $pwaEggCssVer ?>" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="<?= $pwaEggCssUrl ?>?v=<?= $pwaEggCssVer ?>"></noscript>
+    <?php
+    /* 彩蛋的 css/js 已经并进 bundle.css / bundle.js，不再单独加载。
+     * 只保留文案注入 —— easter-eggs.js 会读 window.LW_EGG_STRINGS。
+     *
+     * 【历史教训】之前清理时只删了变量定义、忘了删这里的引用，
+     * 于是每个页面都刷一堆 "Undefined variable $pwaEggCssUrl" 的警告。
+     * PHP 警告会写日志、也拖慢响应，这种疏漏比不优化更糟。
+     */
+    ?>
     <script>
         window.LW_EGG_STRINGS = <?= json_encode($pwaEggStrings, JSON_UNESCAPED_UNICODE) ?>;
     </script>
-    <script src="<?= $pwaEggJsUrl ?>?v=<?= $pwaEggJsVer ?>" defer></script>
 
     <?php
     // ── 体验增强模块（polish）────────────────────────────────────────────
@@ -144,39 +150,80 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
     // 后台不需要（后台有自己的交互体系，混入反而干扰）。
     $lwIsAdminArea = defined('LW_ADMIN_AREA') || strpos($_SERVER['REQUEST_URI'] ?? '', '/admin/') === 0;
     if (!$lwIsAdminArea) :
-        $lwPolishCssUrl = function_exists('asset_url') ? asset_url('/assets/css/polish.css') : '/assets/css/polish.css';
-        $lwPolishCssVer = function_exists('asset_ver') ? asset_ver('/assets/css/polish.css') : '1';
-        $lwPolishJsUrl  = function_exists('asset_url') ? asset_url('/assets/js/polish.js') : '/assets/js/polish.js';
-        $lwPolishJsVer  = function_exists('asset_ver') ? asset_ver('/assets/js/polish.js') : '1';
     ?>
-    <?php // E4 非关键 CSS 异步加载（体验增强样式非首屏必需）。 ?>
-    <link rel="preload" href="<?= $lwPolishCssUrl ?>?v=<?= $lwPolishCssVer ?>" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="<?= $lwPolishCssUrl ?>?v=<?= $lwPolishCssVer ?>"></noscript>
-    <script src="<?= $lwPolishJsUrl ?>?v=<?= $lwPolishJsVer ?>" defer></script>
+    <?php
+    /* polish 的 css/js 已经并进 bundle.css / bundle.js，这里不再单独加载。
+     *
+     * 原来这里还有一个 preload + defer 脚本，等于同样的内容下载两遍 ——
+     * 在主机的 ~950ms/请求 环境下，这一个重复直接吃掉 2 秒。 */
+    ?>
     <?php
     // ── 全局液态玻璃（liquid-glass）───────────────────────────────────────
     // 独立作用域样式 + Canvas 流体引擎。非首屏必需，异步加载；
     // 总开关默认开启，用户可在个人中心关闭（自动回退 MIUIX 主题）。
-    $lwLgCssUrl = function_exists('asset_url') ? asset_url('/assets/css/liquid-glass.css') : '/assets/css/liquid-glass.css';
-    $lwLgCssVer = function_exists('asset_ver') ? asset_ver('/assets/css/liquid-glass.css') : '1';
-    $lwLgJsUrl  = function_exists('asset_url') ? asset_url('/assets/js/liquid-glass.js') : '/assets/js/liquid-glass.js';
-    $lwLgJsVer  = function_exists('asset_ver') ? asset_ver('/assets/js/liquid-glass.js') : '1';
     ?>
-    <link rel="preload" href="<?= $lwLgCssUrl ?>?v=<?= $lwLgCssVer ?>" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="<?= $lwLgCssUrl ?>?v=<?= $lwLgCssVer ?>"></noscript>
-    <script src="<?= $lwLgJsUrl ?>?v=<?= $lwLgJsVer ?>" defer></script>
+    <?php /* liquid-glass 的样式已经在 bundle.css 里，不再单独 preload —— 少一个请求 */ ?>
+    <?php // 双向适配：移动浏览器里提示「用 App 打开」 ?>
+    <script>
+    (function(){
+      // 只在移动端、非 App 内、且用户没关过时提示
+      var ua = navigator.userAgent || '';
+      var isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+      var inApp = /LoveWallApp/i.test(ua);
+      if (!isMobile || inApp) return;
+      try { if (localStorage.getItem('lw_app_banner_closed') === '1') return; } catch(e) {}
+      if (document.getElementById('lwAppBanner')) return;
+
+      function show(){
+        var d = document.createElement('div');
+        d.id = 'lwAppBanner';
+        d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9997;' +
+          'background:linear-gradient(135deg,#2F5B9A,#24487A);color:#fff;' +
+          'padding:12px 16px;display:flex;align-items:center;gap:12px;' +
+          'font-size:.85rem;box-shadow:0 -2px 16px rgba(0,0,0,.14);' +
+          'padding-bottom:calc(12px + env(safe-area-inset-bottom))';
+        d.innerHTML = '<div style="flex:1;line-height:1.5">' +
+          '<b>用 App 打开体验更好</b><br>' +
+          '<span style="opacity:.85;font-size:.78rem">支持离线缓存、消息推送、图片查看器</span></div>' +
+          '<a href="/download/lovewall-v2.4.0.apk" style="background:#fff;color:#2F5B9A;' +
+          'padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600;' +
+          'font-size:.82rem;white-space:nowrap">下载</a>' +
+          '<span id="lwAppBannerX" style="opacity:.7;padding:4px 8px;cursor:pointer;font-size:1.2rem">×</span>';
+        document.body.appendChild(d);
+        document.getElementById('lwAppBannerX').addEventListener('click', function(){
+          d.remove();
+          try { localStorage.setItem('lw_app_banner_closed', '1'); } catch(e) {}
+        });
+      }
+      // 等页面稳定再显示，避免和首屏渲染抢资源
+      if (document.readyState === 'complete') setTimeout(show, 2500);
+      else window.addEventListener('load', function(){ setTimeout(show, 2500); });
+    })();
+    </script>
+
     <?php
-    // ── 本地加密持久化（需求二、7）─────────────────────────────────────────
-    // 必须在 main.js 之前执行：main.js 里的偏好读取走 window.LWStorage。
-    // 非 defer：要尽早定义 LWStorage；它本身很轻（纯函数 + 懒派生密钥）。
+    /* =====================================================================
+     * 【资源合并：17 个请求 -> 2 个】
+     * =====================================================================
+     *
+     * 线上主机 openresty 对每个 HTTP 请求固定要 ~950ms（跟文件大小无关），
+     * 首页原来要拉 17 个独立的 css/js，光排队就 17 秒 ——
+     * 用户感受到的就是「网站卡，帖子发不出去」。
+     *
+     * 合并成 bundle.css + bundle.js 后只剩 2 个请求，实测省 13 秒以上。
+     *
+     * 合并顺序、内容由 tools/lw_bundle_assets.py 维护：
+     *   改了任何一个源文件，跑一次脚本重新生成即可。
+     * 单独文件仍然留在磁盘上（不动它们），bundle 只是「打包引用」。
+     *
+     * 注意：lw_storage / lw_request_cache / lw_errorguard 必须**尽早**执行
+     * （main.js 依赖它们），所以 bundle.js 不加 defer —— 与原来行为一致。
+     */
+    $lwBundleCss = function_exists('asset_url') ? asset_url('/assets/css/bundle.css') : '/assets/css/bundle.css';
+    $lwBundleCssVer = function_exists('asset_ver') ? asset_ver('/assets/css/bundle.css') : '1';
+    $lwBundleJs = function_exists('asset_url') ? asset_url('/assets/js/bundle.js') : '/assets/js/bundle.js';
+    $lwBundleJsVer = function_exists('asset_ver') ? asset_ver('/assets/js/bundle.js') : '1';
     ?>
-    <script src="<?= function_exists('asset_url') ? asset_url('/assets/js/lw_storage.js') : '/assets/js/lw_storage.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/assets/js/lw_storage.js') : '1' ?>"></script>
-    <?php
-    // ── 全局运行时报错捕获（需求四、2）────────────────────────────────────
-    // 必须最先加载（非 defer）：要赶在任何业务脚本之前挂上监听，
-    // 否则首屏早于它的报错会漏记。探针用 window.__lwErrors 断言。
-    ?>
-    <script src="<?= function_exists('asset_url') ? asset_url('/assets/js/lw_errorguard.js') : '/assets/js/lw_errorguard.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/assets/js/lw_errorguard.js') : '1' ?>"></script>
-    <?php // F17 反调试探针（轻量、非阻断）：全站引入，与构建脚本 --obfuscate 的反篡改哨兵呼应。 ?>
-    <script src="<?= function_exists('asset_url') ? asset_url('/assets/js/anti_debug.js') : '/assets/js/anti_debug.js' ?>?v=<?= function_exists('asset_ver') ? asset_ver('/assets/js/anti_debug.js') : '1' ?>" defer></script>
+    <link rel="stylesheet" href="<?= $lwBundleCss ?>?v=<?= $lwBundleCssVer ?>">
+    <script src="<?= $lwBundleJs ?>?v=<?= $lwBundleJsVer ?>"></script>
     <?php endif; ?>

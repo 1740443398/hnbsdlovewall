@@ -19,8 +19,11 @@ header('Content-Type: application/json; charset=utf-8');
 
 $user = requireLoginOrGuest();
 
-// 游客也有最小状态（主题、语言），不落用户表，只回默认值
+// 游客也有最小状态（主题、语言），不落用户表，只回默认值。
+// 游客分支的响应与身份完全无关（就两个常量），允许共享缓存 —— 首屏每次都要打这一枪，
+// 而且它是「未登录访问任一页面都会触发」的请求。
 if (!$user) {
+    lwCacheShared(600, 86400);
     jsonSuccess([
         'lw_ui_prefs'  => ['theme' => 'auto', 'lang' => $LANG_CODE ?? 'zh_CN'],
         'lw_guest'     => 1,

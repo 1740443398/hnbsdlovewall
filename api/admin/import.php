@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/backup_pack.php';
+require_once __DIR__ . '/../../includes/backup_chunk.php';
 
 $user = requireSuperAdmin();
 $user = checkBanned($user);
@@ -23,6 +24,88 @@ if (!verifyCSRFToken($csrfToken)) {
     jsonError('CSRF验证失败', 403);
 }
 
+/* ── 分卷上传（大备份包专用）─────────────────────────────────────────
+ *
+ * 【为什么必须有这条路径】
+ * 线上主机的网关会拒绝约 1.5MB 以上的 POST 请求体，返回纯文本 403，
+ * PHP 根本收不到请求。而完整备份包动辄 10MB+，直接上传必然失败。
+ *
+ * 这和 CSRF 失败、权限不足的 403 长得一模一样，控制台只显示
+ * "responded with a status of 403"，极难排查 —— 所以改成切块上传，
+ * 每块 1MB，稳定通过网关。
+ */
+$chunkAction = (string)($_POST['action'] ?? '');
+if ($chunkAction !== '') {
+    $token = (string)($_POST['token'] ?? '');
+
+    if ($chunkAction === 'init') {
+        $size   = (int)($_POST['size'] ?? 0);
+        $chunks = (int)($_POST['chunks'] ?? 0);
+        $name   = (string)($_POST['name'] ?? 'backup.zip');
+        $res = lwBackupChunkInit($name, $size, $chunks);
+        if (empty($res['ok'])) {
+            jsonError((string)($res['message'] ?? '初始化失败'));
+        }
+        jsonSuccess(['token' => $res['token']], '可以开始上传');
+    }
+
+    if ($chunkAction === 'chunk') {
+        $index = (int)($_POST['index'] ?? 0);
+        $tmp = (string)($_FILES['chunk']['tmp_name'] ?? '');
+        if ($tmp === '') {
+            jsonError('分卷内容为空');
+        }
+        $res = lwBackupChunkStore($token, $index, $tmp);
+        if (empty($res['ok'])) {
+            jsonError((string)($res['message'] ?? '分卷保存失败'));
+        }
+        jsonSuccess([
+            'received' => (int)($res['received'] ?? 0),
+            'total'    => (int)($res['total'] ?? 0),
+        ], '分卷已收到');
+    }
+
+    if ($chunkAction === 'finish') {
+        $res = lwBackupChunkFinish($token);
+        if (empty($res['ok'])) {
+            jsonError((string)($res['message'] ?? '合并失败'));
+        }
+        /* 合并成功 → 把路径交给下面的正常导入流程。
+         *
+         * 【重要：这里绝对不能删文件】
+         * readFullBackup() 只是把「数据表」读进内存，图片条目只记下
+         * ZIP 里的路径 —— 真正的图片还原是后面 restoreUploads()
+         * 重新打开这个 zip 逐条流式解压的。
+         *
+         * 之前这里写了一句 @unlink($importPath) 想「用完就删」，
+         * 结果 zip 在 restoreUploads 之前就没了：数据表导入成功，
+         * 图片却全部报错，页面显示「N 个图片写入失败」。
+         * 删文件必须挪到导入全部结束之后。
+         */
+        $importPath = (string)$res['path'];
+        $sourceName = (string)$res['name'];
+        $parsed = BackupPack::readFullBackup($importPath, $sourceName);
+        $importData = $parsed['tables'];
+        $uploadEntries = $parsed['uploads'];
+        // 只清掉分卷目录里的残留，合并出的 merged.zip 还要用
+        if (empty($importData) && empty($uploadEntries)) {
+            @unlink($importPath);
+            lwBackupChunkAbort($token);
+            jsonError('无法从该备份包中解析出内容');
+        }
+        $chunkCleanupToken = $token;   // 稍后统一清理
+        // 跳到统一导入逻辑
+        goto lw_import_run;
+    }
+
+    if ($chunkAction === 'abort') {
+        lwBackupChunkAbort($token);
+        jsonSuccess([], '已取消上传');
+    }
+
+    jsonError('未知的分卷操作');
+}
+
 // 完整备份导入：覆盖式写入指定数据表 + 还原 uploads/ 图片（高风险，仅限超级管理员）
 //
 // 三种入参（互为兼容）：
@@ -33,6 +116,7 @@ $importData = [];
 $sourceName = '';
 $uploadEntries = [];
 $importPath = '';
+$chunkCleanupToken = '';   // 分卷合并出的临时文件，导入结束后清理
 
 if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
     $size = (int)($_FILES['file']['size'] ?? 0);
@@ -61,6 +145,7 @@ if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp
     $sourceName = 'inline-json';
 }
 
+lw_import_run:
 $fs = getFS();
 
 // 允许导入的数据表（白名单，防止写入任意文件）
@@ -95,6 +180,13 @@ foreach ($importData as $table => $rows) {
 $uploadResult = ['written' => 0, 'skipped' => 0, 'bytes' => 0, 'errors' => []];
 if ($uploadEntries && $importPath !== '') {
     $uploadResult = BackupPack::restoreUploads($importPath, $uploadEntries);
+}
+
+/* 现在才允许删合并出的 zip —— 图片已经流式写入 uploads/ 了。 */
+if (!empty($chunkCleanupToken)) {
+    @unlink($importPath);
+    lwBackupChunkAbort((string)$chunkCleanupToken);
+    $chunkCleanupToken = '';
 }
 
 logOperation($user['id'], $user['qq'], 'import_data', 'full_backup', '', '从 ' . $sourceName . ' 导入网站数据，成功表数 ' . $done . '，图片 ' . $uploadResult['written'] . ' 个' . (empty($errors) ? '' : '，失败: ' . implode(',', $errors)));

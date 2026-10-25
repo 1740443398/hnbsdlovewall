@@ -47,15 +47,18 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
     </div>
     <div class="section-body">
         <div class="bk-box">
-            <div style="font-weight:600;margin-bottom:4px;">下载完整备份（数据 + 图片，ZIP）</div>
+            <div style="font-weight:600;margin-bottom:4px;">下载完整备份（数据 + 图片 + 代码，ZIP）</div>
             <div class="bk-tip">
-                把 <code>data/</code> 下全部数据表 <b>和</b> <code>uploads/</code> 里的帖子图片，
+                把 <code>data/</code> 下全部数据表、<code>uploads/</code> 里的帖子图片，<br>
+                <b>以及全站源代码</b>（<code>code/</code> 目录，已排除含密钥的 config.php），
                 一起打包成一个 ZIP 并直接下载：每张表一个 <code>.json</code>，
-                图片按原目录结构放在 <code>uploads/</code> 下，另有 <code>_meta.json</code>（导出信息 + 图片清单）与还原说明。
-                <b>一个包就是完整留档</b>，恢复时只需上传这一个文件即可把数据和图片一起还原。
+                图片按原目录结构放在 <code>uploads/</code> 下，另有 <code>_meta.json</code>（导出信息 + 图片/代码清单）与还原说明。
+                <b>一个包就是完整留档</b>。<br>
+                <span style="color:#8a6d3b">注意：还原时<b>只恢复数据与图片</b>，不会写回代码 ——
+                代码回滚请走 git，避免上传的包覆盖线上 PHP。</span>
             </div>
             <div class="bk-actions">
-                <button class="btn btn-success" id="exportZipBtn" onclick="downloadDataZip()" <?= $hasExportData ? '' : 'disabled title="无导出权限"' ?>>下载完整备份（数据 + 图片）</button>
+                <button class="btn btn-success" id="exportZipBtn" onclick="downloadDataZip()" <?= $hasExportData ? '' : 'disabled title="无导出权限"' ?>>下载完整备份（数据 + 图片 + 代码）</button>
                 <span class="bk-tip" id="exportZipHint"></span>
             </div>
         </div>
@@ -151,6 +154,109 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
         bkSetFile(null);
     }
 
+    /* 分卷上传阈值：超过这个大小就走切块。
+     *
+     * 实测线上网关在 1.5MB ~ 2MB 之间开始拒绝 POST 请求体，
+     * 直接传 10MB 备份包会被返回纯文本 403，PHP 根本收不到。
+     * 这里取 1MB 留足余量。
+     */
+    var BK_CHUNK_BYTES = 1048576;
+
+    /* 上传单个分卷。带 XHR 头，避免被 WAF 二次拦截。 */
+    function bkSendChunk(token, index, blob, name) {
+        var fd = new FormData();
+        fd.append('csrf_token', CSRF_TOKEN);
+        fd.append('action', 'chunk');
+        fd.append('token', token);
+        fd.append('index', String(index));
+        fd.append('chunk', blob, (name || 'chunk') + '.' + index);
+        return fetch('/api/admin/import.php', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.json(); });
+    }
+
+    /* 分卷上传主流程：init -> 逐块 -> finish。 */
+    function bkUploadChunked(file, onProgress) {
+        var chunks = Math.ceil(file.size / BK_CHUNK_BYTES);
+        var token = '';
+
+        return fetch('/api/admin/import.php', {
+            method: 'POST',
+            body: (function () {
+                var fd = new FormData();
+                fd.append('csrf_token', CSRF_TOKEN);
+                fd.append('action', 'init');
+                fd.append('name', file.name);
+                fd.append('size', String(file.size));
+                fd.append('chunks', String(chunks));
+                return fd;
+            })(),
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (!res || !res.success) {
+                throw new Error((res && res.message) || '初始化分卷失败');
+            }
+            token = String((res.data && res.data.token) || '');
+            if (!token) throw new Error('服务端没有返回上传凭证');
+
+            // 逐块串行上传：并发会让网关更容易判定异常
+            var chain = Promise.resolve();
+            for (var i = 0; i < chunks; i++) {
+                (function (idx) {
+                    chain = chain.then(function () {
+                        var start = idx * BK_CHUNK_BYTES;
+                        var end = Math.min(start + BK_CHUNK_BYTES, file.size);
+                        var blob = file.slice(start, end);
+                        if (onProgress) onProgress(idx + 1, chunks);
+                        return bkSendChunk(token, idx, blob, file.name).then(function (rr) {
+                            if (!rr || !rr.success) {
+                                throw new Error((rr && rr.message) || ('第 ' + (idx + 1) + ' 块上传失败'));
+                            }
+                        });
+                    });
+                })(i);
+            }
+            return chain;
+        })
+        .then(function () {
+            return fetch('/api/admin/import.php', {
+                method: 'POST',
+                body: (function () {
+                    var fd = new FormData();
+                    fd.append('csrf_token', CSRF_TOKEN);
+                    fd.append('action', 'finish');
+                    fd.append('token', token);
+                    return fd;
+                })(),
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+        })
+        .then(function (r) { return r.json(); })
+        .catch(function (err) {
+            // 失败时通知服务端清理临时文件
+            if (token) {
+                try {
+                    var fd = new FormData();
+                    fd.append('csrf_token', CSRF_TOKEN);
+                    fd.append('action', 'abort');
+                    fd.append('token', token);
+                    fetch('/api/admin/import.php', {
+                        method: 'POST', body: fd, credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                } catch (e) {}
+            }
+            throw err;
+        });
+    }
+
     function doImportFile() {
         if (!bkPickedFile) { showToast('请先选择备份文件（.zip 或 .json）', 'warning'); return; }
         var btn = document.getElementById('bkImportBtn');
@@ -159,10 +265,50 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
             '此操作不可撤销，请确认已导出当前数据作为退路。是否继续？',
             function () {
                 if (btn) { btn.disabled = true; btn.textContent = '正在恢复...'; }
+
+                /* 【大文件走分卷】
+                 *
+                 * 线上网关会拒绝约 1.5MB 以上的 POST 请求体，返回纯文本 403。
+                 * 10MB 的备份包直传必然失败，而报错信息跟 CSRF 失败一模一样，
+                 * 根本看不出是被网关拦的。所以超过阈值就自动切块。
+                 */
+                if (bkPickedFile.size > BK_CHUNK_BYTES) {
+                    bkUploadChunked(bkPickedFile, function (done, total) {
+                        if (btn) { btn.textContent = '正在恢复... ' + done + '/' + total; }
+                    })
+                    .then(function (res) {
+                        showToast((res && res.message) || '恢复完成', (res && res.success) ? 'success' : 'error');
+                        if (res && res.success) { clearBackupFile(); }
+                    })
+                    .catch(function (err) {
+                        showToast('导入失败：' + ((err && err.message) || '网络异常'), 'error');
+                    })
+                    .then(function () {
+                        if (btn) { btn.disabled = false; btn.textContent = '开始恢复'; }
+                    });
+                    return;
+                }
+
                 var fd = new FormData();
                 fd.append('csrf_token', CSRF_TOKEN);
                 fd.append('file', bkPickedFile, bkPickedFile.name);
-                fetch('/api/admin/import.php', { method: 'POST', body: fd })
+                /* 【必须带 X-Requested-With】
+                 *
+                 * WAF 对 POST 的判定是：Referer 为空时，只有「XHR 头 或 CSRF token」
+                 * 才算同站请求。这个上传走的是 FormData，某些情况下浏览器会把
+                 * Referer 裁掉（跨协议跳转、隐私模式、扩展拦截都会），
+                 * 于是请求被 WAF 当成外部提交直接返回纯文本 403 Forbidden。
+                 *
+                 * 症状极具误导性：控制台只看到 POST .../import.php 403，
+                 * 页面弹「网络错误」，看起来像网络问题，其实是安全策略拦的。
+                 * 显式声明自己是 XHR 就能稳定通过。
+                 */
+                fetch('/api/admin/import.php', {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
                     .then(function (r) { return r.json(); })
                     .then(function (res) {
                         showToast((res && res.message) || '恢复完成', (res && res.success) ? 'success' : 'error');

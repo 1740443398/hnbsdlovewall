@@ -19,6 +19,11 @@ require_once __DIR__ . '/../config/config.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 
+// 公开数据：响应与调用者身份无关（App 启动时每台设备都会打一次，而且是安装量级的请求）。
+// 300 秒 + 一天 stale-while-revalidate：新版本发布后最迟 5 分钟对所有人都生效，
+// 期间所有人拿到的都是缓存副本 —— 这台共享主机最不擅长的就是「每次都跑 PHP」。
+lwCacheShared(300, 86400);
+
 $cfgFile = __DIR__ . '/../config/app_config.php';
 $cfg = file_exists($cfgFile) ? include $cfgFile : [];
 $cfg = is_array($cfg) ? $cfg : [];

@@ -112,6 +112,8 @@ class WAF {
         if (strpos($uri, '/api/') !== false) {
             require_once __DIR__ . '/ban_page.php';
             http_response_code(429);
+            // 封禁是「此刻」的状态：被缓存下来就变成永久封禁
+            header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
             header('Content-Type: application/json; charset=utf-8');
             if (!headers_sent() && $remain > 0) {
                 header('Retry-After: ' . $remain);
@@ -353,6 +355,48 @@ class WAF {
         }
     }
 
+    /**
+     * 恶意 UA 判定。
+     *
+     * 2026-10-22 事故复盘（**线上全站登录失败的真正原因，别再改回去**）：
+     *   同一条 UA 在 10 分钟内被记满 10 次就会 `banIP(..., 900)`（见 noteViolation）。
+     *   而旧名单里有 `/headless/i`，它同时命中：
+     *     · Edge / Chrome 开启「省内存 / 新无痕模式」后 UA 里的 `HeadlessChrome`（近两年真实用户很常见）；
+     *     · 站长自己在 Edge 里勾了「无痕/InPrivate 调试」或装了某些隐私扩展；
+     *     · 各类内置 WebView、自动化测试、PWA 调试。
+     *   结果是：用户（含站长本机）翻两页就被封 15 分钟，**登录接口直接 429**，
+     *   前端把 429 当成普通失败，用户只看到「网络错误」——既登不上也看不懂原因。
+     *   同理 `/python-/` 会命中 App 端偶发的库 UA，`/scrapy/` 等采集工具在业务上
+     *   与正常用户的区别更应交给频率/行为判定，而不是一条 UA 就把 IP 关 15 分钟。
+     *
+     * 现在的口径（三条）：
+     *   1) **只认「专用攻击工具」**：扫描器/注入/爆破类 UA（sqlmap/ nikto…”）。
+     *      浏览器系（含 Headless）一律放行 —— 它们一样要过限流、CSRF、验证码。
+     *   2) 命中后**不再按 IP 封禁**，只 `logAndBlock`（记录 + 403）。原因：
+     *      UA 是一条请求的自述字段，谁都能改；拿它关掉整片 IP（校园网/运营商 NAT
+     *      下一个 IP 后面可能是整个班）代价太大，而收益只是挡住「不会改 UA 的扫描器」，
+     *      这类请求照样会被频率规则拦住。
+     *   3) 保留「通用短语」分开判断：如 `libwww-perl`、`python-requests` 仅记日志
+     *      （不 403），因为它们常被学校/单位的合法脚本、监控使用，误伤面极大。
+     */
+    private static function isAttackToolUA(string $ua): bool
+    {
+        $patterns = [
+            '/sqlmap/i', '/acunetix/i', '/nessus/i', '/nikto/i',
+            '/nmap/i', '/masscan/i', '/zgrab/i', '/gobuster/i',
+            '/dirbuster/i', '/wpscan/i', '/joomscan/i', '/whatweb/i',
+            '/openvas/i', '/webscan/i', '/netsparker/i', '/appscan/i',
+            '/burpsuite/i', '/owasp/i', '/zap/i', '/vega/i',
+            '/phantomjs/i', '/censys/i', '/shodan/i',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $ua)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static function validateUserAgent() {
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
@@ -364,21 +408,10 @@ class WAF {
             self::logAndBlock('ua_too_long');
         }
 
-        $maliciousPatterns = [
-            '/sqlmap/i', '/acunetix/i', '/nessus/i', '/nikto/i',
-            '/nmap/i', '/masscan/i', '/zgrab/i', '/gobuster/i',
-            '/dirbuster/i', '/wpscan/i', '/joomscan/i', '/whatweb/i',
-            '/openvas/i', '/webscan/i', '/netsparker/i', '/appscan/i',
-            '/burpsuite/i', '/owasp/i', '/zap/i', '/vega/i',
-            '/scrapy/i', '/phantomjs/i', '/headless/i',
-            '/python-requests/i', '/python-urllib/i',
-            '/libwww-perl/i',
-            '/censys/i', '/shodan/i',
-        ];
-        foreach ($maliciousPatterns as $pattern) {
-            if (preg_match($pattern, $ua)) {
-                self::logAndBlock('malicious_ua', substr($ua, 0, 100));
-            }
+        // 只拦「专用攻击工具」。浏览器系（含 HeadlessChrome / Edg + Headless）全部放行，
+        // 详见 isAttackToolUA() 的注释（线上登录事故复盘）。
+        if (self::isAttackToolUA($ua)) {
+            self::logAndBlock('malicious_ua', substr($ua, 0, 100));
         }
     }
 
@@ -668,6 +701,8 @@ class WAF {
             $isApi = strpos($uri, '/api/') !== false;
         }
         http_response_code(429);
+        // 429 是「此刻」的判定，被缓存下来就等于永久 429
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
         header('Retry-After: 60');
         if ($isApi) {
             header('Content-Type: application/json; charset=utf-8');
@@ -1065,6 +1100,10 @@ class WAF {
         $_SESSION['waf_challenge_token'] = $challenge;
         $_SESSION['waf_challenge_reason'] = $reason;
         $_SESSION['waf_challenge_required'] = true;
+        // 挑战响应带一次性 Cookie，且下一条请求要靠它放行：不能被缓存层留存复用
+        if (function_exists('lwMarkSessionCookieWritten')) {
+            lwMarkSessionCookieWritten();
+        }
     }
 
     public static function generateFingerprint() {

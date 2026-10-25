@@ -40,7 +40,17 @@ define('SUPER_ADMIN_NICKNAME', '站长');
 define('ITEMS_PER_PAGE', 20);
 
 // 游客模式：未注册访客可浏览的动态条数上限，其余功能需注册账号
-define('GUEST_VISIBLE_POSTS', 3);
+/* 游客模式可浏览的动态条数。
+ *
+ * 【3 → 5 的取值考虑】
+ * 3 条太少：新访客打开首页只看到 3 个卡片，下半截空着，
+ * 观感像「这站没什么内容」。5 条能填满一屏多一点，
+ * 既显得站点活跃，又保留足够的注册动机。
+ *
+ * 注意：这个值同时影响 index.php 的 SSR 首屏、api/posts/list.php、
+ * api/app_bootstrap.php 和 topic.php / u.php 的截断，改一处即全站生效。
+ */
+define('GUEST_VISIBLE_POSTS', 5);
 
 // （EXPECTED_HOSTS 已在文件开头定义，SITE_URL 的 Host 头校验需要它）
 

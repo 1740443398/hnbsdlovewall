@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/site_footer.php';
 
 $fs = getFS();
 
@@ -54,6 +55,7 @@ $categories = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <?php require_once __DIR__ . '/includes/pwa_head.php'; ?>
+<link rel="stylesheet" href="/assets/css/ssr-cards.css?v=<?= @filemtime(__DIR__ . '/assets/css/ssr-cards.css') ?>" >
     <script src="<?= asset_url('/assets/js/anti_hijack.js') ?>?v=<?= asset_ver('/assets/js/anti_hijack.js') ?>"></script>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= htmlspecialchars($siteName) ?></title>
@@ -121,12 +123,12 @@ $categories = [
                     <?php else: ?>
                     <div class="feed-sticky">
                     <div class="feed-toolbar">
-                        <div class="search-box">
-                            <input type="text" id="searchInput" placeholder="<?= t('home.search_ph') ?>" class="search-input">
-                            <button class="btn-icon" id="searchBtn" aria-label="<?= t('home.search_aria') ?>">
+                        <form class="search-box" action="/pages/search.php" method="get" style="display:flex;gap:6px">
+                            <input type="search" id="searchInput" name="q" placeholder="<?= t('home.search_ph') ?>" class="search-input">
+                            <button class="btn-icon" type="submit" id="searchBtn" aria-label="<?= t('home.search_aria') ?>">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
                             </button>
-                        </div>
+                        </form>
                         <div class="sort-tabs">
                             <button class="sort-tab active" data-sort="latest"><?= t('home.latest') ?></button>
                             <button class="sort-tab" data-sort="hot"><?= t('home.hot') ?></button>
@@ -148,7 +150,70 @@ $categories = [
                     <?php endif; ?>
 
                     <div class="posts-container" id="postsContainer">
-                        <div class="loading-skeleton">
+                        <?php
+                        /*
+                         * 首屏服务端预渲染。
+                         *
+                         * 为什么需要：帖子列表本来是 JS 异步拉的，首屏先出骨架、
+                         * 等 /api/posts/list.php 回来才填内容 —— 移动端上就是
+                         * 「白屏 1~2 秒，然后突然刷出一堆卡片」。
+                         *
+                         * 这里先由 PHP 直出前 N 条（结构刻意与 main.js 的
+                         * createPostCard 保持一致，但只保留静态部分），
+                         * JS 拉到数据后会用同一套结构整体替换，用户感知不到。
+                         *
+                         * 只做「能立刻看到内容」这件事：不渲染交互按钮的初期状态，
+                         * 避免和 JS 的双重绑定打架。
+                         */
+                        // 首屏直出的卡片数。游客给 GUEST_VISIBLE_POSTS（10），
+        // 登录用户给 8 —— 反正 JS 会继续加载后面的，首屏多几条观感更好。
+        $ssrLimit = $isGuest ? GUEST_VISIBLE_POSTS : 8;
+                        $ssrPosts = $fs->read('posts');
+                        // 只取公开可见的，按时间倒序
+                        $ssrPosts = array_values(array_filter($ssrPosts, function ($it) {
+                            return ($it['status'] ?? 'published') === 'published'
+                                && ($it['visibility'] ?? 'public') === 'public';
+                        }));
+                        usort($ssrPosts, function ($a, $b) {
+                            return strcmp((string)($b['created_at'] ?? ''), (string)($a['created_at'] ?? ''));
+                        });
+                        $ssrPosts = array_slice($ssrPosts, 0, $ssrLimit);
+                        $ssrUsers = [];
+                        foreach ($fs->read('users') as $u) {
+                            $ssrUsers[(int)$u['id']] = $u;
+                        }
+                        foreach ($ssrPosts as $sp):
+                            $au = $ssrUsers[(int)($sp['user_id'] ?? 0)] ?? null;
+                            $nick = $sp['is_anonymous'] ? '匿名同学' : ($au['nickname'] ?? '同学');
+                            $avatar = $sp['is_anonymous'] ? '/assets/images/default-avatar.svg' : ($au['avatar'] ?? '/assets/images/default-avatar.svg');
+                            $title = trim((string)($sp['title'] ?? ''));
+                            $body = trim((string)($sp['content'] ?? ''));
+                            if (mb_strlen($body) > 120) {
+                                $body = mb_substr($body, 0, 120) . '…';
+                            }
+                        ?>
+                        <div class="post-card ssr-card" data-post-id="<?= (int)$sp['id'] ?>">
+                            <div class="post-card-author">
+                                <span class="lw-av" style="--lw-av:32px;width:32px;height:32px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%">
+                                    <img src="<?= htmlspecialchars($avatar) ?>" class="lw-av-img" width="28" height="28" alt="" loading="lazy" decoding="async" onerror="this.src='/assets/images/default-avatar.svg'">
+                                </span>
+                                <span class="post-card-author-name"><?= htmlspecialchars($nick) ?></span>
+                                <span class="post-card-time"><?= htmlspecialchars((string)($sp['created_at'] ?? '')) ?></span>
+                            </div>
+                            <?php if ($title !== ''): ?>
+                            <h3 class="post-card-title" style="font-size:1.05rem;margin-bottom:8px;"><?= htmlspecialchars($title) ?></h3>
+                            <?php endif; ?>
+                            <div class="post-card-content"><?= nl2br(htmlspecialchars($body)) ?></div>
+                            <div class="post-card-actions" aria-hidden="true">
+                                <span class="ssr-stat">♡ <?= (int)($sp['likes'] ?? 0) ?></span>
+                                <span class="ssr-stat">评论 <?= (int)($sp['comments'] ?? 0) ?></span>
+                                <?php $vc = (int)($sp['views'] ?? 0); if ($vc > 0): ?>
+                                <span class="ssr-stat">阅读 <?= $vc ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                        <div class="loading-skeleton" style="display:none">
                             <div class="skeleton-item"></div>
                             <div class="skeleton-item"></div>
                             <div class="skeleton-item"></div>
@@ -251,12 +316,12 @@ $categories = [
                 <p class="sponsor-desc"><?= t('sponsor.desc') ?></p>
                 <div class="sponsor-qr-group">
                     <div class="sponsor-qr">
-                        <img src="/zanzhu/zanzhu.png" alt="微信赞助码" class="sponsor-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                        <img src="/zanzhu/zanzhu.png" alt="微信赞助码" class="sponsor-img" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
                         <p class="sponsor-qr-placeholder" style="display:none"><?= t('sponsor.loading') ?></p>
                         <p class="sponsor-hint"><?= t('sponsor.wechat') ?></p>
                     </div>
                     <div class="sponsor-qr">
-                        <img src="/zanzhu/zz.jpg" alt="支付宝赞助码" class="sponsor-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                        <img src="/zanzhu/zz.jpg" alt="支付宝赞助码" class="sponsor-img" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
                         <p class="sponsor-qr-placeholder" style="display:none"><?= t('sponsor.loading') ?></p>
                         <p class="sponsor-hint"><?= t('sponsor.alipay') ?></p>
                     </div>
@@ -272,15 +337,7 @@ $categories = [
         </div>
     </div>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · 蕭遞版权所有</p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-            <p style="opacity:.7;font-size:12px;"><?= t('footer.ai_note') ?></p>
-            <p><a href="#sponsor" data-open-sponsor style="color:inherit;text-decoration:underline dotted;">支持我们</a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter(['sponsor' => true]); ?>
 
     <script>
     (function(){

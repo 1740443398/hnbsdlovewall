@@ -46,6 +46,14 @@ usort($comments, function($a, $b) {
 });
 
 $result = [];
+
+// 当前用户赞过的评论 id 集合（一次性查，避免循环里反复扫表）
+$likedSet = [];
+if (!empty($user['id'])) {
+    foreach ($fs->find('comment_likes', ['user_id' => $user['id']]) as $cl) {
+        $likedSet[(int)($cl['comment_id'] ?? 0)] = true;
+    }
+}
 foreach ($comments as $c) {
     $cAnonymous = !empty($c['is_anonymous']);
     $cUser = $cAnonymous ? null : $fs->findById('users', $c['user_id']);
@@ -82,7 +90,12 @@ foreach ($comments as $c) {
         'content' => $c['content'],
         'is_anonymous' => $cAnonymous,
         'author' => $author,
-        'created_at' => $c['created_at']
+        'created_at' => $c['created_at'],
+        // 评论点赞：存在 comments.likes 里，但之前没返回给客户端 ——
+        // 结果是 App 与网页的评论赞数永远是 0，即使有人点过。
+        'likes' => intval($c['likes'] ?? 0),
+        // 当前用户是否赞过这条（未登录时恒为 false）
+        'is_liked' => isset($likedSet[(int)$c['id']]),
     ];
 }
 
@@ -91,7 +104,7 @@ jsonSuccess(lwProjectTop(
     ['comments' => lwProjectRows(
         $result,
         lwFieldsRequest(),
-        ['id', 'content', 'is_anonymous', 'author', 'created_at'],
+        ['id', 'content', 'is_anonymous', 'author', 'created_at', 'likes', 'is_liked'],
         ['id']
     )],
     lwTopRequest(),

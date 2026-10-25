@@ -24,11 +24,38 @@
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/ai_chat_flow.php';
+require_once __DIR__ . '/../includes/ai_cache.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 // 准备：鉴权 + 限流 + 消息校验 + 系统提示词 + 站点上下文（失败时内部已终止请求）
+// 注意顺序：**先鉴权限流、后查缓存**。缓存命中不能成为绕过封禁/配额的口子。
 $ctx = aiChatPrepare();
+
+$cacheKey = lwAiCacheKey($ctx);
+$cached = lwAiCacheGet($cacheKey);
+if ($cached !== null) {
+    // 命中：不调模型、不取上下文，但审计照写（cached=1 + 省下的耗时），
+    // 这样后台「AI 调用记录」里能一眼看出缓存到底省了多少次付费调用。
+    $hit = [
+        'ok'         => true,
+        'status'     => 200,
+        'usage'      => ['cached' => 1],
+        'key_tries'  => 0,
+        'cached'     => true,
+    ];
+    $result = aiChatFinalize($ctx, $cached['reply'], (string)($cached['reasoning'] ?? ''), $hit, 0);
+    if (isset($result['error'])) {
+        // 收尾阶段报错（极少）时不要把缓存命中当成硬失败，退回真实调用
+        $result = null;
+    } else {
+        if (empty($result['sources']) && !empty($cached['sources'])) {
+            $result['sources'] = $cached['sources'];
+        }
+        $result['cached'] = true;
+        jsonSuccess($result);
+    }
+}
 
 $timeout = 60;
 
@@ -48,6 +75,13 @@ $result = aiChatFinalize($ctx, $content, $reasoning, $aiResult, $aiElapsedMs);
 
 if (isset($result['error'])) {
     jsonError($result['error'], $result['code'] ?? 502);
+}
+
+// 只在「成功 + 没有确认卡片」时回填缓存：
+// 带卡片的回复依赖会话里一次性 token，给别人用不了（见 includes/ai_cache.php 注释）。
+if (!empty($aiResult['ok']) && empty($result['action'])) {
+    lwAiCachePut($cacheKey, $result['reply'], (string)$result['reasoning'], $result['sources'] ?? []);
+    lwAiCacheGc();
 }
 
 jsonSuccess($result);

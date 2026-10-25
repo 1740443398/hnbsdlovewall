@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/translate.php';
 require_once __DIR__ . '/../../includes/post_visibility.php';
 require_once __DIR__ . '/../../includes/sort_util.php';
 require_once __DIR__ . '/../../includes/fields.php';
@@ -31,6 +32,14 @@ if ($isGuest) {
     $page = 1;
     $limit = GUEST_VISIBLE_POSTS;
     $offset = 0;
+
+    // 公开信息流（游客视角）：响应里没有任何「我」的字段（is_liked / is_favorited /
+    // is_anonymous 都是纯展示），因此可以安全地让浏览器与中间层共享 caching。
+    // 为什么值得：首页信息流是本站命中最多的请求，游客占大头，每人每次都回源等于
+    // 每天都在把同一批 3 条 20KB 的 JSON 重新拼一遍。
+    // 60 秒 + 300 秒 stale-while-revalidate：帖子上墙最多晚 1 分钟，
+    // 而「先给旧副本、后台换新」让翻页与刷新永远不等。
+    lwCacheShared(60, 300);
 }
 
 // 屏蔽过滤：隐藏「我屏蔽的人」与「屏蔽了我的人」发布的帖子。

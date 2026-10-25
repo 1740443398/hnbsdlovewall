@@ -57,9 +57,9 @@ $mnavAria = function ($key) use ($mobileNavActive) {
         <span><?= t('mnav.home') ?></span>
     </a>
     <?php if ($user): ?>
-    <a href="<?= SITE_URL ?>/pages/user_center.php?tab=favorites" class="mobile-nav-item<?= $mnavIs('fav') ?>" data-nav="fav"<?= $mnavAria('fav') ?>>
+    <a href="<?= SITE_URL ?>/pages/discover.php" class="mobile-nav-item<?= $mnavIs('discover') ?>" data-nav="discover"<?= $mnavAria('discover') ?>>
         <?= lw_icon('star', 20, ['wrap' => false]) ?>
-        <span><?= t('mnav.fav') ?></span>
+        <span>发现</span>
     </a>
     <a href="<?= SITE_URL ?>/pages/post.php" class="mobile-nav-item mobile-nav-item--compose<?= $mnavIs('compose') ?>" data-nav="compose" aria-label="<?= t('mnav.compose_aria') ?>"<?= $mnavAria('compose') ?>>
         <?php /* 发帖键线宽原为 2.4，比标尺更粗（要压在蓝色圆底上），显式覆盖以保持原观感 */ ?>

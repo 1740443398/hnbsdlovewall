@@ -5,6 +5,12 @@ require_once __DIR__ . '/../config/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+// 天气挂件会跟着每个页面被打开：游客视角的同一城市结果完全相同，且外部数据本身
+// 就有分钟的粒度。600 秒共享缓存 + 一天 stale-while-revalidate，把「每开一页
+// 就打一次外网」压成「十分钟一次」（还能顺带绕开上游 v/ip 限流）。
+// 注意：失败分支（405/429/取数失败）都在下面提前 exit，走不到缓存档位，不受影响。
+lwCacheShared(600, 86400);
+
 // 本端点的响应约定是「成功给数据、失败给 error 字段」（前端据此判断），
 // 所以这里不用 jsonError 的 {success:false,message:...} 形状，保持一致。
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

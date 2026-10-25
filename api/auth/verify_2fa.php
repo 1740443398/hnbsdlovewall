@@ -86,6 +86,8 @@ if ($recoveryCode) {
     $_SESSION['user_role'] = $user['role'];
     disableGuestMode();
     session_regenerate_id(true);
+    // 登录成功会换发会话：此响应不可被缓存
+    lwMarkSessionCookieWritten();
     unset($_SESSION['login_temp_user_id']);
     unset($_SESSION['login_temp_qq']);
     unset($_SESSION['login_temp_token']);
@@ -130,6 +132,8 @@ $_SESSION['security_stamp'] = $user['security_stamp'];
 $_SESSION['user_role'] = $user['role'];
 disableGuestMode();
 session_regenerate_id(true);
+// 登录成功会换发会话：此响应不可被缓存
+lwMarkSessionCookieWritten();
 unset($_SESSION['login_temp_user_id']);
 unset($_SESSION['login_temp_qq']);
 unset($_SESSION['login_temp_token']);

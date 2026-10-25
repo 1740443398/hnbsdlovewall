@@ -84,6 +84,8 @@ $_SESSION['user_role'] = $user['role'];
 // 登录成功后退出游客模式，恢复完整功能
 disableGuestMode();
 session_regenerate_id(true);
+// 响应里带着新的会话 ID：此响应不可被任何缓存层留存（http_cache.php 约束 1）
+lwMarkSessionCookieWritten();
 
 logUserActivity($user['id'], 'login', '登录成功');
 

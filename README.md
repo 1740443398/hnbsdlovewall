@@ -45,6 +45,124 @@ When redistributing, ship `LICENSE`, `THIRD_PARTY_LICENSES.md` and `licenses/` t
 - Every outgoing email carries the site URL in its footer
 - Roll call / check-in page (`pages/rollcall.php`)
 
+### File Transfer Helper (`/filehelper`)
+
+A WeChat-Web-style transfer assistant that works **without login** and burns files after delivery.
+
+- **Three-tier channel selection by size**, fully automatic:
+  - `<= 20 MB` - relayed through this server, auto-deleted after **1 minute**
+  - `20 MB ~ 1 GB` - **WebRTC peer-to-peer**; the file never touches the server
+  - `1 GB ~ 3 GB` - uploaded **directly from the browser to a third-party drive**,
+    bypassing PHP's upload limit entirely
+- **Any two internet-capable devices can pair** - phone-to-phone, desktop-to-desktop,
+  phone-to-desktop. Roles are neutral (`initiator` / `joiner`) rather than "PC" / "phone".
+- **LAN-direct bonus**: when both devices sit on the same Wi-Fi, WebRTC picks a host
+  candidate and the transfer runs over the local link at router speed. The UI shows a
+  green **"LAN direct"** badge, or an orange **"relayed"** badge otherwise.
+- **Pairing code** rendered as `Code: XXXXXX` plus a scannable QR code.
+- **Automatic fallback**: if P2P cannot connect within 12 s, the file silently switches
+  to the cloud channel instead of leaving the user waiting.
+- **Watchdog**: rebuilds the WebRTC session up to 3 times before giving up.
+- Admin panels: transfer log (IP / filename / size / channel) and cloud-drive
+  configuration with live quota display.
+
+### Self-Healing Guard (`admin/selfheal.php`)
+
+Free shared hosting fails in specific, repeatable ways. This layer walks the site back
+automatically instead of showing a blank page.
+
+| Layer | Trigger | Behaviour |
+|---|---|---|
+| **L1 Circuit breaker** | 5 consecutive failures on one operation | fail fast for 30 s, then half-open probe |
+| **L2 Data self-heal** | corrupted JSON | restore from `.bak`; if that fails, quarantine the bad file and return an empty structure |
+| **L3 Disk guard** | free space < 20 MB | refuse writes and tell the user plainly - **never** pretend a post was published |
+| **L4 Safe mode** | error rate >= 35% over 60 s | disable AI / search / recommendations / widgets; **browsing and posting stay on** |
+
+All state lives in `data/_selfheal.json` (atomic write + `.bak`), with a rolling
+event log in `data/_selfheal_log.jsonl`. The admin page shows breaker state,
+error-rate window, disk headroom, and every self-heal event.
+
+### Invitation System
+
+Invitation is the site's only growth path, and it does triple duty:
+entry gate, attribution, and reward.
+
+- **Invite code skips the entrance quiz.** New-student verification (school slogan /
+  principal's name) exists to keep outsiders out. But when a member hands their code
+  to a classmate, that act already proves the same thing.
+  The server **verifies the code actually exists** via `lwInviteFindInviter()` first —
+  a made-up string still sends you back to the quiz, so the gate stays intact.
+- Registration page offers a **"Answer quiz / Use invite code"** switch, and supports
+  `?invite=CODE` deep links.
+- **Invite relationship graph** (`admin/invite_graph.php`): an expandable tree of who
+  invited whom, with a **"re-invited N"** badge showing second-level spread.
+- **Abuse detection**: 10 minutes with 5+ signups under one inviter is flagged red —
+  the usual signature of reward farming.
+
+### AI Moderation: Sync Gate + Async Review
+
+Posting used to run AI review synchronously. GLM takes 1-3 s, and the host adds
+~1 s — users waited 4-6 s, assumed it hung, tapped again, and hit the rate limit.
+
+Now split in two:
+
+| Stage | What runs | Cost |
+|---|---|---|
+| **Sync gate** | keyword + structural scan (pure local) | ~2 ms |
+| **Async review** | AI scan after the response is flushed (`fastcgi_finish_request`) | user-invisible |
+
+The AI can **only demote a post to pending** at score >= 60 — it never rejects.
+See `includes/ai_review.php`.
+
+### Idle-time AI Translation
+
+Posts get silently translated at publish time (zh<->en plus Simplified/Traditional).
+Historical posts and ja/ko are filled in later, when the server is idle:
+
+- `lwTranslatePostTo($postId, $lang)` — translate to `zh_CN` / `zh_TW` / `en` / `ja` / `ko`, cached per post
+- `lwQueueZhVariant()` — pre-generate the other Chinese variant at publish time
+  (same language family, fast, benefits roughly half of readers)
+- `tools/ai_translate_idle.php` — batch job that **backs off during daytime** (08:00-23:00)
+
+Deliberate trade-off: English / Japanese / Korean are **not** pre-generated.
+Translating one post into 5 languages costs 5-15 s of quota, while most readers use
+exactly one language — so those are generated lazily, on first read.
+
+```bash
+php tools/ai_translate_idle.php --stats          # how many posts are pending
+php tools/ai_translate_idle.php --limit=20       # process 20
+php tools/ai_translate_idle.php --force          # ignore the daytime check
+```
+
+### App Install Stats: Deduplicated by Person
+
+A single person reinstalling changes `device_id`, so counting devices
+systematically overstates installs.
+
+Dedup key: **same device model + same account = same person**
+
+| Has user_id | Has model | Dedup key |
+|---|---|---|
+| yes | yes | `user_id + model` |
+| yes | no | `user_id` |
+| no | yes | `model` |
+| no | no | `device_id` (no merging) |
+
+The admin card now leads with **"installs (deduplicated)"** and notes the raw
+device count beside it. On the reference deployment, 11 device rows collapse to 2 people.
+
+### Cloud Drive Cleanup
+
+Third-party drive deletions can be blocked by a stuck task queue on their side,
+returning "task in progress" for *every* delete request — even for non-existent IDs,
+which proves it is an account-level lock, not a per-file problem.
+
+- Failed deletions are recorded in `data/filehelper/pending_cloud.json`
+- Retried opportunistically on room creation / large-file uploads (25% chance)
+- `tools/cloud_cleanup.php` forces a retry; `--stats` shows the backlog
+
+File references are preserved, so nothing is silently orphaned.
+
 ### User System
 - QQ-based registration and login
 - QQ number change request (submitted in user center, approved by admin) and admin review panel
@@ -225,6 +343,19 @@ A user-supplied AI **shares the exact same core** as the site default, so it kee
 - Safe area adaptation for notched screens
 - Accessibility: site-wide `aria-pressed` state sync, `role="group"` labelling, `aria-live="polite"` toast container, `autocomplete` hints on password fields, keyboard-reachable focus rings
 - High contrast / print / reduced-motion preferences, plus a `forced-colors` fallback for glass panels under Windows forced-colour mode
+
+## Performance notes
+
+The reference deployment runs on a free shared host where **every HTTP request costs
+a fixed ~950 ms** (gateway throttling, independent of payload size). Optimisation is
+therefore driven by **request count**, not bytes:
+
+- All small first-party CSS/JS are bundled by `tools/lw_bundle_assets.py` into
+  `assets/css/bundle.css` + `assets/js/bundle.js` - **24 requests down to 10**.
+- `asset_url()` picks the **smallest** available build (`.obf.js` / `.min.js` / source)
+  rather than always preferring the obfuscated one. Obfuscation can *inflate* files
+  (it grew `enhancements.js` from 524 KB to 824 KB), so size wins over obfuscation.
+- Regenerate bundles after touching any bundled source: `python tools/lw_bundle_assets.py`.
 
 ## Technical Stack
 

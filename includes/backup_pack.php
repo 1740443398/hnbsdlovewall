@@ -30,8 +30,43 @@ if (!defined('MAX_BACKUP_IMPORT_SIZE')) {
 if (!class_exists('BackupPack')) {
     class BackupPack
     {
-        /** 备份格式版本：1 = 仅数据；2 = 数据 + 图片 */
-        const FORMAT_VERSION = 2;
+        /**
+         * 备份格式版本：
+         *   1 = 仅数据
+         *   2 = 数据 + 图片
+         *   3 = 数据 + 图片 + **全站代码**（还原时忽略代码，见下方 writeZip 注释）
+         */
+        const FORMAT_VERSION = 3;
+
+        /**
+         * 代码备份的目录白名单（相对站点根）。
+         *
+         * 只打这些目录，不整站打包 —— 否则会把 data/（已在表里）、uploads/
+         * （已单独打包）、以及 host 注入的临时文件一起塞进去，包大一倍还容易带出敏感内容。
+         *
+         * 排除 config/config.php 与 config/*secret* ：里面是数据库密钥、邮件口令，
+         * 代码备份是「留档/迁移参考」，不应该顺带把密钥散出去。
+         */
+        const CODE_DIRS = [
+            'api', 'assets', 'includes', 'pages', 'admin', 'config',
+            'tools', 'app', 'download',
+        ];
+
+        const CODE_ROOT_FILES = [
+            'index.php', 'sitemap.php', 'install.php', 'app_auth.php',
+            '.htaccess', 'robots.txt', 'manifest.json', 'sw.js',
+        ];
+
+        /** 代码备份里要跳过的文件名模式（敏感配置与运行时产物） */
+        const CODE_SKIP_PATTERNS = [
+            '/config\.php$/i',
+            '/secret/i',
+            '/\.log$/i',
+            '/\.tmp\./',
+            '/\.lock$/',
+            '/\.bak$/',
+            '/sync_nonces\.json$/',
+        ];
 
         /** 导出/导入的数据表白名单（防止写出任意文件） */
         public static function allowedTables(): array
@@ -85,7 +120,9 @@ if (!class_exists('BackupPack')) {
                 'generator' => $generator,
                 'exported_by' => 'super_admin',
                 'contains_uploads' => true,
+                'contains_code' => true,
                 'uploads' => self::uploadsIndex(),
+                'code' => self::codeSummary(self::codeIndex()),
             ];
             return $out;
         }
@@ -125,6 +162,95 @@ if (!class_exists('BackupPack')) {
             return $files;
         }
 
+        /**
+         * 递归列出要打进代码备份的文件。
+         *
+         * @return array<int, array{abs:string, path:string, bytes:int}>
+         *         path 是相对站点根的路径（ZIP 里会加上 code/ 前缀）
+         */
+        public static function codeIndex(): array
+        {
+            $root = self::siteRoot();
+            $out = [];
+            $skip = self::CODE_SKIP_PATTERNS;
+
+            $shouldSkip = static function (string $path) use ($skip): bool {
+                foreach ($skip as $re) {
+                    if (preg_match($re, $path)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            // 目录白名单
+            foreach (self::CODE_DIRS as $dir) {
+                $abs = $root . '/' . $dir;
+                if (!is_dir($abs)) {
+                    continue;
+                }
+                $it = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($abs, FilesystemIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::SELF_FIRST
+                );
+                foreach ($it as $file) {
+                    if (!$file->isFile()) {
+                        continue;
+                    }
+                    $absPath = str_replace('\\', '/', $file->getPathname());
+                    $rel = ltrim(substr($absPath, strlen($root)), '/');
+                    if ($shouldSkip($rel)) {
+                        continue;
+                    }
+                    $out[] = [
+                        'abs' => $absPath,
+                        'path' => $rel,
+                        'bytes' => (int)$file->getSize(),
+                    ];
+                }
+            }
+
+            // 根目录的散装入口文件
+            foreach (self::CODE_ROOT_FILES as $f) {
+                $abs = $root . '/' . $f;
+                if (is_file($abs) && !$shouldSkip($f)) {
+                    $out[] = ['abs' => $abs, 'path' => $f, 'bytes' => (int)filesize($abs)];
+                }
+            }
+
+            // 按路径排序，包内顺序稳定（便于比对两次备份的差异）
+            usort($out, static fn($a, $b) => strcmp($a['path'], $b['path']));
+            return $out;
+        }
+
+        /** 站点根目录。 */
+        public static function siteRoot(): string
+        {
+            return defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__);
+        }
+
+        /** 代码清单摘要（_meta 用，不列全部文件以免 _meta 过大）。 */
+        public static function codeSummary(array $index): array
+        {
+            $total = 0;
+            $byExt = [];
+            foreach ($index as $f) {
+                $total += $f['bytes'];
+                $ext = strtolower(pathinfo($f['path'], PATHINFO_EXTENSION)) ?: 'none';
+                if (!isset($byExt[$ext])) {
+                    $byExt[$ext] = ['files' => 0, 'bytes' => 0];
+                }
+                $byExt[$ext]['files']++;
+                $byExt[$ext]['bytes'] += $f['bytes'];
+            }
+            ksort($byExt);
+            return [
+                'files' => count($index),
+                'bytes' => $total,
+                'by_extension' => $byExt,
+            ];
+        }
+
         /** uploads/ 文件清单（_meta 用） */
         public static function uploadsIndex(): array
         {
@@ -143,8 +269,20 @@ if (!class_exists('BackupPack')) {
         /**
          * 把数据表（+ 可选图片）打成 ZIP。
          * @param bool $withUploads 是否把 uploads/ 里的图片实体一起写进去
+         * @param bool $withCode    是否把全站代码一起写进去（code/ 前缀）
+         *
+         * 【为什么代码只备份、不还原】
+         * 还原时的解析器只认 uploads/ 与 media/ 两类条目，其余一律跳过
+         * （见 parsePackage 的 entry 判定）。所以 code/ 条目天然不会被写回磁盘 ——
+         * 这是刻意设计：代码回滚应该走 git/发布流程，不能让一个上传的 ZIP
+         * 直接覆盖线上 PHP，那等于给备份包开了个任意写文件的口子。
          */
-        public static function writeZip(string $zipPath, array $tables, bool $withUploads = false): bool
+        public static function writeZip(
+            string $zipPath,
+            array $tables,
+            bool $withUploads = false,
+            bool $withCode = false
+        ): bool
         {
             if (!class_exists('ZipArchive')) {
                 return false;
@@ -171,18 +309,38 @@ if (!class_exists('BackupPack')) {
                 }
             }
 
+            // 代码备份：一律加 code/ 前缀。还原解析器不认这个前缀，所以不会被写回。
+            $codeCount = 0;
+            $codeSummary = null;
+            if ($withCode) {
+                $codeIdx = self::codeIndex();
+                $codeSummary = self::codeSummary($codeIdx);
+                foreach ($codeIdx as $f) {
+                    if (@$zip->addFile($f['abs'], 'code/' . $f['path'])) {
+                        $codeCount++;
+                    }
+                }
+            }
+
             $readme = 'README_还原说明.txt';
-            $zip->addFromString($readme, self::readmeText($withUploads, $uploadCount));
+            $zip->addFromString($readme, self::readmeText($withUploads, $uploadCount, $codeCount));
             if (method_exists($zip, 'setExternalAttributesName')) {
                 $zip->setExternalAttributesName($readme, ZipArchive::OPSYS_UNIX, 0100644 << 16, ZipArchive::FL_ENC_UTF_8);
             }
             return $zip->close();
         }
 
-        /** 完整备份（数据 + 图片）：导出的默认行为 */
-        public static function writeFullZip(string $zipPath, array $tables): bool
-        {
-            return self::writeZip($zipPath, $tables, true);
+        /**
+         * 完整备份（数据 + 图片 + 代码）：导出的默认行为。
+         *
+         * @param bool $withCode 是否附带全站代码（默认 true —— 备份就该是全的）
+         */
+        public static function writeFullZip(
+            string $zipPath,
+            array $tables,
+            bool $withCode = true
+        ): bool {
+            return self::writeZip($zipPath, $tables, true, $withCode);
         }
 
         /** 去掉 UTF-8 BOM —— Windows 记事本 / 部分导出工具会在文件开头写入 EF BB BF，
@@ -377,30 +535,46 @@ if (!class_exists('BackupPack')) {
         }
 
         /** README.txt 内容 */
-        public static function readmeText(bool $withUploads = false, int $uploadCount = 0): string
-        {
+        public static function readmeText(
+            bool $withUploads = false,
+            int $uploadCount = 0,
+            int $codeCount = 0
+        ): string {
             $app = defined('SITE_NAME') ? SITE_NAME : '校园交流墙';
-            $hasUploads = $withUploads ? "  uploads/      帖子图片原始文件（本包含 {$uploadCount} 个），保留 uploads/ 原目录结构\n" : "  （本包不含图片，仅数据）\n";
+            $hasUploads = $withUploads
+                ? "  uploads/      帖子图片原始文件（本包含 {$uploadCount} 个），保留 uploads/ 原目录结构\n"
+                : "  （本包不含图片，仅数据）\n";
+            $hasCode = $codeCount > 0
+                ? "  code/         全站源代码（本包含 {$codeCount} 个文件）—— **仅供留档查阅，还原时不会写回**\n"
+                : "";
             $restoreNote = $withUploads
                 ? "  提交后系统会**按表覆盖数据**，并把 uploads/ 下的图片按原路径写回。\n  未包含在备份里的表保持原样。"
                 : "  系统会按表覆盖写回，其余表不动的保持原样。";
+
             return <<<TXT
-{$app} —— 完整备份（数据 + 图片，ZIP）
+{$app} —— 完整备份（数据 + 图片 + 代码，ZIP）
 =====================================
 
 一、压缩包结构
   <表名>.json         每个数据表一个文件，内容是该表的行数组
-{$hasUploads}  _meta.json          导出来源 / 时间 / 版本，以及 uploads/ 图片文件清单
+{$hasUploads}{$hasCode}  _meta.json          导出来源 / 时间 / 版本，以及图片与代码清单
   README_还原说明.txt  本文件
 
 二、如何还原
   后台 → 数据备份/恢复 → 「从备份包恢复」→ 选择本 .zip 上传即可，**一个包全搞定**。
 {$restoreNote}
 
-三、注意
+三、关于 code/ 目录（重要）
+  本包里的代码**只做留档，不会被还原**。
+  原因：代码回滚必须走版本管理（git）或发布流程，不能让一个上传的 ZIP
+  直接覆盖线上 PHP 文件——那等于给备份包开了个任意写文件的口子。
+  需要回滚代码时，请从 git 历史取，或人工比对 code/ 里的文件。
+
+四、注意
   1) 还原是**覆盖式**操作，不可撤销；恢复前请先导出一次当前数据。
   2) 含用户、私信等敏感数据，请勿外传。
-  3) 本包只还原 uploads/ 下的图片；站点自身资源（assets/、图标等）不在包内。
+  3) 代码备份已排除 config/config.php 等含密钥的文件。
+  4) 本包还原 uploads/ 下的图片；assets/ 等站点资源不还原。
 TXT;
         }
     }

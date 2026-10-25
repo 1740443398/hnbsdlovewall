@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/zh_convert.php';
 
@@ -629,13 +630,7 @@ if ($editPostId > 0) {
         </div>
     </div>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p>本平台为学生自发搭建交流平台，不属于淮南市北师大实验中学官方平台</p>
-            <p>&copy; 2026 <?= htmlspecialchars(SITE_NAME) ?> · 蕭遞版权所有</p>
-            <p>GitHub 开源地址（可点击跳转）：<a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <?php
     $mobileNavActive = 'compose';
@@ -665,20 +660,53 @@ if ($editPostId > 0) {
             setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
         }
 
+        /* 错误提示。
+         *
+         * 【判空的必要性】这里原本也直接访问 el.textContent，
+         * 一旦 #alertError 不存在，showAlert 抛出异常会让
+         * 「校验失败 → 提示用户」这条路径直接崩掉 ——
+         * 用户看不到任何原因，只觉得点了没反应。
+         * 提示框拿不到时退回 alert()，至少让用户知道发生了什么。
+         */
         function showAlert(msg) {
             const el = document.getElementById('alertError');
+            if (!el) {
+                try { window.alert(String(msg || '操作失败')); } catch (e) {}
+                return;
+            }
             el.textContent = msg;
             el.classList.add('show');
         }
 
         function hideAlert() {
-            document.getElementById('alertError').classList.remove('show');
+            const el = document.getElementById('alertError');
+            if (el) el.classList.remove('show');
         }
 
+        /* 切换按钮的加载态。
+         *
+         * 【为什么每个参数都要判空】
+         * 原来这里直接写 textEl.style.display —— 只要任何一个元素拿不到，
+         * 就是 "Cannot read properties of null (reading 'style')"，
+         * 整个 submit 处理器当场中断，fetch 根本不会发出。
+         * 用户的体感就是「点了发布，什么都没发生」，而控制台只有一行报错。
+         *
+         * 元素为什么会拿不到：页面上的按钮可能被别的脚本重构过 DOM
+         * （骨架屏、增强模块、PWA 提示层都可能动它），或者用户在
+         * 页面还没完全初始化时就已经点了提交。这些都不该让发帖失败。
+         *
+         * 判空之后最坏情况只是「按钮没有转圈」，帖子照样发得出去。
+         */
         function setLoading(btn, textEl, spinnerEl, loading) {
-            btn.disabled = loading;
-            textEl.style.display = loading ? 'none' : '';
-            spinnerEl.style.display = loading ? 'inline-block' : 'none';
+            if (btn) {
+                btn.disabled = !!loading;
+            }
+            if (textEl && textEl.style) {
+                textEl.style.display = loading ? 'none' : '';
+            }
+            if (spinnerEl && spinnerEl.style) {
+                spinnerEl.style.display = loading ? 'inline-block' : 'none';
+            }
         }
 
         if (IS_EDIT_MODE && EDIT_POST_DATA) {

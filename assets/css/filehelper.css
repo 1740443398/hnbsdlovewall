@@ -1,0 +1,355 @@
+/* ==========================================================================
+ * 文件传输助手
+ * --------------------------------------------------------------------------
+ * 设计取向：单页应用式的「安静」界面。
+ * 不用大面积渐变和阴影，因为用户在这里是「干活」不是「逛」。
+ * 配色沿用站点主色 #2F5B9A，保证从首页跳进来不会有割裂感。
+ * ========================================================================== */
+
+:root {
+    --fh-primary: #2F5B9A;
+    --fh-primary-light: #4F7FE0;
+    --fh-bg: #F5F7FA;
+    --fh-card: #FFFFFF;
+    --fh-border: #E4E9F0;
+    --fh-text: #1F2733;
+    --fh-text-2: #5B667A;
+    --fh-text-3: #9AA4B2;
+    --fh-success: #22B07D;
+    --fh-warn: #F2994A;
+    --fh-danger: #E5484D;
+}
+
+* { box-sizing: border-box; }
+
+.fh-body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--fh-bg);
+    color: var(--fh-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- 顶栏 ---------- */
+.fh-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    background: var(--fh-card);
+    border-bottom: 1px solid var(--fh-border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+.fh-logo {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--fh-primary-light), var(--fh-primary));
+    color: #fff; text-decoration: none; flex: 0 0 auto;
+}
+.fh-title { font-size: 16px; font-weight: 600; margin: 0; flex: 1 1 auto; }
+.fh-icon-btn {
+    width: 34px; height: 34px; border: 0; border-radius: 9px;
+    background: transparent; color: var(--fh-text-2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+}
+.fh-icon-btn:hover { background: var(--fh-bg); }
+
+/* ---------- 主区域 ---------- */
+.fh-main {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 18px 32px;
+}
+
+/* ---------- 配对界面 ---------- */
+.fh-pair-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+@media (max-width: 640px) {
+    .fh-pair-grid { grid-template-columns: 1fr; }
+}
+
+.fh-pair-card {
+    background: var(--fh-card);
+    border: 1px solid var(--fh-border);
+    border-radius: 14px;
+    padding: 22px 18px;
+    text-align: center;
+}
+.fh-pair-icon {
+    width: 52px; height: 52px; margin: 0 auto 12px;
+    border-radius: 13px; display: flex; align-items: center; justify-content: center;
+    color: #fff;
+}
+.fh-pair-icon-pc { background: linear-gradient(135deg, #4F7FE0, #2F5B9A); }
+.fh-pair-icon-mobile { background: linear-gradient(135deg, #22B07D, #128C63); }
+.fh-pair-card h2 { font-size: 15px; margin: 0 0 6px; font-weight: 600; }
+.fh-pair-desc { font-size: 12px; color: var(--fh-text-3); margin: 0 0 16px; }
+
+/* 卡片底部的小字说明 */
+/* 链路状态徽标：明确告诉用户「走的是局域网还是外网」 */
+.fh-link-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.fh-link-badge.is-lan {
+    background: #EAF7F1;
+    color: #178A62;
+    border: 1px solid #C5E9D8;
+}
+.fh-link-badge.is-relay {
+    background: #FEF8EC;
+    color: #B06A16;
+    border: 1px solid #F3E0BE;
+}
+.fh-link-badge[hidden] {
+    display: none !important;
+}
+
+.fh-pair-foot {
+    font-size: 11px;
+    color: var(--fh-text-3);
+    margin: 12px 0 0;
+    line-height: 1.5;
+}
+
+/* 配对码 + 二维码 */
+.fh-code-box { margin-bottom: 14px; }
+/* 配对码：一行「配对码：XXXXXX」，不要再堆字距和巨号字 */
+.fh-code-line {
+    font-size: 15px;
+    color: var(--fh-text-2);
+    margin-bottom: 14px;
+    letter-spacing: 0;
+}
+.fh-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--fh-primary);
+    user-select: all;
+    vertical-align: -1px;
+}
+.fh-qr {
+    width: 150px; height: 150px; margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+}
+.fh-qr img, .fh-qr canvas { width: 150px; height: 150px; display: block; }
+.fh-code-tip { font-size: 11px; color: var(--fh-text-3); }
+
+.fh-code-input {
+    width: 100%; padding: 13px 14px; margin-bottom: 10px;
+    border: 1.5px solid var(--fh-border); border-radius: 10px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 20px; font-weight: 600; letter-spacing: 5px;
+    text-align: center; text-transform: uppercase;
+    background: var(--fh-bg); color: var(--fh-text);
+    outline: none; transition: border-color .15s;
+}
+.fh-code-input:focus { border-color: var(--fh-primary); background: #fff; }
+.fh-code-input::placeholder { color: #C5CCD6; letter-spacing: 5px; }
+
+/* ---------- 按钮 ---------- */
+.fh-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 11px 20px; border: 0; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: transform .1s, opacity .15s, background .15s;
+    width: 100%;
+}
+.fh-btn:active { transform: scale(.98); }
+.fh-btn:disabled { opacity: .5; cursor: not-allowed; }
+.fh-btn-primary {
+    background: linear-gradient(135deg, var(--fh-primary-light), var(--fh-primary));
+    color: #fff;
+}
+.fh-btn-ghost { background: var(--fh-bg); color: var(--fh-text-2); }
+.fh-btn-ghost:hover { background: #EBEFF5; }
+.fh-btn-sm { width: auto; padding: 7px 14px; font-size: 12px; border-radius: 8px; }
+
+/* ---------- 提示 ---------- */
+.fh-tips { margin-top: 18px; text-align: center; }
+.fh-tips p { font-size: 12px; color: var(--fh-text-2); margin: 0 0 4px; }
+.fh-tips-sub { font-size: 11px !important; color: var(--fh-text-3) !important; }
+
+/* ---------- 房间界面 ---------- */
+.fh-room-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--fh-card); border: 1px solid var(--fh-border);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;
+}
+.fh-room-code { font-size: 12px; color: var(--fh-text-3); }
+.fh-room-code b {
+    font-family: ui-monospace, Menlo, monospace; font-size: 15px;
+    color: var(--fh-primary); letter-spacing: 2px; margin-left: 4px;
+}
+.fh-peers { display: flex; gap: 8px; margin-left: auto; }
+.fh-peer {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--fh-text-3);
+    background: var(--fh-bg); padding: 4px 9px; border-radius: 20px;
+}
+.fh-peer i {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--fh-text-3); display: block;
+}
+.fh-peer.is-online { color: var(--fh-success); background: #E8F7F0; }
+.fh-peer.is-online i { background: var(--fh-success); }
+
+/* 拖拽区 */
+.fh-drop {
+    border: 2px dashed var(--fh-border);
+    border-radius: 14px;
+    padding: 34px 18px;
+    text-align: center;
+    background: var(--fh-card);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    margin-bottom: 12px;
+}
+.fh-drop:hover, .fh-drop.is-over {
+    border-color: var(--fh-primary-light);
+    background: #F8FAFE;
+}
+.fh-drop-icon { color: var(--fh-text-3); margin-bottom: 10px; }
+.fh-drop-title { font-size: 14px; font-weight: 500; margin: 0 0 4px; }
+.fh-drop-sub { font-size: 12px; color: var(--fh-text-3); margin: 0; }
+
+/* 文本输入 */
+.fh-text-row {
+    display: flex; gap: 9px; margin-bottom: 16px; align-items: flex-end;
+}
+.fh-text-row textarea {
+    flex: 1 1 auto; min-width: 0; resize: none;
+    padding: 11px 13px; border: 1px solid var(--fh-border);
+    border-radius: 10px; background: var(--fh-card);
+    font-family: inherit; font-size: 14px; color: var(--fh-text);
+    outline: none; max-height: 120px; transition: border-color .15s;
+}
+.fh-text-row textarea:focus { border-color: var(--fh-primary); }
+.fh-btn-send { width: auto; flex: 0 0 auto; padding: 11px 20px; }
+
+/* ---------- 文件列表 ---------- */
+.fh-list { display: flex; flex-direction: column; gap: 9px; }
+.fh-item {
+    display: flex; align-items: center; gap: 11px;
+    background: var(--fh-card); border: 1px solid var(--fh-border);
+    border-radius: 11px; padding: 12px 14px;
+}
+.fh-item-icon {
+    width: 38px; height: 38px; flex: 0 0 auto; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .5px;
+}
+.fh-item-body { flex: 1 1 auto; min-width: 0; }
+.fh-item-name {
+    font-size: 13px; font-weight: 500; margin-bottom: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fh-item-meta { font-size: 11px; color: var(--fh-text-3); }
+.fh-item-actions { flex: 0 0 auto; display: flex; gap: 6px; }
+
+/* 进度条 */
+.fh-progress {
+    height: 3px; background: var(--fh-border); border-radius: 2px;
+    margin-top: 6px; overflow: hidden;
+}
+.fh-progress > i {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--fh-primary-light), var(--fh-success));
+    transition: width .25s ease;
+}
+
+/* 文本消息气泡 */
+.fh-item-text {
+    background: var(--fh-card); border: 1px solid var(--fh-border);
+    border-radius: 11px; padding: 12px 14px;
+    font-size: 13px; white-space: pre-wrap; word-break: break-word;
+}
+.fh-item-text .fh-text-meta {
+    font-size: 11px; color: var(--fh-text-3); margin-top: 6px;
+}
+
+.fh-empty {
+    text-align: center; padding: 40px 0;
+    color: var(--fh-text-3); font-size: 13px;
+}
+
+/* ---------- 弹窗 ---------- */
+/* 【关键】hidden 属性必须真正生效。
+ *
+ * 踩过的坑：.fh-modal { display: flex } 会覆盖 HTML 的 hidden 属性
+ * （hidden 只是 UA 样式表里的 display: none，优先级最低）。
+ * 结果弹窗的遮罩层一直盖在页面上，整页发灰、点不动 ——
+ * 看代码完全正常，只能靠截图才看得出来。
+ *
+ * 加 :not([hidden]) 精确限定，或者显式写 [hidden]{display:none}。
+ * 这里两个都写，双保险。
+ */
+.fh-modal[hidden] { display: none !important; }
+
+.fh-modal:not([hidden]) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.fh-modal { position: fixed; inset: 0; z-index: 100; padding: 20px; }
+.fh-modal-mask { position: absolute; inset: 0; background: rgba(16, 24, 40, .45); }
+.fh-modal-box {
+    position: relative; background: var(--fh-card); border-radius: 16px;
+    padding: 24px 22px; max-width: 420px; width: 100%;
+    max-height: 80vh; overflow-y: auto;
+}
+.fh-modal-box h3 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
+.fh-modal-box h3:not(:first-child) { margin-top: 18px; }
+.fh-modal-box ol { margin: 0 0 4px; padding-left: 20px; font-size: 13px; color: var(--fh-text-2); }
+.fh-modal-box ol li { margin-bottom: 5px; }
+.fh-modal-box p { font-size: 13px; color: var(--fh-text-2); margin: 0 0 10px; }
+.fh-modal-box .fh-btn { margin-top: 8px; }
+
+/* ---------- 页脚 ---------- */
+.fh-footer {
+    text-align: center; padding: 18px;
+    font-size: 11px; color: var(--fh-text-3);
+}
+.fh-footer-dot { margin: 0 6px; opacity: .5; }
+.fh-footer a { color: var(--fh-text-3); text-decoration: none; }
+.fh-footer a:hover { color: var(--fh-primary); }
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fh-bg: #14181F;
+        --fh-card: #1C222C;
+        --fh-border: #2A323F;
+        --fh-text: #E8ECF2;
+        --fh-text-2: #A8B2C0;
+        --fh-text-3: #6B7684;
+    }
+    .fh-drop:hover, .fh-drop.is-over { background: #1F2733; }
+    .fh-btn-ghost:hover { background: #252D3A; }
+    .fh-peer.is-online { background: #16342A; }
+}
+
+/* ---------- hidden 属性兜底 ---------- */
+[hidden] { display: none !important; }

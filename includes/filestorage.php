@@ -352,7 +352,46 @@ class FileStorage {
         return $result;
     }
 
+    /**
+     * 请求级读缓存。
+     *
+     * 【为什么需要】
+     * 一次页面请求里，同一张表经常被读很多次。典型例子：
+     *   首页渲染 -> 读 posts、users；
+     *   每条帖子的作者 -> 又读一次 users；
+     *   侧边栏 -> 再读一次 posts 算热门。
+     * 每次 readUnlocked 都要 file_get_contents + json_decode，
+     * users.json 有 77KB / 110 条，解一次约 1~2ms，
+     * 一次首页能解十几次，白白多花 20~30ms。
+     *
+     * 【为什么是「每请求」而不是「跨请求」】
+     * PHP 是无共享的，跨请求缓存必须依赖 APCu/Redis（免费主机没有）。
+     * 请求级缓存虽然生命周期短，但收益最直接：零额外依赖、绝对安全
+     * （写操作会主动失效，不会读到旧数据）。
+     *
+     * 【失效策略】
+     * 任何写操作（insert/update/delete/insertCapped）之后清空对应表的缓存，
+     * 保证同一次请求里「写后读」能读到新值。
+     */
+    private $memCache = [];
+
     private function readUnlocked($table) {
+        // 命中请求级缓存直接返回（数组是值拷贝，调用方改动不会污染缓存）
+        if (array_key_exists($table, $this->memCache)) {
+            return $this->memCache[$table];
+        }
+
+        $data = $this->readUnlockedFromDisk($table);
+        $this->memCache[$table] = $data;
+        return $data;
+    }
+
+    /** 清掉某张表的缓存（写操作后调用）。 */
+    private function invalidateMemCache($table) {
+        unset($this->memCache[$table]);
+    }
+
+    private function readUnlockedFromDisk($table) {
         $file = $this->getFilePath($table);
         clearstatcache(false, $file);
         if (!file_exists($file)) {
@@ -383,6 +422,8 @@ class FileStorage {
     }
 
     private function writeUnlocked($table, $data) {
+        // 写操作一定让读缓存失效，否则同一次请求里「写后读」会拿到旧数据
+        $this->invalidateMemCache($table);
         if (!$this->writable($table)) {
             return false;
         }

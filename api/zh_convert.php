@@ -9,6 +9,10 @@
  * 限流：同一用户/IP 60 秒 60 次（正常编辑远达不到）。
  */
 require_once __DIR__ . '/../config/config.php';
+
+// 公开只读数据：繁简转换 1 天。
+// 加共享缓存后，重复打开不再查数据文件，也不会重复跑 PHP。
+lwCacheShared(86400, 604800);
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/zh_convert.php';
 

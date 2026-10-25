@@ -1750,11 +1750,31 @@
   };
 
   function initImageLightboxDelegation() {
+    /* 【2026-10-24 修】这里原本是第三套触发路径。
+     *
+     * 现在三条路径同时存在：
+     *   1) main.js 给 .post-card-images img 绑的直接监听（带组内切图）
+     *   2) 本函数用 document 代理兜 .post-detail-content img
+     *   3) polish.js 的简易灯箱代理所有 <img>
+     * 一次点击被 1+2 同时接住，Lightbox.open 被调用两次，
+     * 叠出两层遮罩。
+     *
+     * main.js 已经覆盖了 .post-card-images（组内切换）与详情页图片，
+     * 所以这里**只在 main.js 没接管时**兜底：即 App.Lightbox 存在但
+     * 该图不在 main.js 的绑定范围内。
+     *
+     * 实践上最稳的做法是：详情页正文图由本函数负责、卡片图由 main.js 负责，
+     * 用 closest 精确区分，避免重叠。 */
     document.addEventListener('click', function (e) {
-      var img = e.target.closest('.post-card-images img, .post-detail-content img');
+      var img = e.target.closest('.post-detail-content img');
       if (!img) return;
+      // 卡片图归 main.js（它能组内切换），这里不碰
+      if (img.closest('.post-card-images')) return;
+      // 已在链接里的图不拦
+      if (img.closest('a')) return;
 
       if (App.Lightbox) {
+        e.preventDefault();
         App.Lightbox.open(img.getAttribute('data-full') || img.src);
       }
     });

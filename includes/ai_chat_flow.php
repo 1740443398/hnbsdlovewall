@@ -324,6 +324,9 @@ function aiChatFinalize(array $ctx, $content, $reasoning, array $aiResult, $elap
         'model'       => (string)($ctx['model'] ?? ''),
         // token 用量：来自上游 usage，后台按用户/时间汇总消耗
         'usage'       => isset($aiResult['usage']) && is_array($aiResult['usage']) ? $aiResult['usage'] : [],
+        // 是否命中回复缓存（1 = 没有真的调用模型，见 includes/ai_cache.php）。
+        // 有了它，后台用量曲线下降时才分得清「缓存生效」还是「接口挂了」。
+        'cached'      => !empty($aiResult['cached']) ? 1 : 0,
         // AI 回答正文（详情弹窗单独高亮用）
         'answer'      => (string)$content,
         'sources'     => $siteCtx['sources'],

@@ -28,4 +28,7 @@ if (isset($_COOKIE['remember_token'])) {
 $secure = defined('IS_SECURE') ? IS_SECURE : false;
 setcookie(session_name(), '', time() - 3600, '/', '', $secure, true);
 
+// 清 Cookie 的响应同样不能被缓存层留存（否则「退出登录」可能被缓存成永久有效的结果）
+lwMarkSessionCookieWritten();
+
 jsonSuccess([], '已安全退出登录');

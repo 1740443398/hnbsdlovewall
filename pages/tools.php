@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
 
 $fs = getFS();
 
@@ -825,9 +826,73 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
                 <p class="subtitle"><?= t('tools.page_desc') ?></p>
             </div>
 
+            <?php /* 站务类入口：更新日志、下载客户端。
+                     放在最前面而不是塞进某个工具分组里 ——
+                     这两件事属于「了解站点」，不是「用工具」。 */ ?>
+            <div class="tools-category">
+                <div class="tools-category-title">站务</div>
+                <div class="tool-grid">
+                    <a class="tool-card" href="/changelog.php" style="text-decoration:none;color:inherit">
+                        <div class="icon-wrap">
+                            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="clGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#4F7FE0"/>
+                                        <stop offset="100%" stop-color="#7BA7F0"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect x="10" y="8" width="44" height="48" rx="6" fill="url(#clGrad)" opacity=".14"/>
+                                <rect x="10" y="8" width="44" height="48" rx="6" fill="none" stroke="url(#clGrad)" stroke-width="2.5"/>
+                                <line x1="22" y1="8" x2="22" y2="52" stroke="#4F7FE0" stroke-width="2.5" opacity=".5"/>
+                                <circle cx="22" cy="20" r="3.5" fill="#4F7FE0"/>
+                                <circle cx="22" cy="32" r="3.5" fill="#7BA7F0"/>
+                                <circle cx="22" cy="44" r="3.5" fill="#B8CFF2"/>
+                                <line x1="32" y1="20" x2="44" y2="20" stroke="#4F7FE0" stroke-width="2.5" stroke-linecap="round"/>
+                                <line x1="32" y1="32" x2="46" y2="32" stroke="#7BA7F0" stroke-width="2.5" stroke-linecap="round"/>
+                                <line x1="32" y1="44" x2="42" y2="44" stroke="#B8CFF2" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="tool-name">更新日志</div>
+                    </a>
+
+                    <a class="tool-card" href="/download/" style="text-decoration:none;color:inherit">
+                        <div class="icon-wrap">
+                            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="dlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#22B07D"/>
+                                        <stop offset="100%" stop-color="#4ED4A4"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect x="20" y="6" width="24" height="40" rx="4" fill="url(#dlGrad)" opacity=".16"/>
+                                <rect x="20" y="6" width="24" height="40" rx="4" fill="none" stroke="url(#dlGrad)" stroke-width="2.5"/>
+                                <line x1="27" y1="12" x2="37" y2="12" stroke="#22B07D" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M32 20v14M26 29l6 6 6-6" fill="none" stroke="#22B07D" stroke-width="2.8"
+                                      stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="24" y="50" width="16" height="6" rx="3" fill="#4ED4A4" opacity=".55"/>
+                            </svg>
+                        </div>
+                        <div class="tool-name">下载客户端</div>
+                    </a>
+                </div>
+            </div>
+
             <div class="tools-category">
                 <div class="tools-category-title"><?= t('tools.cat_time') ?></div>
                 <div class="tool-grid">
+                    <a class="tool-card" href="/filehelper" style="text-decoration:none;color:inherit">
+                        <div class="icon-wrap">
+                            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                                <defs><linearGradient id="fhGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4F7FE0"/><stop offset="100%" stop-color="#2F5B9A"/></linearGradient></defs>
+                                <rect x="6" y="10" width="30" height="24" rx="4" fill="url(#fhGrad)"/>
+                                <rect x="14" y="38" width="10" height="3" rx="1.5" fill="#4F7FE0" opacity=".7"/>
+                                <rect x="26" y="24" width="22" height="30" rx="4" fill="#22B07D"/>
+                                <path d="M33 36h10M38 31v10" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="tool-name">文件传输助手</div>
+                    </a>
+
                     <div class="tool-card" onclick="openTool('pomodoro')">
                         <div class="icon-wrap">
                             <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -1339,13 +1404,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
     require __DIR__ . '/../includes/mobile_bottom_nav.php';
     ?>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · <?= t('tools.copyright') ?></p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <script>
     let activeModal = null;
@@ -2605,7 +2664,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         var btn = null;
         if (input && input.parentNode) { btn = input.parentNode.querySelector('button'); }
         if (btn) btn.disabled = true;
-        fetch('/api/feature_requests.php', { method: 'POST', body: fd })
+        fetch('/api/feature_requests.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 if (res.success) { showToast(res.message || __t('tr.success')); input.value = ''; featureVoteLoad(); }
@@ -2622,7 +2681,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         fd.append('action', 'vote');
         fd.append('feature_id', id);
         btn.disabled = true;
-        fetch('/api/feature_requests.php', { method: 'POST', body: fd })
+        fetch('/api/feature_requests.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 if (res.success) { showToast(res.message || __t('tools.op_ok')); featureVoteLoad(); }

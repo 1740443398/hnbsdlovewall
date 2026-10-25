@@ -161,7 +161,7 @@ adminHeader('QQ修改审核', $adminUser, $csrfToken);
         fd.append('action', 'review_qq');
         fd.append('id', id);
         fd.append('review', action);
-        fetch('/api/admin/qq_change_review.php', { method: 'POST', body: fd })
+        fetch('/api/admin/qq_change_review.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 alert(res.message || (res.success ? '操作成功' : '操作失败'));
@@ -179,7 +179,7 @@ adminHeader('QQ修改审核', $adminUser, $csrfToken);
         var fd = new FormData();
         fd.append('csrf_token', CSRF_TOKEN);
         fd.append('action', 'list');
-        fetch('/api/admin/send_test_mail.php', { method: 'POST', body: fd })
+        fetch('/api/admin/send_test_mail.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (!res || !res.success) { return; }
@@ -220,7 +220,7 @@ adminHeader('QQ修改审核', $adminUser, $csrfToken);
         fd.append('csrf_token', CSRF_TOKEN);
         fd.append('to', to);
         fd.append('type', type);
-        fetch('/api/admin/send_test_mail.php', { method: 'POST', body: fd })
+        fetch('/api/admin/send_test_mail.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (out) out.textContent = res.message || (res.success ? '发送成功' : '发送失败');

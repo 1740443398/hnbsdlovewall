@@ -97,6 +97,10 @@
       ...options,
       headers: { ...defaultOptions.headers, ...(options.headers || {}) },
     };
+    // cacheTtl 是本模块自己的约定（毫秒），不是 fetch 的选项：合并后立刻摘掉，
+    // 否则它会被原样塞进 fetch()，个别 WebView 会因为这个未知键直接抛 TypeError。
+    const cacheTtl = Number(options.cacheTtl) || 0;
+    delete mergedOptions.cacheTtl;
 
     const method = (mergedOptions.method || 'GET').toUpperCase();
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
@@ -128,9 +132,28 @@
 
     let response;
     try {
-      response = await fetch(SITE_URL + url, mergedOptions);
+      // 读类接口走统一的请求缓存层（并发去重 + 短时缓存）：
+      // 首屏有多个模块会同时拉同一份数据（角标 / 通知 / 在线数），
+      // 合并后只回源一次；POST 类写操作仍然原样直发，不被合并、不被缓存。
+      // 调用方可传 cacheTtl（毫秒）显式开启短时缓存；不传则只做并发去重。
+      const canUseCache = window.LWRequestCache && method === 'GET';
+      response = canUseCache
+        ? await window.LWRequestCache.request(SITE_URL + url, mergedOptions, { ttl: cacheTtl })
+        : await fetch(SITE_URL + url, mergedOptions);
     } catch (err) {
-      showToast('网络错误，请检查网络连接', 'error');
+      // 网络层失败（断网 / 主机抖动 / 页面正在跳转）——**不再无脑报「网络错误」**。
+      // 2026-10-22：登录失败的用户看到的就是这一条，实际原因是 WAF 429 + 主机挑战页，
+      // 真因被这句话盖住，连站长都无从下手。现在：
+      //   ① 对 POST 做一次带退避的重试（丢包/瞬时 5xx 能自己恢复）；
+      //   ② 重试仍失败才提示，并区分「离线」与「服务器暂时没响应」。
+      const isAbort = err && (err.name === 'AbortError' || err.name === 'TypeError' && /aborted/i.test(err.message || ''));
+      if (!isAbort && method !== 'GET' && !_retried) {
+        await new Promise(function (r) { setTimeout(r, 600); });
+        return fetchAPI(url, options, true);
+      }
+      var offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+      showToast(offline ? '当前没有网络连接，请检查网络后重试' : '服务器暂时没有响应，请稍后重试',
+        'error', 5000);
       throw err;
     }
 
@@ -1103,7 +1126,7 @@
     return icons[name] || icons.info;
   }
 
-  function showToast(message, type = 'info') {
+  function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const id = 'toast-' + ++toastIdCounter;
@@ -1120,9 +1143,10 @@
     bar.className = 'toast-progress';
     toast.appendChild(bar);
     container.appendChild(toast);
+    // duration 可调：错误提示需要比默认 3 秒多留一会儿，让人看清原因
     const dismissTimeout = setTimeout(() => {
       dismissToast(toast);
-    }, 3000);
+    }, Number(duration) > 0 ? Number(duration) : 3000);
     toast.addEventListener('click', () => {
       clearTimeout(dismissTimeout);
       dismissToast(toast);
@@ -2104,9 +2128,40 @@
       this.openGroup([src], 0);
     },
 
-    // 打开一组图片，idx 为当前张
+    /* 打开一组图片，idx 为当前张。
+     *
+     * 【幂等保护 —— 解决「要点两次才能关掉」】
+     *
+     * 站点历史上出现过 4 套图片查看器（main.js 的 Lightbox、polish.js 的
+     * lw-lightbox、enhancements.js 的代理、post_detail.php 的内联 overlay）。
+     * 它们的监听器会同时接住同一次点击，于是：
+     *   - 遮罩层被叠了两层
+     *   - 关掉上面一层，下面那层还在
+     *   - 用户必须再点一次才真的关掉
+     *
+     * 前面的修复是「让其他几套不要触发」，但那依赖 class 名匹配，
+     * 一旦页面结构变化就会失效。这里再加一道兜底：
+     * **同一个浏览器 tick 内，openGroup 只真正执行一次**。
+     *
+     * 为什么用 tick 而不是长期锁：用户确实可能关掉后再点开另一张，
+     * 那是合法的第二次打开。同一次点击产生的多次调用都发生在同一 tick 内，
+     * 隔一个宏任务（setTimeout 0）就重置，不会误伤正常操作。
+     */
+    _lastOpenAt: 0,
+
     openGroup(srcs, idx) {
+      // 同一 tick 内的重复调用直接忽略（120ms 足够覆盖同一次点击的所有同步监听）
+      const now = Date.now();
+      if (now - this._lastOpenAt < 120) {
+        return;
+      }
+      this._lastOpenAt = now;
+
       if (!this.overlay) { this.init(); }
+
+      // 保险：把可能同时存在的其它查看器关掉
+      this._closeForeignViewers();
+
       this._srcs = (srcs || []).filter(Boolean);
       if (!this._srcs.length) { return; }
       this.overlay.style.display = 'flex';
@@ -2114,6 +2169,19 @@
       this._pendingTx = 0;
       this._pendingTy = 0;
       this.show(typeof idx === 'number' ? idx : 0);
+    },
+
+    /** 关掉其它几套查看器留下的遮罩（如果它们被意外触发过）。 */
+    _closeForeignViewers() {
+      try {
+        document.querySelectorAll('.lw-lightbox.is-open').forEach(function (el) {
+          el.classList.remove('is-open');
+          const img = el.querySelector('img');
+          if (img) img.src = '';
+        });
+        document.querySelectorAll('.pw-lightbox').forEach(function (el) { el.remove(); });
+        document.querySelectorAll('.lb-lightbox.show').forEach(function (el) { el.classList.remove('show'); });
+      } catch (e) { /* 忽略 */ }
     },
 
     show(i) {
@@ -2132,6 +2200,8 @@
       this._srcs = [];
       this._applyTransform(1, 0, 0, false);
       document.body.style.overflow = '';
+      // 一并清掉其它查看器，避免「关掉一层还剩一层」
+      this._closeForeignViewers();
     },
   };
 
@@ -3949,30 +4019,46 @@
   window.App = {
     IS_LOGGED_IN: window.IS_LOGGED_IN,
     USER_DATA: window.USER_DATA,
-    svgIcon,
-    LWIcon,
-    LWIllustration,
+    svgIcon: svgIcon,
+    LWIcon: LWIcon,
+    LWIllustration: LWIllustration,
     // 分类 → URL 写法（social_chat → social），供 enhancements.js 等复用
-    categoryUrlKey,
-    showToast,
-    copyToClipboard,
-    fetchAPI,
-    fetchRaw,
-    applyCSRFToken,
+    categoryUrlKey: categoryUrlKey,
+    showToast: showToast,
+    copyToClipboard: copyToClipboard,
+    fetchAPI: fetchAPI,
+    fetchRaw: fetchRaw,
+    // 手动作废某个读请求的缓存（点赞/发帖后让列表重拉时用）
+    invalidateCache: function (url) {
+      if (window.LWRequestCache) { window.LWRequestCache.invalidate(url); }
+    },
+    applyCSRFToken: applyCSRFToken,
     // 站内是否跑在自家安卓客户端里（供布局适配与 APK 直装判断）
-    isNativeApp,
-    formatTime,
-    escapeHtml,
+    isNativeApp: isNativeApp,
+    formatTime: formatTime,
+    escapeHtml: escapeHtml,
     esc: escapeHtml,
-    pickReadableFg,
-    debounce,
-    throttle,
-    Modal,
-    PostFeed,
-    NotificationSystem,
-    toggleTheme,
-    applyTheme,
-    closeSponsorModal,
+    pickReadableFg: pickReadableFg,
+    debounce: debounce,
+    throttle: throttle,
+    Modal: Modal,
+    /* 图片查看器。
+     *
+     * 【为什么必须显式暴露】
+     * Lightbox 原本只是本文件内的 const，从未挂到 window.App，
+     * 而 enhancements.js / polish.js / post_detail.php 都写的是
+     * if (window.App && window.App.Lightbox) —— 判断恒为 false，
+     * 于是它们各自回退到自己的简易灯箱，一次点击叠出两层遮罩。
+     * 这就是「要点两次才能关掉」的根因。
+     *
+     * 位置必须在 const Lightbox 之后（TDZ 约束），window.App 赋值在文件尾部，安全。
+     */
+    Lightbox: Lightbox,
+    PostFeed: PostFeed,
+    NotificationSystem: NotificationSystem,
+    toggleTheme: toggleTheme,
+    applyTheme: applyTheme,
+    closeSponsorModal: closeSponsorModal,
   };
 
   if (document.readyState === 'loading') {

@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/site_footer.php';
+require_once __DIR__ . '/../includes/translate.php';
 
 $postId = intval($_REQUEST['id'] ?? 0);
 if (!$postId) {
@@ -18,6 +20,19 @@ if (!$user && isGuestMode()) {
 }
 $fs = getFS();
 $post = $fs->findById('posts', $postId);
+
+    /* 按当前界面语言取帖子内容。
+     * 中文用户看中文、英文用户看英文 —— 切换语言后内容跟着变。
+     * 翻译在首次访问时生成并缓存，之后再访问是瞬时的。
+     */
+    if (!empty($post)) {
+        $__lang = $LANG_CODE ?? 'zh_CN';
+        $__t = lwPostForLang($post, $__lang);
+        $post['title'] = $__t['title'];
+        $post['content'] = $__t['content'];
+        $__postTranslated = $__t['translated'];
+        $__postFromLang = $__t['from'];
+    }
 $userIsAdmin = $user && in_array($user['role'], ['admin', 'super_admin']);
 // 能删「别人的」评论 = 管理员且持有 delete_comments 权限。
 // 内核 includes/actions/comment_delete.php 就是这么判的；前台按钮必须同一口径，
@@ -275,6 +290,74 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             padding: .1875rem .625rem; border-radius: 9999px;
         }
 
+
+        /* ---- 评论区：桌面端布局修正（2026-10-24） ----
+         *
+         * 问题：桌面端发布评论那一行，左边有一大块空白。
+         *
+         * 原因：.comment-input-area 是 flex 容器，里面第一个子是头像复合件
+         * <span class="lw-av has-ring">。lw-av 的尺寸靠 --lw-av 内联变量控制，
+         * 但它是 span（display:inline），在 flex 容器里会作为 flex item 被拉伸，
+         * 加上 has-ring 的 box-shadow/伪元素环，实际占位比 32px 宽很多；
+         * 而 .comment-input-wrap 是 flex:1 1 auto，于是输入框被推到右边，
+         * 左边就空出一块。
+         *
+         * 修法：给头像一个明确的 flex 基线（flex: 0 0 auto + 固定宽高），
+         * 不允许它参与拉伸；同时把环形阴影改成不影响布局的 outline 式。
+         */
+        .comment-input-area > .lw-av,
+        .comment-input-area > .lw-av.has-ring,
+        .comment-input-area > .lw-av.has-frame {
+            flex: 0 0 auto;
+            width: var(--lw-av, 32px);
+            height: var(--lw-av, 32px);
+            min-width: var(--lw-av, 32px);
+            max-width: var(--lw-av, 32px);
+            align-self: flex-start;
+            margin-top: .25rem;
+        }
+
+        /* 输入区本身占满剩余宽度，不参与收缩到 0 */
+        /* 输入区占满剩余宽度。flex-basis 用 0 而不是 auto，
+         * 否则 textarea 的 cols 默认值（20）会参与计算，把宽度算小。 */
+        .comment-input-area > .comment-input-wrap {
+            flex: 1 1 0%;
+            min-width: 0;
+            width: auto;
+        }
+
+        /* 双保险：万一 .lw-av 的基础样式没加载（缓存/合并问题），
+         * 这里再钉一次尺寸。内联的 --lw-av 已经在 <span> 上写好了。 */
+        .comment-input-area > span.lw-av {
+            display: inline-block;
+            position: relative;
+            flex: 0 0 auto;
+            width: var(--lw-av, 32px);
+            height: var(--lw-av, 32px);
+            border-radius: 50%;
+            overflow: visible;
+        }
+
+        /* 提交按钮靠右，但不撑出一整行 */
+        .comment-input-wrap > .btn {
+            align-self: flex-end;
+            flex: 0 0 auto;
+            width: auto;
+        }
+
+        /* 窄屏：头像缩到 28px，输入区贴边 */
+        @media (max-width: 640px) {
+            .comment-input-area { gap: .5rem; padding: .75rem; }
+            .comment-input-area > .lw-av,
+            .comment-input-area > .lw-av.has-ring,
+            .comment-input-area > .lw-av.has-frame {
+                width: 28px;
+                height: 28px;
+                min-width: 28px;
+                max-width: 28px;
+            }
+        }
+
         /* 评论输入区：整体一块浅底，头像与输入框对齐 */
         .comment-input-area {
             display: flex; align-items: flex-start; gap: .625rem;
@@ -379,7 +462,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 ?>
                 <div class="post-images grid-<?= min(count($images), 4) ?>">
                     <?php foreach ($images as $img): ?>
-                    <img src="<?= htmlspecialchars($img) ?>" class="post-image" alt="<?= t('pd.post_image') ?>" loading="lazy" decoding="async" onclick="openLightbox(this.src)">
+                    <img src="<?= htmlspecialchars($img) ?>" class="post-image" alt="<?= t('pd.post_image') ?>" loading="lazy" decoding="async" data-full="<?= htmlspecialchars($img) ?>">
                     <?php endforeach; ?>
                 </div>
                 <?php endif; ?>
@@ -588,13 +671,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         </div>
     </div>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p><?= t('footer.disclaimer') ?></p>
-            <p>&copy; 2026 <?= htmlspecialchars(SITE_NAME) ?> · <?= t('pd.copyright') ?></p>
-            <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars(GITHUB_REPO_URL) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars(GITHUB_REPO_NAME) ?></a></p>
-        </div>
-    </footer>
+    <?php lwRenderFooter([]); ?>
 
     <script>
         let likeState = <?= $isLiked ? 'true' : 'false' ?>;
@@ -1050,19 +1127,14 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             });
         }
 
+        /* 原来自建了一个 overlay 灯箱，与 main.js 的 Lightbox 同时响应
+         * 同一次点击，导致「套两层查看器」。现在只做兼容转发。 */
         function openLightbox(src) {
-            var overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer;';
-            var img = document.createElement('img');
-            img.src = src;
-            img.style.cssText = 'max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;';
-            overlay.appendChild(img);
-            document.body.appendChild(overlay);
-            document.body.style.overflow = 'hidden';
-            overlay.addEventListener('click', function(){
-                document.body.removeChild(overlay);
-                document.body.style.overflow = '';
-            });
+            if (window.App && window.App.Lightbox && typeof window.App.Lightbox.open === 'function') {
+                window.App.Lightbox.open(src);
+                return;
+            }
+            window.open(src, '_blank', 'noopener');
         }
 
         // ===== 详情页内联投票 =====

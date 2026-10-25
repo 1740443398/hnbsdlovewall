@@ -347,6 +347,33 @@
       // AI 助手/编辑器内部的图片不拦
       if (img.closest('.ai-panel, .ai-widget, [contenteditable]')) { return; }
 
+      /* 【2026-10-24 修】这里曾和 main.js 的 Lightbox 双重触发。
+       *
+       * 症状：点一张帖子图片，会**同时**弹出两个全屏层 ——
+       *   一个是 main.js Lightbox（支持组内左右切图、双指缩放、拖动平移），
+       *   一个是本函数这个简易灯箱（只有放大和关闭）。
+       * 用户看到的是「套了两层查看器」，上面的简易层还挡住了下面那套的手势。
+       *
+       * 根因：main.js 给 .post-card-images img / .post-detail-content img
+       * 绑了直接监听器，本文件又用 document 代理兜住了所有 <img>，
+       * 两条路径互不知道对方存在。
+       *
+       * 正确分工：
+       *   - 帖子图（有组、要左右切）：交给 main.js 的 Lightbox
+       *   - 其它散图（私信、个人简介、后台预览）：本简易层兜底
+       * 所以这里先判断「这张图是否属于 Lightbox 管辖范围」，是就完全让路。 */
+      if (img.closest('.post-card-images, .post-detail-content')) { return; }
+
+      // 万一 main.js 已经把 Lightbox 暴露出来，也优先用它（体验更完整）
+      if (window.App && window.App.Lightbox && typeof window.App.Lightbox.open === 'function') {
+        var srcApp = img.currentSrc || img.src;
+        if (srcApp && srcApp.indexOf('data:') !== 0) {
+          e.preventDefault();
+          window.App.Lightbox.open(img.getAttribute('data-full') || srcApp);
+          return;
+        }
+      }
+
       var src = img.currentSrc || img.src;
       if (!src || src.indexOf('data:') === 0) { return; }
       e.preventDefault();

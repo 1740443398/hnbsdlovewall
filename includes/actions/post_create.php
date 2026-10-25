@@ -22,6 +22,19 @@ require_once __DIR__ . '/_lib.php';
 if (!function_exists('lw_do_post_create')) {
     function lw_do_post_create(array $user, array $in): array
     {
+        /* 自愈前置检查：磁盘写满时直接拒绝，不要走到一半失败。
+         *
+         * 原来磁盘满了会怎样：写入返回 false，但上层没检查，
+         * 页面照样跳转「发布成功」，用户以为发出去了，
+         * 刷新一看帖子没了 —— 这是最伤人的一类 bug。
+         * 宁可当面说「暂时发不了」，也不能假装成功。
+         */
+        if (class_exists('LWSelfHeal')) {
+            if (!LWSelfHeal::diskOk()) {
+                return lwActionFail('服务器存储空间不足，暂时无法发布。请联系管理员清理。');
+            }
+        }
+
         $category = sanitizeInput(trim((string)($in['category'] ?? '')));
         $title    = trim((string)($in['title'] ?? ''));
         $content  = trim((string)($in['content'] ?? ''));
@@ -102,8 +115,54 @@ if (!function_exists('lw_do_post_create')) {
             ];
         }
 
-        $hasSensitive = !empty(checkSensitiveWords($title . ' ' . $content));
-        $status = ($hasSensitive && $category !== 'announcement') ? 'pending' : 'published';
+        /* ── 三层内容审核（2026-10-24）─────────────────────────────────
+         *
+         * 原来是「命中敏感词就 pending，否则 published」的二元判断。
+         * 问题：只查词表，识别不了变体/谐音/语义违规，也分不清
+         * 「轻微脏话」和「色情交易」——两者都被塞进同一个 pending 队列，
+         * 运营看到一堆无标注的待审帖，没法排优先级。
+         *
+         * 现在改为 AI + 关键词 + 结构三层打分：
+         *   pass    直接发布
+         *   review  发布但标记待查（用户无感，后台可见）
+         *   pending 暂不发布，等人工（用户看到「审核中」）
+         *   reject  直接拒绝（仅限确定性硬规则，AI 无权单独拒绝）
+         *
+         * 公告类内容由管理员发布，跳过 AI 以免慢接口拖慢后台，但仍走关键词。
+         */
+        require_once __DIR__ . '/../moderation.php';
+
+        /* 【审核改为「同步门禁 + 异步复核」】
+         *
+         * 原来这里同步跑 AI 审核：GLM 接口 1~3 秒，加上主机 1 秒响应，
+         * 用户点「发布」要等 4~6 秒才看到结果 —— 体感就是「卡住发不出去」。
+         *
+         * 但审核不必挡在用户面前：
+         *   - 关键词层 / 结构层是纯本地计算，几毫秒出结果，**它们才该做门禁**
+         *   - AI 层是用来「捞漏网的」，晚几秒完全不影响体验
+         *
+         * 所以现在：
+         *   1. 同步只跑关键词 + 结构层（毫秒级），决定 published / pending / reject
+         *   2. 帖子立刻返回给用户
+         *   3. AI 在响应结束后异步复核，只有 >=60 分才回滚成待审
+         *
+         * AI 依然没有最终裁决权 —— 它最多把帖子转成待审，不会直接拒绝。
+         */
+        $modResult = lwModerateContent($title, $content, $user, ['skip_ai' => true]);
+
+        // 硬拒绝：直接返回错误，不写库
+        if ($modResult['action'] === 'reject') {
+            $labels = array_map(static function ($t) {
+                return $t['label'];
+            }, $modResult['types']);
+            return lwActionFail(
+                '内容未通过审核' . ($labels ? '（' . implode('、', $labels) . '）' : '')
+                . '，请修改后重试。如有疑问可联系管理员。'
+            );
+        }
+
+        $status = ($modResult['action'] === 'pending') ? 'pending' : 'published';
+        $modFields = lwModerationFields($modResult);
 
         $postData = [
             'user_id'      => $user['id'],
@@ -120,6 +179,8 @@ if (!function_exists('lw_do_post_create')) {
             'comments'     => 0,
             'poll'         => $poll,
         ];
+        // 审核结果落到帖子记录上，供后台按「违规类型」筛选与排序
+        $postData = array_merge($postData, $modFields);
 
         $dataDir = dirname(__DIR__, 2) . '/data/';
         if (!is_dir($dataDir)) {
@@ -150,6 +211,29 @@ if (!function_exists('lw_do_post_create')) {
         }
 
         logUserActivity($user['id'], 'post_create', '发布帖子ID:' . $post['id']);
+
+        /* 静默翻译：响应发出后再跑，不阻塞用户。
+         *
+         * 只在「已发布」时翻译 —— 待审核的内容可能被驳回，
+         * 翻了也是浪费配额。
+         * 整个翻译过程不提示用户，失败也不影响任何功能。
+         */
+        if ($status === 'published') {
+            require_once __DIR__ . '/../translate.php';
+            lwQueueTranslation((int)$post['id']);
+
+            /* 繁简静默互转：中文↔中文同语系，翻译很快，
+             * 且几乎一半读者会受益，所以这一对值得预生成。
+             * 其他语言（英/日/韩）懒生成 —— 谁真的切过去才翻，省配额。 */
+            lwQueueZhVariant((int)$post['id']);
+
+            /* AI 异步复核：排在响应之后，用户完全无感。
+             * 只有 AI 给出 >=60 分才回滚成待审，避免误伤正常内容。 */
+            if ($category !== 'announcement') {   // 公告是管理员发的，不必复核
+                require_once __DIR__ . '/../ai_review.php';
+                lwQueueAiReview((int)$post['id'], $title, $content);
+            }
+        }
 
         // 正文里 @到的同学 → 站内通知。
         // 匿名帖不发（不暴露匿名作者）；待审核帖也不发（内容可能被驳回，先别打扰别人）。

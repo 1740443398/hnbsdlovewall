@@ -1,0 +1,254 @@
+/* ==========================================================================
+ * 商业化体验细节（2026-10-24）
+ * --------------------------------------------------------------------------
+ * 对照抖音/微博/小红书的交互习惯，补齐以下几类缺失：
+ *   1. 图片尺寸占位 —— 审计发现 7 张图里 4 张没有尺寸，加载时会推挤页面（CLS）
+ *   2. 骨架屏 —— 审计发现 0 个，首屏空白期没有视觉反馈
+ *   3. 无障碍跳转链接 —— 键盘/读屏用户必须按几十次 Tab 才能到正文
+ *   4. 点击涟漪 —— 移动端缺少「按下去了」的即时反馈
+ *   5. 输入框自动填充提示 —— 手机键盘不知道填什么
+ * ========================================================================== */
+
+/* ---- 1. 图片尺寸占位（防布局跳动）---- */
+/* 后端没给 width/height 时，用 aspect-ratio 兜底。
+   16:9 是信息流缩略图最常见的比例。 */
+.post-card-images img,
+.post-image,
+.lw-av-img {
+    content-visibility: auto;
+}
+
+.post-card-images img {
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    width: 100%;
+    height: auto;
+    background: linear-gradient(110deg, #f2f4f8 8%, #e9edf4 18%, #f2f4f8 33%);
+    background-size: 200% 100%;
+}
+
+/* 图片还没加载完时，背景有一个缓慢流动的微光，让人知道「在加载」 */
+.post-card-images img:not([complete]) {
+    animation: lw-img-shimmer 1.6s linear infinite;
+}
+@keyframes lw-img-shimmer {
+    to { background-position-x: -200%; }
+}
+
+/* ---- 2. 骨架屏 ---- */
+.lw-skeleton {
+    background: linear-gradient(110deg, #eef1f6 8%, #e4e9f1 18%, #eef1f6 33%);
+    background-size: 200% 100%;
+    animation: lw-skel 1.5s linear infinite;
+    border-radius: 6px;
+}
+@keyframes lw-skel {
+    to { background-position-x: -200%; }
+}
+.lw-skel-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+}
+.lw-skel-line {
+    height: 12px;
+    margin-bottom: 9px;
+}
+.lw-skel-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+}
+
+/* ---- 3. 无障碍跳转链接 ---- */
+/* 平时藏起来（不影响视觉），键盘 Tab 到时才出现。 */
+.lw-skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 8px;
+    z-index: 10000;
+    padding: 10px 18px;
+    background: #2F5B9A;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    text-decoration: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+.lw-skip-link:focus {
+    left: 8px;
+}
+
+/* ---- 4. 点击涟漪（移动端按下反馈）---- */
+.lw-ripple-host {
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+.lw-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(47, 91, 154, 0.22);
+    transform: scale(0);
+    animation: lw-ripple-expand .55s ease-out;
+    pointer-events: none;
+}
+@keyframes lw-ripple-expand {
+    to { transform: scale(2.6); opacity: 0; }
+}
+
+/* ---- 5. 交互反馈：按钮按下态 ---- */
+/* 商业化产品都有明确的按下反馈，否则用户不确定「点到了没」 */
+.btn:active,
+.btn-icon:active,
+.card:active,
+button:active {
+    transform: scale(0.97);
+    transition: transform .08s ease;
+}
+
+/* ---- 6. 焦点环（键盘导航可见）---- */
+:focus-visible {
+    outline: 2px solid #2F5B9A;
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ---- 7. 输入框：移动端不缩放 + 自动填充提示 ---- */
+@media (max-width: 640px) {
+    input, textarea, select {
+        font-size: 16px !important;
+    }
+}
+
+/* ---- 8. 长文本行高（中文需要比英文更松）---- */
+/* 1.75 是中文阅读的舒适区间，英文 1.5 就够。 */
+.post-card-content,
+.post-content,
+.comment-content {
+    line-height: 1.75;
+    letter-spacing: 0.01em;
+}
+
+/* ---- 9. 滚动容器：移动端惯性滚动 ---- */
+/* iOS 上不加这条，长列表滑起来很「涩」。 */
+.posts-container,
+.comment-list,
+.lwc-wrap,
+.table-wrap {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ---- 10. 减少动效偏好 ---- */
+@media (prefers-reduced-motion: reduce) {
+    .lw-skeleton, .post-card-images img, .lw-ripple {
+        animation: none !important;
+        background: #eef1f6 !important;
+    }
+    .btn:active, button:active { transform: none !important; }
+}
+
+/* ==========================================================================
+ * 底部 dock 栏：必要时隐藏
+ * --------------------------------------------------------------------------
+ * 商业化产品的做法（抖音/小红书）：向下滚动时隐藏，向上滚动时出现；
+ * 滚动到页面底部时也隐藏（避免挡住最后一条内容）。
+ *
+ * 为什么这样做：
+ *   - 底部固定在桌面窄窗/平板上会遮挡内容，尤其是长列表最后一条
+ *   - 但完全隐藏又会让导航「消失」，用户找不到入口
+ *   - 所以：向下滚（正在阅读）时收起，向上滚（想找导航）时出现
+ * ========================================================================== */
+
+.mobile-bottom-nav {
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1), opacity .28s ease;
+}
+
+/* 向下滚动：收起 */
+.mobile-bottom-nav.is-hidden {
+    transform: translateX(-50%) translateY(calc(100% + 1.5rem));
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* 虚拟键盘弹出时也收起（否则会挡住输入框） */
+body.lw-keyboard-open .mobile-bottom-nav {
+    transform: translateX(-50%) translateY(calc(100% + 1.5rem));
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* 桌面端（宽屏）：非移动端本就不显示，这里只处理「窄桌面窗口」 */
+@media (min-width: 769px) {
+    /* 宽屏下如果因为某种原因显示出来，也让它更紧凑并半透明，减少干扰 */
+    .mobile-bottom-nav {
+        opacity: .92;
+    }
+    .mobile-bottom-nav:hover {
+        opacity: 1;
+    }
+}
+
+/* 减少动效偏好：不做位移动画，直接切换 */
+@media (prefers-reduced-motion: reduce) {
+    .mobile-bottom-nav {
+        transition: none !important;
+    }
+}
+
+/* ==========================================================================
+ * 用户下拉菜单：独立滚动
+ * --------------------------------------------------------------------------
+ * 菜单项越来越多（个人主页/我的帖子/收藏/发现/成长/装扮/房间/商城/文件/
+ * 工具/AI/备份/搜索/全部功能/管理后台/退出），在 768px 高的笔记本窗口上
+ * 会超出屏幕，底部的「退出登录」点不到。
+ *
+ * 处理：
+ *   1. 给菜单设最大高度（不超出视口）
+ *   2. 菜单内部独立滚动，滚动不外溢到页面
+ *   3. 滚动条细一点，不抢视觉
+ *   4. 用 overscroll-behavior: contain 防止滚到底后带动整页滚动
+ * ========================================================================== */
+
+.user-dropdown {
+    /* 视口高度减去顶栏与留白，保证菜单不超出屏幕 */
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(47, 91, 154, 0.28) transparent;
+}
+
+.user-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+.user-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+.user-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(47, 91, 154, 0.24);
+    border-radius: 3px;
+}
+.user-dropdown::-webkit-scrollbar-thumb:hover {
+    background: rgba(47, 91, 154, 0.42);
+}
+
+/* 移动端抽屉里的菜单也允许滚动（抽屉本身已经有 overflow，这里防双滚动打架） */
+@media (max-width: 768px) {
+    .user-dropdown {
+        max-height: calc(100dvh - 120px);
+    }
+}
+
+/* 给菜单首尾加一点内边距，滚动时首尾项不贴着边框 */
+.user-dropdown::after {
+    content: '';
+    display: block;
+    height: 4px;
+}

@@ -23,10 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['gate_confirm'])) {
         exit();
     }
     acceptGateway();
-    $next = $to === 'register'
-        ? SITE_URL . '/pages/register.php' . ($invite !== '' ? '?invite=' . rawurlencode($invite) : '')
-        : SITE_URL . '/pages/login.php';
-    header('Location: ' . $next);
+    // 明确 user 意图 = 登录：等这次 302 落地后直接按「用户已选择登录」处理，
+    // 不再被首访引导拦去注册页（否则新设备点「去登录」会被弹去注册，再弹回来）。
+    if ($to === 'register') {
+        $_SESSION['lw_intent'] = 'register';
+        header('Location: ' . SITE_URL . '/pages/register.php' . ($invite !== '' ? '?invite=' . rawurlencode($invite) : ''));
+        exit();
+    }
+    $_SESSION['lw_intent'] = 'login';
+    header('Location: ' . SITE_URL . '/pages/login.php?once=1');
     exit();
 }
 

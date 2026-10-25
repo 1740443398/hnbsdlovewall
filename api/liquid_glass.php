@@ -10,6 +10,10 @@
  */
 require_once __DIR__ . '/../config/config.php';
 
+// 公开只读数据：液态玻璃配置 1 小时。
+// 加共享缓存后，重复打开不再查数据文件，也不会重复跑 PHP。
+lwCacheShared(3600, 86400);
+
 $fs     = getFS();
 $action = $_REQUEST['action'] ?? 'config';
 

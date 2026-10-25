@@ -2,6 +2,9 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/fields.php';
 
+// 公开数据（赞助名单 + 金额），与调用者无关；后台改动后 5 分钟内生效。
+lwCacheShared(300, 86400);
+
 $fs = getFS();
 $record = $fs->findById('sponsor', 1);
 

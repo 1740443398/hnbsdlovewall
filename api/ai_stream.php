@@ -37,6 +37,7 @@ if ($LW_CAN_REOPEN) {
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/ai_chat_flow.php';
+require_once __DIR__ . '/../includes/ai_cache.php';
 
 // 一次流式请求可能远长于默认 30s 脚本上限
 @set_time_limit(150);
@@ -92,6 +93,39 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 $timeout = 90;
 $aiT0 = microtime(true);
 
+// ---- 命中缓存：一次性把整段回复推出去，不打模型 ----
+// 缓存键覆盖了整段 system 提示词与全部历史，所以「同一份输入」才会命中；
+// 命中时省掉的是整个模型调用（钱 + 秒级等待），前端体验等同「秒回」。
+$cacheKey = lwAiCacheKey($ctx);
+$cached = lwAiCacheGet($cacheKey);
+if ($cached !== null) {
+    if ($cached['reasoning'] !== null && $cached['reasoning'] !== '') {
+        lwSseEmit('delta', ['type' => 'reasoning', 'text' => $cached['reasoning']]);
+    }
+    lwSseEmit('delta', ['type' => 'content', 'text' => $cached['reply']]);
+
+    // 会话在发完 open 帧后已释放：退回「不可发卡片」模式（纯问答本来也不需要卡片）
+    $result = aiChatFinalize(
+        $ctx,
+        $cached['reply'],
+        (string)$cached['reasoning'],
+        ['ok' => true, 'status' => 200, 'usage' => ['cached' => 1], 'key_tries' => 0],
+        0,
+        false
+    );
+    if (isset($result['error'])) {
+        // 收尾出错（极少见）：如实报错，让前端走重试，而不是给一段半成品
+        lwSseEmit('error', ['message' => $result['error'], 'code' => $result['code'] ?? 502]);
+    } else {
+        if (empty($result['sources']) && !empty($cached['sources'])) {
+            $result['sources'] = $cached['sources'];
+        }
+        $result['cached'] = true;
+        lwSseEmit('done', $result);
+    }
+    exit;
+}
+
 // 每来一个增量就推一帧。type 为 'reasoning'（思考过程）或 'content'（正式回复），
 // 前端据此分别渲染到「思考过程」区和正文气泡里。
 $onDelta = function (string $type, string $text) {
@@ -128,6 +162,12 @@ $result = aiChatFinalize(
 if (isset($result['error'])) {
     lwSseEmit('error', ['message' => $result['error'], 'code' => $result['code'] ?? 502]);
 } else {
+    // 只在「成功 + 没有确认卡片」时回填缓存（卡片 token 是一次性、绑定会话的，
+    // 给别人用不了，也不该出现在共享缓存里 —— 见 includes/ai_cache.php）
+    if (!empty($aiResult['ok']) && empty($result['action'])) {
+        lwAiCachePut($cacheKey, (string)$result['reply'], (string)$result['reasoning'], $result['sources'] ?? []);
+        lwAiCacheGc();
+    }
     // done 帧带的是「收尾之后」的最终态：已剥离动作块、已截断、已签发卡片。
     // 前端在收到它时会用最终正文重绘一次气泡，把流式期间未渲染的链接/Markdown 补全。
     lwSseEmit('done', $result);

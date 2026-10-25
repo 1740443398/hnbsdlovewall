@@ -1,0 +1,47 @@
+/* ---------- 首屏服务端预渲染卡片（SSR） ----------
+   这些卡片是 PHP 直出的，JS 拉到数据后会被替换。
+   样式刻意从简：只保证「像一张帖子卡」，
+   复杂交互态（点赞、菜单）交给 JS 版本，避免双重绑定。
+   加 .ssr-card 前缀是为了让 JS 替换时能精确定位。 */
+.ssr-card {
+    opacity: 0.999;
+    animation: ssrFadeIn .18s ease-out;
+}
+@keyframes ssrFadeIn {
+    from { opacity: .6; }
+    to   { opacity: 1; }
+}
+.ssr-card .post-card-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.ssr-card .post-card-author-name {
+    font-weight: 600;
+    font-size: .9rem;
+    color: var(--text);
+}
+.ssr-card .post-card-time {
+    font-size: .75rem;
+    color: var(--text-muted, #9aa4b2);
+    margin-left: auto;
+}
+.ssr-card .post-card-content {
+    font-size: .94rem;
+    line-height: 1.65;
+    color: var(--text-secondary, #3b4654);
+    word-break: break-word;
+}
+.ssr-card .post-card-actions {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: .78rem;
+    color: var(--text-muted, #6b7684);
+}
+.ssr-card .ssr-stat { white-space: nowrap; }
+/* 减少动效偏好：直接不播放入场动画 */
+@media (prefers-reduced-motion: reduce) {
+    .ssr-card { animation: none; }
+}

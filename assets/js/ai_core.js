@@ -1181,11 +1181,26 @@
       });
     }
 
+    /** 连点拦截用：上一次真正发出的提问（正文 + 图片）与时间 */
+    var lastSentSig = '';
+    var lastSentAt = 0;
+
     function send(text, imgs) {
       text = String(text || '').trim();
       var images = (imgs || pendingImages || []).filter(function (u) { return !!safeImgSrc(u); });
       if (busy || uploading > 0) { return; }
       if (text === '' && !images.length) { return; }
+      /**
+       * 连点拦截：上一次请求刚结束（busy 已复位）时用户再按一次回车，
+       * 会发出两条**完全相同**的请求 —— 两段回答一起流进来，看起来像串话。
+       * 真正的去重在服务端（includes/ai_cache.php 的回复缓存，省的是钱和时间），
+       * 这里只是把重复请求拦在最前面，连一次网络往返都不花。
+       */
+      var sig = text + '\u0000' + images.join(',');
+      if (sig === lastSentSig && (Date.now() - lastSentAt) < 400) { return; }
+      lastSentSig = sig;
+      lastSentAt = Date.now();
+
       busy = true;
       if (el.send) { el.send.disabled = true; }
 
