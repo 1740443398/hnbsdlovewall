@@ -154,6 +154,109 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
         bkSetFile(null);
     }
 
+    /* 分卷上传阈值：超过这个大小就走切块。
+     *
+     * 实测线上网关在 1.5MB ~ 2MB 之间开始拒绝 POST 请求体，
+     * 直接传 10MB 备份包会被返回纯文本 403，PHP 根本收不到。
+     * 这里取 1MB 留足余量。
+     */
+    var BK_CHUNK_BYTES = 1048576;
+
+    /* 上传单个分卷。带 XHR 头，避免被 WAF 二次拦截。 */
+    function bkSendChunk(token, index, blob, name) {
+        var fd = new FormData();
+        fd.append('csrf_token', CSRF_TOKEN);
+        fd.append('action', 'chunk');
+        fd.append('token', token);
+        fd.append('index', String(index));
+        fd.append('chunk', blob, (name || 'chunk') + '.' + index);
+        return fetch('/api/admin/import.php', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.json(); });
+    }
+
+    /* 分卷上传主流程：init -> 逐块 -> finish。 */
+    function bkUploadChunked(file, onProgress) {
+        var chunks = Math.ceil(file.size / BK_CHUNK_BYTES);
+        var token = '';
+
+        return fetch('/api/admin/import.php', {
+            method: 'POST',
+            body: (function () {
+                var fd = new FormData();
+                fd.append('csrf_token', CSRF_TOKEN);
+                fd.append('action', 'init');
+                fd.append('name', file.name);
+                fd.append('size', String(file.size));
+                fd.append('chunks', String(chunks));
+                return fd;
+            })(),
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (!res || !res.success) {
+                throw new Error((res && res.message) || '初始化分卷失败');
+            }
+            token = String((res.data && res.data.token) || '');
+            if (!token) throw new Error('服务端没有返回上传凭证');
+
+            // 逐块串行上传：并发会让网关更容易判定异常
+            var chain = Promise.resolve();
+            for (var i = 0; i < chunks; i++) {
+                (function (idx) {
+                    chain = chain.then(function () {
+                        var start = idx * BK_CHUNK_BYTES;
+                        var end = Math.min(start + BK_CHUNK_BYTES, file.size);
+                        var blob = file.slice(start, end);
+                        if (onProgress) onProgress(idx + 1, chunks);
+                        return bkSendChunk(token, idx, blob, file.name).then(function (rr) {
+                            if (!rr || !rr.success) {
+                                throw new Error((rr && rr.message) || ('第 ' + (idx + 1) + ' 块上传失败'));
+                            }
+                        });
+                    });
+                })(i);
+            }
+            return chain;
+        })
+        .then(function () {
+            return fetch('/api/admin/import.php', {
+                method: 'POST',
+                body: (function () {
+                    var fd = new FormData();
+                    fd.append('csrf_token', CSRF_TOKEN);
+                    fd.append('action', 'finish');
+                    fd.append('token', token);
+                    return fd;
+                })(),
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+        })
+        .then(function (r) { return r.json(); })
+        .catch(function (err) {
+            // 失败时通知服务端清理临时文件
+            if (token) {
+                try {
+                    var fd = new FormData();
+                    fd.append('csrf_token', CSRF_TOKEN);
+                    fd.append('action', 'abort');
+                    fd.append('token', token);
+                    fetch('/api/admin/import.php', {
+                        method: 'POST', body: fd, credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                } catch (e) {}
+            }
+            throw err;
+        });
+    }
+
     function doImportFile() {
         if (!bkPickedFile) { showToast('请先选择备份文件（.zip 或 .json）', 'warning'); return; }
         var btn = document.getElementById('bkImportBtn');
@@ -162,6 +265,30 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
             '此操作不可撤销，请确认已导出当前数据作为退路。是否继续？',
             function () {
                 if (btn) { btn.disabled = true; btn.textContent = '正在恢复...'; }
+
+                /* 【大文件走分卷】
+                 *
+                 * 线上网关会拒绝约 1.5MB 以上的 POST 请求体，返回纯文本 403。
+                 * 10MB 的备份包直传必然失败，而报错信息跟 CSRF 失败一模一样，
+                 * 根本看不出是被网关拦的。所以超过阈值就自动切块。
+                 */
+                if (bkPickedFile.size > BK_CHUNK_BYTES) {
+                    bkUploadChunked(bkPickedFile, function (done, total) {
+                        if (btn) { btn.textContent = '正在恢复... ' + done + '/' + total; }
+                    })
+                    .then(function (res) {
+                        showToast((res && res.message) || '恢复完成', (res && res.success) ? 'success' : 'error');
+                        if (res && res.success) { clearBackupFile(); }
+                    })
+                    .catch(function (err) {
+                        showToast('导入失败：' + ((err && err.message) || '网络异常'), 'error');
+                    })
+                    .then(function () {
+                        if (btn) { btn.disabled = false; btn.textContent = '开始恢复'; }
+                    });
+                    return;
+                }
+
                 var fd = new FormData();
                 fd.append('csrf_token', CSRF_TOKEN);
                 fd.append('file', bkPickedFile, bkPickedFile.name);

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/backup_pack.php';
+require_once __DIR__ . '/../../includes/backup_chunk.php';
 
 $user = requireSuperAdmin();
 $user = checkBanned($user);
@@ -21,6 +22,76 @@ if (empty($_POST) && empty($_FILES) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 
 $csrfToken = $_POST['csrf_token'] ?? '';
 if (!verifyCSRFToken($csrfToken)) {
     jsonError('CSRF验证失败', 403);
+}
+
+/* ── 分卷上传（大备份包专用）─────────────────────────────────────────
+ *
+ * 【为什么必须有这条路径】
+ * 线上主机的网关会拒绝约 1.5MB 以上的 POST 请求体，返回纯文本 403，
+ * PHP 根本收不到请求。而完整备份包动辄 10MB+，直接上传必然失败。
+ *
+ * 这和 CSRF 失败、权限不足的 403 长得一模一样，控制台只显示
+ * "responded with a status of 403"，极难排查 —— 所以改成切块上传，
+ * 每块 1MB，稳定通过网关。
+ */
+$chunkAction = (string)($_POST['action'] ?? '');
+if ($chunkAction !== '') {
+    $token = (string)($_POST['token'] ?? '');
+
+    if ($chunkAction === 'init') {
+        $size   = (int)($_POST['size'] ?? 0);
+        $chunks = (int)($_POST['chunks'] ?? 0);
+        $name   = (string)($_POST['name'] ?? 'backup.zip');
+        $res = lwBackupChunkInit($name, $size, $chunks);
+        if (empty($res['ok'])) {
+            jsonError((string)($res['message'] ?? '初始化失败'));
+        }
+        jsonSuccess(['token' => $res['token']], '可以开始上传');
+    }
+
+    if ($chunkAction === 'chunk') {
+        $index = (int)($_POST['index'] ?? 0);
+        $tmp = (string)($_FILES['chunk']['tmp_name'] ?? '');
+        if ($tmp === '') {
+            jsonError('分卷内容为空');
+        }
+        $res = lwBackupChunkStore($token, $index, $tmp);
+        if (empty($res['ok'])) {
+            jsonError((string)($res['message'] ?? '分卷保存失败'));
+        }
+        jsonSuccess([
+            'received' => (int)($res['received'] ?? 0),
+            'total'    => (int)($res['total'] ?? 0),
+        ], '分卷已收到');
+    }
+
+    if ($chunkAction === 'finish') {
+        $res = lwBackupChunkFinish($token);
+        if (empty($res['ok'])) {
+            jsonError((string)($res['message'] ?? '合并失败'));
+        }
+        // 合并成功 → 把路径交给下面的正常导入流程
+        $importPath = (string)$res['path'];
+        $sourceName = (string)$res['name'];
+        $parsed = BackupPack::readFullBackup($importPath, $sourceName);
+        $importData = $parsed['tables'];
+        $uploadEntries = $parsed['uploads'];
+        // 用完就删，别在服务器上留大文件
+        @unlink($importPath);
+        lwBackupChunkAbort($token);
+        if (empty($importData) && empty($uploadEntries)) {
+            jsonError('无法从该备份包中解析出内容');
+        }
+        // 跳到统一导入逻辑
+        goto lw_import_run;
+    }
+
+    if ($chunkAction === 'abort') {
+        lwBackupChunkAbort($token);
+        jsonSuccess([], '已取消上传');
+    }
+
+    jsonError('未知的分卷操作');
 }
 
 // 完整备份导入：覆盖式写入指定数据表 + 还原 uploads/ 图片（高风险，仅限超级管理员）
@@ -61,6 +132,7 @@ if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp
     $sourceName = 'inline-json';
 }
 
+lw_import_run:
 $fs = getFS();
 
 // 允许导入的数据表（白名单，防止写入任意文件）
