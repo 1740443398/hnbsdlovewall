@@ -84,7 +84,63 @@ $payload = [
         'is_liked' => $liked,
         'is_favorited' => $favorited,
         'created_at' => $post['created_at'],
-        'status' => $post['status']
+        'status' => $post['status'],
+        // 阅读数：列表页有、详情页原来漏了，导致点进详情后阅读数消失
+        'views' => (int)($post['views'] ?? 0),
+        /* 投票：原来这个接口完全没返回 poll 字段。
+         *
+         * 帖子里明明带着投票，网页版也看得到，但 App 点进详情就不显示 ——
+         * 因为 App 拿到的 post 对象里压根没有 poll 这个键。
+         *
+         * 这里按 App 期望的结构输出：
+         *   question / options[] / counts[] / total / my_vote
+         * counts 与 options 一一对应；my_vote 没投过是 -1。
+         */
+        'poll' => (function () use ($post, $user) {
+            $poll = $post['poll'] ?? null;
+            if (!is_array($poll)) {
+                return null;
+            }
+            $question = trim((string)($poll['question'] ?? ''));
+            $options = is_array($poll['options'] ?? null) ? $poll['options'] : [];
+            if ($question === '' || count($options) < 2) {
+                return null;
+            }
+            $votes = (is_array($poll['votes'] ?? null)) ? $poll['votes'] : [];
+
+            $counts = [];
+            foreach ($options as $i => $_) {
+                $counts[] = (int)($votes[(string)$i] ?? $votes[$i] ?? 0);
+            }
+            $total = array_sum($counts);
+
+            // 我投了哪一项（没投过 -1）
+            $myVote = -1;
+            $uid = (int)($user['id'] ?? 0);
+            if ($uid > 0) {
+                foreach ($votes as $k => $v) {
+                    if (is_array($v) && (int)($v['user_id'] ?? 0) === $uid) {
+                        $myVote = (int)$k;
+                        break;
+                    }
+                    // 兼容「按用户 id 记录选项」的存法
+                    if (!is_array($v) && (string)$k === (string)$uid) {
+                        $myVote = (int)$v;
+                        break;
+                    }
+                }
+            }
+
+            return [
+                'question' => $question,
+                'options'  => array_values(array_map(static function ($x) {
+                    return (string)$x;
+                }, $options)),
+                'counts'   => $counts,
+                'total'    => $total,
+                'my_vote'  => $myVote,
+            ];
+        })(),
     ],
 ];
 

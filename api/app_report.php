@@ -29,7 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // 独立限流：客户端会定期调用，配额给足，但拦住脚本刷量
-if (!checkRateLimit(getClientIP(), 'app_report', 120, 60)) {
+/* 【放宽】120 次 / 分钟本来够，但校园网常见一个出口 IP
+ * 后面站着几十个学生（NAT）。所有人共用同一个配额，
+ * 一到课间就集体「请求过于频繁」，心跳和推送全断。
+ * 放宽到 600 次 / 分钟，按人均仍然很宽松。
+ */
+if (!checkRateLimit(getClientIP(), 'app_report', 600, 60)) {
     jsonError('请求过于频繁', 429);
 }
 
@@ -65,6 +70,37 @@ if ($user) {
 
 $isNew = false;
 $row = $fs->findOne('app_devices', ['device_id' => $deviceId]);
+
+/* 【同一台设备被记成多条的问题】
+ *
+ * 原来只按 device_id 匹配。但 device_id 是客户端首次启动生成并存在
+ * SharedPreferences 里的 —— 用户「清除数据」「重装」「换手机迁移」
+ * 都会得到一个新 id，于是同一部手机在台账里堆成好几条。
+ *
+ * 实测过最夸张的情况：站长在同一台 Pixel 8 Pro 上测试，
+ * 11 条设备记录里 9 条都是他，实际只有 2 台设备。
+ *
+ * 所以补一条兜底匹配：**已登录 + 同机型** 也认为是同一台设备，
+ * 只更新那条记录（并把 device_id 换成新的，保持后续心跳能命中）。
+ *
+ * 为什么要求「已登录」才做这个匹配：
+ *   游客没有 user_id，同机型可能是完全不同的两个人（比如同宿舍同款手机），
+ *   合并他们会让装机量被低估得更多。
+ */
+if (!$row && !empty($fields['user_id']) && ($fields['model'] ?? '') !== '') {
+    foreach ((array)$fs->read('app_devices') as $cand) {
+        if ((int)($cand['user_id'] ?? 0) !== (int)$fields['user_id']) {
+            continue;
+        }
+        if ((string)($cand['model'] ?? '') !== (string)$fields['model']) {
+            continue;
+        }
+        $row = $cand;
+        // device_id 换成客户端当前这个，后续心跳才能直接命中
+        $fields['device_id'] = $deviceId;
+        break;
+    }
+}
 
 if ($row) {
     $fs->update('app_devices', $row['id'], $fields);

@@ -25,11 +25,17 @@ data_backup_*/
 keystore.properties
 *.zip
 
-# ===== 本机专属配置（含SMTP授权码 / 同步密钥 / AI密钥，绝不进入开源版）=====
+# ===== 本机专属配置（含数据库密码 / 网盘账号 / SMTP授权码 / 同步密钥 / AI密钥）=====
+# 【务必保持这份清单完整】
+# 任何一个漏掉，真实凭据就会跟着开源版一起发布出去 —— 那是不可撤销的泄漏。
 config/mail_config.php
 config/sync_config.php
 config/sync_nonces.json
-/config/ai_config.php
+config/ai_config.php
+config/db_config.php
+config/feijipan_config.php
+config/sign_secret.php
+config/sign_mode.php
 
 # ===== 本地打包/脚本产物（非源码，不上传）=====
 love_wall.zip

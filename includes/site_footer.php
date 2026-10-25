@@ -61,6 +61,15 @@ if (!function_exists('lwRenderFooter')) {
             <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · 蕭遞版权所有</p>
             <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars($repoUrl) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($repoName) ?></a></p>
             <p style="opacity:.7;font-size:12px;"><?= t('footer.ai_note') ?></p>
+
+            <?php /* 更新日志入口：用户遇到问题时第一反应是「是不是只有我这样」。
+                     有一个按时间倒序、写清「原来哪里不好」的日志，
+                     他能自己确认「哦，这个上次修了」，比去群里问一圈省事。 */ ?>
+            <p class="site-links" style="font-size:12.5px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">
+                <a href="/changelog.php" style="color:inherit;text-decoration:underline dotted;">更新日志</a>
+                <a href="/pages/tools.php" style="color:inherit;text-decoration:underline dotted;">全部功能</a>
+                <a href="/download/" style="color:inherit;text-decoration:underline dotted;">下载客户端</a>
+            </p>
             <?php if ($extra !== ''): ?><?= $extra ?><?php endif; ?>
             <?php if ($showSponsor): ?>
             <p><a href="#sponsor" data-open-sponsor style="color:inherit;text-decoration:underline dotted;">支持我们</a></p>
