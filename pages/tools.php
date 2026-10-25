@@ -2613,7 +2613,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         var btn = null;
         if (input && input.parentNode) { btn = input.parentNode.querySelector('button'); }
         if (btn) btn.disabled = true;
-        fetch('/api/feature_requests.php', { method: 'POST', body: fd })
+        fetch('/api/feature_requests.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 if (res.success) { showToast(res.message || __t('tr.success')); input.value = ''; featureVoteLoad(); }
@@ -2630,7 +2630,7 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         fd.append('action', 'vote');
         fd.append('feature_id', id);
         btn.disabled = true;
-        fetch('/api/feature_requests.php', { method: 'POST', body: fd })
+        fetch('/api/feature_requests.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 if (res.success) { showToast(res.message || __t('tools.op_ok')); featureVoteLoad(); }

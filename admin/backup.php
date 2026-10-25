@@ -165,7 +165,23 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
                 var fd = new FormData();
                 fd.append('csrf_token', CSRF_TOKEN);
                 fd.append('file', bkPickedFile, bkPickedFile.name);
-                fetch('/api/admin/import.php', { method: 'POST', body: fd })
+                /* 【必须带 X-Requested-With】
+                 *
+                 * WAF 对 POST 的判定是：Referer 为空时，只有「XHR 头 或 CSRF token」
+                 * 才算同站请求。这个上传走的是 FormData，某些情况下浏览器会把
+                 * Referer 裁掉（跨协议跳转、隐私模式、扩展拦截都会），
+                 * 于是请求被 WAF 当成外部提交直接返回纯文本 403 Forbidden。
+                 *
+                 * 症状极具误导性：控制台只看到 POST .../import.php 403，
+                 * 页面弹「网络错误」，看起来像网络问题，其实是安全策略拦的。
+                 * 显式声明自己是 XHR 就能稳定通过。
+                 */
+                fetch('/api/admin/import.php', {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
                     .then(function (r) { return r.json(); })
                     .then(function (res) {
                         showToast((res && res.message) || '恢复完成', (res && res.success) ? 'success' : 'error');

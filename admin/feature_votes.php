@@ -110,7 +110,7 @@ adminHeader('功能投票', $adminUser, $csrfToken);
             fd.append('action', 'status');
             fd.append('id', id);
             fd.append('status', target);
-            fetch('/api/admin/feature_requests.php', { method: 'POST', body: fd })
+            fetch('/api/admin/feature_requests.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     if (res.success) { showToast(res.message || '已更新'); loadFeatureVotes(); }
@@ -126,7 +126,7 @@ adminHeader('功能投票', $adminUser, $csrfToken);
             fd.append('csrf_token', CSRF_TOKEN);
             fd.append('action', 'delete');
             fd.append('id', id);
-            fetch('/api/admin/feature_requests.php', { method: 'POST', body: fd })
+            fetch('/api/admin/feature_requests.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     if (res.success) { showToast(res.message || '已删除'); loadFeatureVotes(); }

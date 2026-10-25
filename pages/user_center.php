@@ -1628,7 +1628,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 if (firstVal) formData.append('first_subject', firstVal);
                 secondArr.forEach(s => formData.append('second_subject[]', s));
 
-                fetch(SITE_URL + '/api/user/update_profile.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/user/update_profile.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         setLoading(document.getElementById('profileSaveBtn'), document.getElementById('profileBtnText'), document.getElementById('profileBtnSpinner'), false);
@@ -1662,7 +1662,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 fd.append('action', 'request');
                 fd.append('new_qq', newQq);
                 fd.append('reason', reason);
-                fetch(SITE_URL + '/api/user/change_qq.php', { method: 'POST', body: fd })
+                fetch(SITE_URL + '/api/user/change_qq.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) {
@@ -1737,7 +1737,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 formData.append('new_password', newPwVal);
                 formData.append('confirm_password', confirmPw);
 
-                fetch(SITE_URL + '/api/user/change_password.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/user/change_password.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         setLoading(document.getElementById('securitySaveBtn'), document.getElementById('securityBtnText'), document.getElementById('securityBtnSpinner'), false);
@@ -1766,7 +1766,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('action', 'generate');
 
-                fetch(SITE_URL + '/api/user/2fa_setup.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/user/2fa_setup.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         setLoading(generate2faBtn, document.getElementById('gen2faBtnText'), document.getElementById('gen2faBtnSpinner'), false);
@@ -1825,7 +1825,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 formData.append('code', code);
                 formData.append('password', password);
 
-                fetch(SITE_URL + '/api/user/2fa_setup.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/user/2fa_setup.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         setLoading(verify2faBtn, document.getElementById('verify2faBtnText'), document.getElementById('verify2faBtnSpinner'), false);
@@ -1883,7 +1883,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('password', pw);
                 formData.append('code', code);
-                fetch(SITE_URL + '/api/user/2fa_disable.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/user/2fa_disable.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) { showToast(d.message, 'success'); setTimeout(() => location.href = SITE_URL + '/pages/login.php', 1500); }
@@ -1900,7 +1900,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 const formData = new FormData();
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('password', pw);
-                fetch(SITE_URL + '/api/user/2fa_reset.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/user/2fa_reset.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) { showToast(d.message, 'success'); setTimeout(() => location.href = SITE_URL + '/pages/login.php', 1500); }
@@ -1968,7 +1968,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 const formData = new FormData();
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('post_id', postId);
-                fetch(SITE_URL + '/api/posts/delete.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/posts/delete.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 600); }
@@ -1983,7 +1983,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 const formData = new FormData();
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('comment_id', commentId);
-                fetch(SITE_URL + '/api/posts/delete_comment.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/posts/delete_comment.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 600); }
@@ -1998,7 +1998,7 @@ if ($inviteEnabled && $tab === 'invite') {
                 const formData = new FormData();
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('post_id', postId);
-                fetch(SITE_URL + '/api/posts/favorite.php', { method: 'POST', body: formData })
+                fetch(SITE_URL + '/api/posts/favorite.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
                     .then(r => r.json())
                     .then(d => {
                         if (d.success) { showToast(__t('uc.unfavorited'), 'success'); setTimeout(() => location.reload(), 600); }
@@ -2515,7 +2515,7 @@ if ($inviteEnabled && $tab === 'invite') {
             fd.append('file', f);
             resBtn.disabled = true;
             resBtn.textContent = '恢复中…';
-            fetch(SITE_URL + '/api/user_data.php?action=restore', { method: 'POST', body: fd })
+            fetch(SITE_URL + '/api/user_data.php?action=restore', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d && d.success) {
