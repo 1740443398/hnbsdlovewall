@@ -70,18 +70,30 @@ if ($chunkAction !== '') {
         if (empty($res['ok'])) {
             jsonError((string)($res['message'] ?? '合并失败'));
         }
-        // 合并成功 → 把路径交给下面的正常导入流程
+        /* 合并成功 → 把路径交给下面的正常导入流程。
+         *
+         * 【重要：这里绝对不能删文件】
+         * readFullBackup() 只是把「数据表」读进内存，图片条目只记下
+         * ZIP 里的路径 —— 真正的图片还原是后面 restoreUploads()
+         * 重新打开这个 zip 逐条流式解压的。
+         *
+         * 之前这里写了一句 @unlink($importPath) 想「用完就删」，
+         * 结果 zip 在 restoreUploads 之前就没了：数据表导入成功，
+         * 图片却全部报错，页面显示「N 个图片写入失败」。
+         * 删文件必须挪到导入全部结束之后。
+         */
         $importPath = (string)$res['path'];
         $sourceName = (string)$res['name'];
         $parsed = BackupPack::readFullBackup($importPath, $sourceName);
         $importData = $parsed['tables'];
         $uploadEntries = $parsed['uploads'];
-        // 用完就删，别在服务器上留大文件
-        @unlink($importPath);
-        lwBackupChunkAbort($token);
+        // 只清掉分卷目录里的残留，合并出的 merged.zip 还要用
         if (empty($importData) && empty($uploadEntries)) {
+            @unlink($importPath);
+            lwBackupChunkAbort($token);
             jsonError('无法从该备份包中解析出内容');
         }
+        $chunkCleanupToken = $token;   // 稍后统一清理
         // 跳到统一导入逻辑
         goto lw_import_run;
     }
@@ -104,6 +116,7 @@ $importData = [];
 $sourceName = '';
 $uploadEntries = [];
 $importPath = '';
+$chunkCleanupToken = '';   // 分卷合并出的临时文件，导入结束后清理
 
 if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
     $size = (int)($_FILES['file']['size'] ?? 0);
@@ -167,6 +180,13 @@ foreach ($importData as $table => $rows) {
 $uploadResult = ['written' => 0, 'skipped' => 0, 'bytes' => 0, 'errors' => []];
 if ($uploadEntries && $importPath !== '') {
     $uploadResult = BackupPack::restoreUploads($importPath, $uploadEntries);
+}
+
+/* 现在才允许删合并出的 zip —— 图片已经流式写入 uploads/ 了。 */
+if (!empty($chunkCleanupToken)) {
+    @unlink($importPath);
+    lwBackupChunkAbort((string)$chunkCleanupToken);
+    $chunkCleanupToken = '';
 }
 
 logOperation($user['id'], $user['qq'], 'import_data', 'full_backup', '', '从 ' . $sourceName . ' 导入网站数据，成功表数 ' . $done . '，图片 ' . $uploadResult['written'] . ' 个' . (empty($errors) ? '' : '，失败: ' . implode(',', $errors)));
