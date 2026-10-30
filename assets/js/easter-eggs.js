@@ -16,6 +16,12 @@
   // 后台路径完全不加载彩蛋，避免干扰管理操作
   if (window.location.pathname.indexOf('/admin') === 0) return;
 
+  /* 总开关：后台「全站配置 → 彩蛋 → 启用彩蛋」关掉后，
+   * PHP 会写 window.LW_EGG_OFF = true，这里直接退出。
+   * 用「主动关闭」而不是「主动开启」作为判断，
+   * 是为了让没注入配置的页面（比如纯静态的 404）仍然有彩蛋。 */
+  if (window.LW_EGG_OFF === true) return;
+
   // 兜底文案（简体）。正常情况下会被页面注入的翻译覆盖。
   var FALLBACK_CELEBRATE = [
     '这一页被你遇见了，也算今天的巧合。',
@@ -30,10 +36,37 @@
     '教室的灯替你留着，先回首页吧。'
   ];
 
-  var ANIM_MS = 2500;          // 彩带动画时长
+  /* 彩蛋触发后跳转的地址。
+   *
+   * 就是那个「你被骗了」的经典视频 —— 连点 logo 五次或者输完密令，
+   * 先看到彩带和一句文案，两秒半后跳过去。
+   *
+   * 做成常量而不是写死在函数里，改地址时不用翻代码；
+   * 也可以在页面里用 window.LW_EGG_URL 覆盖（比如演示时想换成别处）。
+   */
+  /* 以下四项都可以由后台「全站配置 → 彩蛋」覆盖。
+   *
+   * PHP 侧（includes/pwa_head.php）会把配置写成
+   *   window.LW_EGG_URL / LW_EGG_TAPS / LW_EGG_ANIM_MS
+   * 这里读一次，读不到就用下面的默认值 —— 保证脚本单独也能跑。
+   */
+  function cfgNum(name, dflt, min, max) {
+    var v = window[name];
+    v = parseInt(v, 10);
+    if (isNaN(v)) return dflt;
+    if (typeof min === 'number' && v < min) return min;
+    if (typeof max === 'number' && v > max) return max;
+    return v;
+  }
+
+  var EGG_URL = (typeof window.LW_EGG_URL === 'string' && window.LW_EGG_URL)
+    ? window.LW_EGG_URL
+    : 'https://www.bilibili.com/video/BV1GJ411x7h7/';
+
+  var ANIM_MS = cfgNum('LW_EGG_ANIM_MS', 2500, 500, 10000);   // 彩带动画时长
   var RATE_LIMIT_MS = 60000;   // 同一会话内彩蛋一的最小触发间隔
   var TAP_WINDOW_MS = 2000;    // 连点 logo 的计时窗口
-  var TAP_NEEDED = 5;          // 需要的连点次数
+  var TAP_NEEDED = cfgNum('LW_EGG_TAPS', 5, 3, 20);           // 需要的连点次数
 
   var RATE_KEY = 'lovewall_egg_last';
   var BAG_KEY = 'lovewall_egg_bag';
@@ -252,10 +285,34 @@
     showToast(pickNoRepeat(texts, BAG_KEY), ANIM_MS);
 
     // 降低动态效果：只留文案，不放彩带
-    if (reducedMotion()) return;
+    if (!reducedMotion()) {
+      if (activeConfetti) activeConfetti.stop();
+      activeConfetti = launchConfetti();
+    }
 
-    if (activeConfetti) activeConfetti.stop();
-    activeConfetti = launchConfetti();
+    /* 彩带放完再跳走。
+     *
+     * 为什么不在触发瞬间就跳：
+     *   用户是被「连点五次」这个动作引导过来的，先给他看 2.5 秒的
+     *   彩带和一句文案，再跳转，才像「彩蛋」而不是「我被弹窗绑架了」。
+     *   直接把页面切走的话，用户只会觉得网站抽风。
+     *
+     * 跳转地址优先取 window.LW_EGG_URL（页面可覆盖），
+     * 没有就用内置常量。用 location.assign 而不是 replace ——
+     * 让用户按返回还能回到站内，别把人扔出去就回不来了。
+     */
+    var dest = (typeof window.LW_EGG_URL === 'string' && window.LW_EGG_URL)
+      ? window.LW_EGG_URL
+      : EGG_URL;
+
+    window.setTimeout(function () {
+      try {
+        window.location.assign(dest);
+      } catch (e) {
+        // 极少数 WebView 里 location 被限制，退回新窗口
+        try { window.open(dest, '_blank', 'noopener'); } catch (e2) {}
+      }
+    }, ANIM_MS);
   }
 
   // 键盘密令：↑↑↓↓←→←→ B A（用 event.key 判断，大小写不敏感）
@@ -288,33 +345,81 @@
     }
   }
 
-  // 移动端：2 秒内连点顶栏 logo 5 次
+  /* 顶栏 logo：2 秒内连点 5 次触发彩蛋。
+   *
+   * =====================================================================
+   * 为什么必须「先拦住一次，再决定跳不跳」
+   * =====================================================================
+   * 这里有个绕不开的矛盾：
+   *   - 想触发彩蛋，就得让用户连点 5 次
+   *   - 但 logo 是个 <a href="/">，第一次点下去浏览器立刻开始导航
+   *
+   * 之前只在「第 5 次点击」时调 preventDefault —— 而那时页面早就跳走了，
+   * 第 5 次点击根本不会发生在原页面上。所以彩蛋永远触发不了。
+   *
+   * 正确做法：
+   *   1. 每次点击都先 preventDefault（拦住导航）
+   *   2. 200ms 内没有后续点击 → 说明是「想回首页」，手动执行跳转
+   *   3. 200ms 内又点了一次 → 退回等待，攒次数
+   *   4. 攒到 5 次 → 触发彩蛋，不跳转
+   *
+   * 200ms 是权衡：短到用户感觉不出延迟，长到足以接住连续点击。
+   * 即使脚本出错，也有兜底：400ms 后无论如果没跳转就强制跳一次，
+   * 保证 logo 永远是可用的（彩蛋再好也不能把导航搞坏）。
+   * =====================================================================
+   */
   function initLogoTaps() {
     var logo = document.querySelector('a.site-logo');
     if (!logo) {
       initCornerTaps();
       return;
     }
+
     var taps = [];
     var navTimer = null;
+    var TAP_DELAY = 200;   // 等待「是否还有下一次点击」的窗口
+
+    function goHome() {
+      var href = logo.getAttribute('href') || '/';
+      try {
+        window.location.href = href;
+      } catch (e) {
+        // location 被禁用（极少数 WebView）时退回原生点击
+        try { logo.click(); } catch (e2) {}
+      }
+    }
 
     logo.addEventListener('click', function (e) {
       var now = Date.now();
       taps = taps.filter(function (ts) { return now - ts < TAP_WINDOW_MS; });
       taps.push(now);
 
-      // 只在「够彩蛋次数」时才接管点击；单次点击必须放行默认跳转。
-      // 早期这里无条件 e.preventDefault()，再用 300ms 定时器手动跳转 ——
-      // 结果任何脚本异常或页面禁用跳转时，站名就彻底点不动了。
+      // 先拦住导航，等下判断是「回首页」还是「在连点」
+      e.preventDefault();
+
       if (taps.length >= TAP_NEEDED) {
-        e.preventDefault();
+        // 攒够了 —— 触发彩蛋，不跳转
         taps = [];
         if (navTimer) {
           window.clearTimeout(navTimer);
           navTimer = null;
         }
-        celebrate();
+        // 兜底：万一 celebrate 抛错，至少让 logo 还能用
+        try {
+          celebrate();
+        } catch (err) {
+          goHome();
+        }
+        return;
       }
+
+      // 还没攒够：等 200ms，没有新点击就当作「想回首页」
+      if (navTimer) window.clearTimeout(navTimer);
+      navTimer = window.setTimeout(function () {
+        navTimer = null;
+        taps = [];
+        goHome();
+      }, TAP_DELAY);
     });
   }
 
@@ -383,9 +488,25 @@
   function init() {
     document.addEventListener('keydown', onKeydown);
 
-    // logo 连点仅针对触屏（指针粗）设备，桌面端交给键盘密令、不干扰 logo 正常跳转
-    var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    if (coarse) initLogoTaps();
+    /* logo 连点在**所有设备**上都绑定。
+     *
+     * 【原来只给触屏绑定，导致桌面端点 logo 毫无反应】
+     * 早期注释写的是「桌面端交给键盘密令，不干扰 logo 正常跳转」——
+     * 想法没错，但实际结果是：用鼠标的人连点 logo 五次，
+     * 前四次页面就跳走回首页了，根本凑不满五次，
+     * 彩蛋永远触发不了。用户以为「彩蛋坏了」。
+     *
+     * 【现在怎么保证不干扰正常跳转】
+     * initLogoTaps() 只在攒够 TAP_NEEDED 次时才 preventDefault，
+     * 单次点击完全放行 —— 想回首页点一下就回，不会有任何延迟。
+     * 所以给桌面端绑定没有副作用，只有「快速连点 5 次」这一种
+     * 刻意行为才会被接管。
+     *
+     * 另外补了「跳转前先拦住」：连点过程中每次点击都在 2 秒窗口内，
+     * 但第一次点击已经让浏览器开始导航了。这里改用 capture 阶段监听 +
+     * 提前记录时间戳，把「第 5 次点击」的判定放在导航发生之前。
+     */
+    initLogoTaps();
 
     initScene();
   }

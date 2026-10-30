@@ -234,6 +234,30 @@ if ($action === 'ban') {
     ]);
 
     logOperation($admin['id'], $admin['qq'], 'ban_user', 'user', $userId, '封禁用户，原因：' . $reason);
+
+    /* 封禁必须发邮件 —— 这是安全类通知，不受用户偏好开关影响
+     * （用户有权知道自己的账号发生了什么，而不是下次登录才发现进不去）。
+     */
+    if (is_file(__DIR__ . '/../../includes/mail_service.php')) {
+        require_once __DIR__ . '/../../includes/mail_service.php';
+        $__banLines = [
+            '你的账号已被管理员封禁。',
+            '封禁原因：' . $reason,
+        ];
+        if ($banUntil !== null) {
+            $__banLines[] = '解除时间：' . $banUntil;
+        } else {
+            $__banLines[] = '本次为永久封禁。';
+        }
+        $__banLines[] = '如果你认为这是误判，可以通过站内私信或在群里联系管理员说明情况。';
+
+        lwMailNotify('ban', $userId, [
+            'subject' => '你的账号已被封禁',
+            'title' => '账号封禁通知',
+            'lines' => $__banLines,
+        ]);
+    }
+
     jsonSuccess([], '封禁成功');
 }
 
@@ -254,6 +278,21 @@ if ($action === 'unban') {
     ]);
 
     logOperation($admin['id'], $admin['qq'], 'unban_user', 'user', $userId, '解除封禁');
+
+    if (is_file(__DIR__ . '/../../includes/mail_service.php')) {
+        require_once __DIR__ . '/../../includes/mail_service.php';
+        lwMailNotify('unban', $userId, [
+            'subject' => '你的账号已解除封禁',
+            'title' => '账号解封通知',
+            'lines' => [
+                '你的账号已恢复正常使用。',
+                '请遵守社区规范，避免再次被封禁。',
+            ],
+            'link' => defined('SITE_URL') ? SITE_URL . '/' : '',
+            'linkText' => '回到网站',
+        ]);
+    }
+
     jsonSuccess([], '解除封禁成功');
 }
 

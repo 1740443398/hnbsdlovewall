@@ -158,46 +158,243 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
         window.USER_DATA = USER_DATA;
         window.CSRF_TOKEN = CSRF_TOKEN;
     </script>
-    <style>
-        .u-page{max-width:var(--content-max-width,900px);margin:0 auto;padding:1.5rem 1rem 3rem;}
-        .u-card{position:relative;overflow:hidden;background:var(--surface,#fff);border:1px solid var(--border-light,#E4E9F0);border-radius:1rem;box-shadow:var(--shadow-sm,0 2px 10px rgba(20,40,80,.05));}
-        .u-cover{height:5rem;background:linear-gradient(120deg,var(--primary-light,#EEF3FB),var(--bg-secondary,#F4F7FA));}
-        .u-body{padding:0 1.375rem 1.25rem;}
-        .u-top{display:flex;align-items:flex-end;gap:1rem;margin-top:-2.25rem;}
-        .u-avatar{width:4.5rem;height:4.5rem;border-radius:50%;object-fit:cover;border:3px solid var(--surface,#fff);background:var(--bg-secondary,#F4F7FA);flex:0 0 auto;box-shadow:0 2px 10px rgba(20,40,80,.08);}
-        /* 头像槽位：只覆盖槽位尺寸变量，不动槽位布局规则（widgets.css 的契约依然生效） */
-        .u-avatar-wrap{flex:0 0 auto;display:inline-flex;}
-        .u-avatar-slot{--lw-slot-avatar:4.5rem;--lw-slot-avatar-pad:0.1875rem;box-shadow:0 2px 10px rgba(20,40,80,.08);background:var(--surface,#fff);}
-        .u-headline{flex:1;min-width:0;padding-bottom:.25rem;}
-        .u-nick{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:1.25rem;font-weight:800;color:var(--text);line-height:1.3;word-break:break-all;}
-        .u-role{font-size:.68rem;font-weight:700;padding:.125rem .5rem;border-radius:9999px;background:var(--primary-light,#EEF3FB);color:var(--primary);}
-        .u-sub{margin-top:.25rem;font-size:.78rem;color:var(--text-tertiary);display:flex;gap:.75rem;flex-wrap:wrap;}
-        .u-bio{margin-top:.875rem;font-size:.88rem;color:var(--text-secondary);line-height:1.8;white-space:pre-wrap;word-break:break-word;}
-        .u-bio .hashtag-link,.u-bio .mention-link{text-decoration:none;font-weight:600;}
-        .u-bio.is-empty{color:var(--text-tertiary);font-style:normal;}
-        .u-stats{display:flex;gap:1.5rem;margin-top:1.125rem;padding-top:1rem;border-top:1px solid var(--border-light,#E4E9F0);}
-        .u-stat{display:flex;flex-direction:column;gap:.125rem;text-decoration:none;}
-        .u-stat b{font-size:1.05rem;font-weight:800;color:var(--text);}
-        .u-stat span{font-size:.74rem;color:var(--text-tertiary);}
-        .u-actions{margin-top:1.125rem;display:flex;gap:.625rem;flex-wrap:wrap;align-items:center;}
-        .u-section-title{font-size:.95rem;font-weight:700;color:var(--text);margin:1.5rem 0 .75rem;display:flex;align-items:center;gap:.5rem;}
-        .u-section-title i{width:.25rem;height:.875rem;border-radius:2px;background:var(--primary);display:inline-block;}
-        .u-posts{display:flex;flex-direction:column;gap:.75rem;}
-        .u-post{display:block;background:var(--surface,#fff);border:1px solid var(--border-light,#E4E9F0);border-radius:.875rem;padding:1rem 1.125rem;text-decoration:none;transition:border-color .2s,box-shadow .2s,transform .2s;}
-        .u-post:hover{border-color:var(--primary);box-shadow:var(--shadow-md,0 6px 20px rgba(20,40,80,.08));transform:translateY(-1px);}
-        .u-post-top{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;}
-        .u-post-title{font-size:1rem;font-weight:700;color:var(--text);line-height:1.45;margin:0 0 .375rem;}
-        .u-post:hover .u-post-title{color:var(--primary);}
-        .u-post-body{font-size:.86rem;color:var(--text-secondary);line-height:1.75;word-break:break-word;}
-        .u-post-body .hashtag-link,.u-post-body .mention-link{text-decoration:none;font-weight:600;}
-        .u-post-foot{display:flex;gap:.875rem;flex-wrap:wrap;margin-top:.625rem;font-size:.76rem;color:var(--text-tertiary);}
-        .u-guest-note{margin-top:1rem;padding:.75rem .875rem;border-radius:.625rem;background:var(--warning-light,#FFF8E6);color:var(--warning,#8A6D1F);font-size:.8rem;line-height:1.65;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;}
-        @media (max-width:480px){
-            .u-page{padding:1rem .75rem 2.5rem;}
-            .u-body{padding:0 1rem 1.125rem;}
-            .u-avatar{width:3.75rem;height:3.75rem;}
-            .u-nick{font-size:1.1rem;}
-            .u-top{margin-top:-1.875rem;}
+<style>
+        /* =================================================================
+         * 用户主页 —— 仿 B 站个人空间
+         * =================================================================
+         * B 站个人空间的三个特征，这里都做了：
+         *   1. 顶部一块大横幅（banner），头像压在下沿、略微出框
+         *   2. 横幅右侧放统计（关注/粉丝/获赞），数字大、标签小
+         *   3. 下方是标签页式的作品列表，卡片式排布
+         *
+         * 为什么用横幅而不是纯色卡：
+         *   个人主页是「用户自己的地盘」，第一眼要有辨识度。
+         *   纯色卡看十个人都是一样的，横幅至少能让人放张图。
+         *
+         * 没有头图时的兜底：用渐变 + 一层极淡的网格纹理，
+         * 比一块死白/死蓝有质感得多，也不会显得「图没加载出来」。
+         * ================================================================= */
+
+        .u-page {
+            max-width: var(--content-max-width, 980px);
+            margin: 0 auto;
+            padding: 1.25rem 1rem 3rem;
+        }
+
+        /* ---- 顶部横幅 ---- */
+        .u-card {
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            background: var(--surface, #fff);
+            border: 1px solid var(--border-light, #E9EEF5);
+            box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 12px 32px -20px rgba(16,24,40,.18);
+        }
+
+        .u-cover {
+            position: relative;
+            height: 10rem;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(59,111,182,.18), transparent 55%),
+                radial-gradient(circle at 80% 70%, rgba(88,168,214,.16), transparent 50%),
+                linear-gradient(120deg, #EAF1FB 0%, #F3F7FD 50%, #E8F4F0 100%);
+            background-size: cover;
+            background-position: center;
+        }
+        /* 极淡网格：没有头图时靠它撑住质感 */
+        .u-cover::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+            background-size: 22px 22px;
+            opacity: .35;
+            pointer-events: none;
+        }
+        .u-cover.has-img::after { display: none; }
+
+        .u-body {
+            position: relative;
+            padding: 0 1.5rem 1.25rem;
+        }
+
+        /* ---- 头像压边框 ---- */
+        .u-top {
+            display: flex;
+            align-items: flex-end;
+            gap: 1rem;
+            margin-top: -2.75rem;
+        }
+        .u-avatar-wrap {
+            position: relative;
+            flex: 0 0 auto;
+            width: 6rem;
+            height: 6rem;
+            border-radius: 50%;
+            border: 4px solid var(--surface, #fff);
+            background: var(--surface, #fff);
+            box-shadow: 0 4px 16px -6px rgba(16,24,40,.22);
+            overflow: hidden;
+        }
+        .u-avatar-wrap img,
+        .u-avatar-wrap .lw-av {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .u-headline {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding-bottom: .35rem;
+        }
+        .u-nick {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -.3px;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+            line-height: 1.3;
+        }
+        .u-sub {
+            font-size: .8rem;
+            color: var(--text-muted, #98A2B3);
+            margin-top: .3rem;
+            display: flex;
+            gap: .75rem;
+            flex-wrap: wrap;
+        }
+        .u-sub span { white-space: nowrap; }
+
+        /* ---- 统计（B 站那排数字）---- */
+        .u-stats {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+            padding-top: .9rem;
+            border-top: 1px solid var(--border-light, #F0F3F8);
+            flex-wrap: wrap;
+        }
+        .u-stat {
+            display: flex;
+            align-items: baseline;
+            gap: .35rem;
+            cursor: default;
+        }
+        .u-stat b {
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-primary, #1F2733);
+        }
+        .u-stat span {
+            font-size: .76rem;
+            color: var(--text-muted, #98A2B3);
+        }
+        .u-stat.is-link { cursor: pointer; }
+        .u-stat.is-link:hover b { color: var(--primary, #2F5B9A); }
+
+        /* ---- 简介 ---- */
+        .u-bio {
+            margin-top: .9rem;
+            font-size: .85rem;
+            line-height: 1.75;
+            color: var(--text-secondary, #5A6472);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .u-bio.is-empty { color: var(--text-muted, #B6BFCB); font-style: italic; }
+
+        /* ---- 操作按钮 ---- */
+        .u-actions {
+            display: flex;
+            gap: .6rem;
+            flex-wrap: wrap;
+            margin-top: 1.1rem;
+        }
+        .u-actions .btn { border-radius: 10px; }
+
+        .u-guest-note {
+            margin-top: 1rem;
+            font-size: .8rem;
+            color: var(--text-muted, #98A2B3);
+            padding: .7rem .9rem;
+            background: var(--bg-secondary, #F7F9FC);
+            border-radius: 10px;
+            line-height: 1.7;
+        }
+
+        /* ---- 作品区 ---- */
+        .u-section-title {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            font-size: .95rem;
+            font-weight: 700;
+            margin: 1.75rem 0 .9rem;
+            color: var(--text-primary, #1F2733);
+        }
+        .u-section-title i {
+            display: inline-block;
+            width: 3px;
+            height: 15px;
+            border-radius: 2px;
+            background: var(--primary, #2F5B9A);
+        }
+
+        .u-posts {
+            display: grid;
+            gap: .85rem;
+        }
+
+        .u-post {
+            background: var(--surface, #fff);
+            border: 1px solid var(--border-light, #E9EEF5);
+            border-radius: 14px;
+            padding: 1rem 1.1rem;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .u-post:hover {
+            transform: translateY(-2px);
+            border-color: rgba(59,111,182,.28);
+            box-shadow: 0 8px 24px -14px rgba(16,24,40,.22);
+        }
+        .u-post-top {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            font-size: .74rem;
+            color: var(--text-muted, #98A2B3);
+            margin-bottom: .45rem;
+            flex-wrap: wrap;
+        }
+        .u-post-body {
+            font-size: .88rem;
+            line-height: 1.72;
+            color: var(--text-primary, #1F2733);
+            word-break: break-word;
+        }
+        .u-post-foot {
+            display: flex;
+            gap: 1rem;
+            margin-top: .55rem;
+            font-size: .74rem;
+            color: var(--text-muted, #98A2B3);
+        }
+
+        /* ---- 移动端 ---- */
+        @media (max-width: 640px) {
+            .u-page { padding: .75rem .6rem 2.5rem; }
+            .u-cover { height: 7rem; }
+            .u-body { padding: 0 1rem 1rem; }
+            .u-top { margin-top: -2.25rem; gap: .75rem; }
+            .u-avatar-wrap { width: 4.75rem; height: 4.75rem; border-width: 3px; }
+            .u-nick { font-size: 1.08rem; }
+            .u-stats { gap: 1.25rem; }
+            .u-stat b { font-size: .98rem; }
         }
     </style>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>

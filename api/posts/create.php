@@ -35,7 +35,7 @@ $ip = getClientIP();
  * 现在放宽到 20 次 / 5 分钟，正常使用完全够用，
  * 同时仍然能挡住脚本批量灌水（那是以百为单位的速度）。
  */
-if (!checkRateLimit($ip, 'post_create', 20, 300)) {
+if (!checkRateLimit($ip, 'post_create', function_exists('lwCfgInt') ? lwCfgInt('post_rate_limit', 20) : 20, 300)) {
     jsonError('发帖过于频繁，请稍后再试', 429);
 }
 
@@ -55,12 +55,14 @@ if (isset($_FILES['images']) && is_array($_FILES['images']['name']) && !empty($_
     }
     $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    $maxSize = defined('MAX_SINGLE_IMAGE_SIZE') ? MAX_SINGLE_IMAGE_SIZE : 5 * 1024 * 1024;
+    $maxSize = function_exists('lwCfgInt')
+        ? lwCfgInt('max_single_image_mb', 5) * 1024 * 1024
+        : (defined('MAX_SINGLE_IMAGE_SIZE') ? MAX_SINGLE_IMAGE_SIZE : 5 * 1024 * 1024);
     $maxTotalSize = defined('MAX_UPLOAD_SIZE') ? MAX_UPLOAD_SIZE : 10 * 1024 * 1024;
     $totalSize = 0;
     $uploadCount = 0;
     foreach ($_FILES['images']['tmp_name'] as $i => $tmpName) {
-        if ($uploadCount >= 9) break;
+        if ($uploadCount >= (function_exists('lwCfgInt') ? lwCfgInt('max_images_per_post', 9) : 9)) break;
         if (!isset($_FILES['images']['error'][$i]) || $_FILES['images']['error'][$i] !== UPLOAD_ERR_OK) continue;
         if (empty($tmpName)) continue;
         $ext = strtolower(pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION));

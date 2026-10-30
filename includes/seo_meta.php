@@ -41,6 +41,13 @@ if (!function_exists('lwSeoMeta')) {
         $desc  = trim((string)($opt['description'] ?? ''));
         if ($desc === '' && function_exists('t')) {
             $desc = (string)t('site.meta_desc');
+    // 后台「站点信息 → 一句话简介」优先于词条
+    if (function_exists('lwCfg')) {
+        $__slogan = trim((string)lwCfg('site_slogan', ''));
+        if ($__slogan !== '') {
+            $desc = $__slogan;
+        }
+    }
         }
         $image = trim((string)($opt['image'] ?? '')) ?: '/assets/images/og-cover.png';
         $type  = ($opt['type'] ?? 'website') === 'article' ? 'article' : 'website';

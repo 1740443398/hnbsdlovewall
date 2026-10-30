@@ -14,7 +14,10 @@ require_once __DIR__ . '/../config/config.php';
 
 // 公开只读数据：推荐/热门 2 分钟。
 // 加共享缓存后，重复打开不再查数据文件，也不会重复跑 PHP。
-lwCacheShared(120, 600);
+lwCacheShared(
+    function_exists('lwCfgInt') ? max(0, lwCfgInt('cache_ttl_feed', 120)) : 120,
+    600
+);
 require_once __DIR__ . '/../includes/enhance.php';
 
 $action = $_REQUEST['action'] ?? 'hot';

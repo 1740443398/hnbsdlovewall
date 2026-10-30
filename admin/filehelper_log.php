@@ -54,13 +54,21 @@ function fhSize($b)
     return round($b / 1073741824, 2) . ' GB';
 }
 ?>
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>文件传输记录 · 管理后台</title>
+<?php
+/* 接入统一后台布局（侧边栏 + 顶栏 + 主题变量）。
+ *
+ * 原来这些页面自带一份完整 <!DOCTYPE html> 和自己的配色，
+ * 跟 layout.php 的视觉体系对不上 —— 没有侧边栏、没有顶栏、
+ * 暗色模式也不跟随。现在统一走 adminHeader / adminFooter。
+ */
+require_once __DIR__ . '/layout.php';
+$csrfToken = generateCSRFToken();
+adminHeader('文件传输记录', $admin, $csrfToken);
+?>
+
 <style>
+/* 本页特有样式（表格 / 卡片细节）。
+ * 颜色优先用 layout.php 的 CSS 变量，跟随明暗主题。 */
 *{box-sizing:border-box}
 body{margin:0;background:#F5F7FA;color:#1F2733;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.6}
 .wrap{max-width:1100px;margin:0 auto;padding:24px 18px 60px}
@@ -89,8 +97,7 @@ tr:hover td{background:#FAFBFD}
 .back{display:inline-block;margin-bottom:16px;color:#5B667A;text-decoration:none;font-size:13px}
 .back:hover{color:#2F5B9A}
 </style>
-</head>
-<body>
+
 <div class="wrap">
     <a class="back" href="/admin/dashboard.php">← 返回仪表盘</a>
     <h1>文件传输记录</h1>
@@ -152,5 +159,5 @@ tr:hover td{background:#FAFBFD}
     <?php endif; ?>
     <?php endif; ?>
 </div>
-</body>
-</html>
+<?php adminFooter(); ?>
+

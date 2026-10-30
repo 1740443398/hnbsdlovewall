@@ -43,7 +43,21 @@ if (!function_exists('lw_do_user_follow')) {
                 $followed = true;
                 $fs->insert('follows', ['user_id' => $user['id'], 'target_id' => $targetId]);
                 // 通知被关注者
-                $fs->insert('notifications', [
+                // 被关注邮件（站内通知之外再发一封，让不常上站的人也知道）
+        if (is_file(__DIR__ . '/mail_service.php')) {
+            require_once __DIR__ . '/mail_service.php';
+            lwMailNotify('follow', (int)$targetId, [
+                'title' => ($user['nickname'] ?? '有人') . ' 关注了你',
+                'lines' => [
+                    '你多了一位关注者。',
+                    '去个人主页可以看看是谁，也可以回关。',
+                ],
+                'link' => (defined('SITE_URL') ? SITE_URL : '') . '/pages/u.php?id=' . (int)$user['id'],
+                'linkText' => '看看是谁',
+            ]);
+        }
+
+        $fs->insert('notifications', [
                     'user_id'   => $targetId,
                     'type'      => 'follow',
                     'content'   => ($user['nickname'] ?? '用户') . ' 关注了你',

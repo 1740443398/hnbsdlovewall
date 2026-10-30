@@ -1036,14 +1036,34 @@ header('Expires: 0');
                             }, 1200);
                         } else {
                             showToast(__t('login.success_redirecting'), 'success');
+                            /* 【登录后必须整页跳转，而不是局部更新】
+                             *
+                             * 页面上的登录态（IS_LOGGED_IN、CSRF_TOKEN、用户菜单、
+                             * 发帖按钮、底栏的「我的」）全部是服务端渲染时写进 HTML 的。
+                             * 登录接口返回后这些值在 DOM 里仍然是旧的 ——
+                             * 如果不重新加载，用户会看到「已经登录了但头像是空的、
+                             * 点发帖还让登录」这种鬼状态。
+                             *
+                             * 所以这里用 location.replace() 而不是 href：
+                             *   replace 会替换历史记录，用户按返回不会回到登录页
+                             *   （否则会看到「已登录状态下的登录页」，很怪）。
+                             *
+                             * 加 _r 参数强制绕过缓存：主机的 openresty 有一定概率
+                             * 命中上一次的 HTML 缓存，那样跳过去还是未登录的样子。
+                             */
                             setTimeout(function() {
                                 // App 授权登录：如果浏览器里带着配对 cookie，就回授权页签发 token，
                                 // 否则 App 那边永远拿不到登录态（站点默认固定跳首页）。
                                 var m = document.cookie.match(/(?:^|; )lw_pair_code=([0-9a-f]{32})/);
-                                window.location.href = m
+                                var target = m
                                     ? SITE_URL + '/app_auth.php'
-                                    : SITE_URL + '/';
-                            }, 800);
+                                    : SITE_URL + '/?_r=' + Date.now();
+                                try {
+                                    window.location.replace(target);
+                                } catch (e) {
+                                    window.location.href = target;
+                                }
+                            }, 600);
                         }
                     }
                 } else {

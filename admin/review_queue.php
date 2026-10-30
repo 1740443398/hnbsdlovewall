@@ -13,6 +13,18 @@ if (!checkPermission($admin, 'view_reports')) { header('Location: /admin/dashboa
 $page = 'review_queue.php';
 $pageTitle = '审核队列';
 require __DIR__ . '/layout.php';
+
+/* 补齐 adminHeader()。
+ *
+ * 原来只有 adminFooter() 没有 adminHeader() —— 结果是页面「有脚没头」：
+ * 没有侧边栏、没有顶栏、没有 layout.php 的配色与暗色模式支持，
+ * 跟 dashboard / users 那些页面完全不像一家人。
+ *
+ * 这个疏漏是从旧代码继承下来的：当初写这些页面时只想着「底部加个版权」，
+ * 忘了整页骨架都得由 layout.php 提供。
+ */
+$csrfToken = generateCSRFToken();
+adminHeader($pageTitle, $admin, $csrfToken);
 ?>
 <style>
 .rq-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}

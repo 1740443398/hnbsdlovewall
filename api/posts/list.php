@@ -39,7 +39,10 @@ if ($isGuest) {
     // 每天都在把同一批 3 条 20KB 的 JSON 重新拼一遍。
     // 60 秒 + 300 秒 stale-while-revalidate：帖子上墙最多晚 1 分钟，
     // 而「先给旧副本、后台换新」让翻页与刷新永远不等。
-    lwCacheShared(60, 300);
+    lwCacheShared(
+    function_exists('lwCfgInt') ? max(0, lwCfgInt('cache_ttl_feed', 120)) : 60,
+    300
+);
 }
 
 // 屏蔽过滤：隐藏「我屏蔽的人」与「屏蔽了我的人」发布的帖子。

@@ -203,8 +203,19 @@ switch ($action) {
     // 发送一条私信
     case 'send':
         $ip = getClientIP();
-        if (!checkRateLimit($ip, 'pm_send', 20, 60)) {
-            jsonError('发送过于频繁，请稍后再试', 429);
+        /* 私信限流。
+         *
+         * 原来固定 20 条/分钟，按 IP 算。问题有两个：
+         *   1. 校园网全校一个出口 IP，几十人共用这 20 条配额 ——
+         *      课间聊天高峰时，后面所有人都会收到「发送过于频繁」
+         *   2. 按 IP 而不是按账号，同一个人换设备也被一起限
+         *
+         * 现在改成「按账号 + 可配置」，默认 60 条/分钟。
+         * 按账号限流不会误伤同一个 NAT 后面的其他人。
+         */
+        $__pmLimit = function_exists('lwCfgInt') ? max(5, lwCfgInt('pm_rate_limit', 60)) : 60;
+        if (!checkRateLimit('u' . (int)$user['id'], 'pm_send', $__pmLimit, 60)) {
+            jsonError('发送过于频繁，请稍后再试（每分钟最多 ' . $__pmLimit . ' 条）', 429);
         }
 
         // 校验、落库、通知全部由内核完成（AI 发私信走的是同一个 lw_do_pm_send()）

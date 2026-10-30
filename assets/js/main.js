@@ -1481,10 +1481,44 @@
         if (reset) {
           this.container.innerHTML = '';
         }
+        /* 空结果要分清「真的没有」和「这次没拿到」。
+         *
+         * 【原来的 bug】
+         * 只要 posts.length === 0 就设 hasMore = false。
+         * 但「这次返回空」可能是：
+         *   - 游客模式的条数上限刚好卡在当前页
+         *   - 反爬挑战失败后接口返回了空数组
+         *   - 服务端瞬时故障（这台主机偶发 502）
+         * 这些情况下 hasMore 被永久置为 false，用户看到
+         * 「没有更多帖子了」，但刷新一次内容又全出来了。
+         *
+         * 【现在怎么区分】
+         * 看服务端的 pagination 字段：
+         *   total > 已加载数  → 还有，只是这次没拿到，保留 hasMore
+         *   total === 已加载 → 真的到底了
+         * 同时给「空但还有」的情况一个重试按钮，
+         * 而不是让用户去猜「是不是要刷新」。
+         */
+        const __total = Number(pagination.total || 0);
+        const __loaded = (this.currentPage - 1) * 20;
+
         if (posts.length === 0 && reset) {
-          this.container.innerHTML =
-            '<div class="empty-state"><div class="empty-icon">' + LWIllustration('posts') + '</div><p>暂无帖子</p></div>';
-          this.hasMore = false;
+          const reallyEmpty = (__total === 0);
+          if (reallyEmpty) {
+            this.container.innerHTML =
+              '<div class="empty-state"><div class="empty-icon">' + LWIllustration('posts') + '</div><p>暂无帖子</p></div>';
+            this.hasMore = false;
+          } else {
+            // 有内容但这次没拿到 —— 保留 hasMore，给重试入口
+            this.container.innerHTML =
+              '<div class="empty-state">' +
+              '<div class="empty-icon">' + LWIllustration('error') + '</div>' +
+              '<p>这次没加载出来，共 ' + __total + ' 条</p>' +
+              '<button type="button" class="btn btn-primary" style="margin-top:12px;" ' +
+              'onclick="PostFeed.loadPosts(true)">重新加载</button>' +
+              '</div>';
+            this.hasMore = true;
+          }
           this.hideLoading();
           return;
         }
@@ -1494,7 +1528,16 @@
         });
         // 一次性挂载，避免逐条插入触发多次回流
         this.container.appendChild(frag);
-        this.hasMore = pagination.has_more || false;
+        /* has_more 优先，但没有这个字段时用 total 兜底推算 ——
+         * 早期接口不返回 has_more，直接 || false 会导致
+         * 「明明还有却显示没有更多」。 */
+        if (typeof pagination.has_more !== 'undefined') {
+          this.hasMore = !!pagination.has_more;
+        } else if (__total > 0) {
+          this.hasMore = (__loaded + posts.length) < __total;
+        } else {
+          this.hasMore = posts.length >= 20;
+        }
         this.currentPage++;
         if (this.hasMore) {
           this.showLoadMore();

@@ -1,5 +1,42 @@
 <?php
-define('SITE_NAME', '淮南北师大实验中学高中部校园交流墙');
+/* 配置取值的安全包装。
+ *
+ * constants.php 会在 cfg_registry.php 之前被加载的场景下运行
+ * （例如某些工具脚本直接 require constants.php），
+ * 所以这里不能假定 lwCfg 一定存在 —— 有就用，没有就退回默认值。
+ *
+ * 这个函数让「后台改配置」能立刻影响常量，而不用改 code。
+ */
+if (!function_exists('lwCfgStrSafe')) {
+    /** 取字符串配置；lwCfg 不可用时退回默认值。 */
+    function lwCfgStrSafe($key, $default) {
+        if (!function_exists('lwCfg')) {
+            return (string)$default;
+        }
+        try {
+            $v = lwCfg($key, $default);
+            return ($v === null || $v === '') ? (string)$default : (string)$v;
+        } catch (Throwable $e) {
+            return (string)$default;
+        }
+    }
+}
+
+if (!function_exists('lwCfgIntSafe')) {
+    function lwCfgIntSafe($key, $default) {
+        if (!function_exists('lwCfg')) {
+            return (int)$default;
+        }
+        try {
+            $v = lwCfg($key, $default);
+            return is_numeric($v) ? (int)$v : (int)$default;
+        } catch (Throwable $e) {
+            return (int)$default;
+        }
+    }
+}
+
+define('SITE_NAME', lwCfgStrSafe('site_name', '淮南北师大实验中学高中部校园交流墙'));
 // 预期访问域名白名单：浏览器地址栏域名必须在此名单内才视为本平台，否则可能被 DNS 劫持/仿冒站
 // 线上主站 https://hnbsd.ct.ws，另放行本地开发 127.0.0.1 / localhost（含各端口）
 // 注意：必须定义在 SITE_URL 之前 —— SITE_URL 要用它做 Host 头校验。
@@ -26,18 +63,18 @@ define('BASE_PATH', __DIR__ . '/..');
 define('UPLOAD_DIR', BASE_PATH . '/uploads');
 define('UPLOAD_IMAGES_DIR', UPLOAD_DIR . '/images');
 define('MAX_UPLOAD_SIZE', 10 * 1024 * 1024);
-define('MAX_SINGLE_IMAGE_SIZE', 5 * 1024 * 1024);
+define('MAX_SINGLE_IMAGE_SIZE', lwCfgIntSafe('max_single_image_mb', 5) * 1024 * 1024);
 define('DAILY_UPLOAD_LIMIT', 50 * 1024 * 1024);
 define('POST_COOLDOWN', 300);
 define('POST_LIMIT_SHORT', 5);
-define('SESSION_LIFETIME', 86400);
-define('COOKIE_REMEMBER_DAYS', 15);
+define('SESSION_LIFETIME', lwCfgIntSafe('session_lifetime_hours', 24) * 3600);
+define('COOKIE_REMEMBER_DAYS', lwCfgIntSafe('remember_days', 15));
 define('BCRYPT_COST', 10);
-define('TWOFA_LOCKOUT_ATTEMPTS', 5);
-define('TWOFA_LOCKOUT_MINUTES', 10);
+define('TWOFA_LOCKOUT_ATTEMPTS', lwCfgIntSafe('twofa_lockout_attempts', 5));   // 后台可配
+define('TWOFA_LOCKOUT_MINUTES', lwCfgIntSafe('twofa_lockout_minutes', 10));
 define('SUPER_ADMIN_QQ', 'admin');
 define('SUPER_ADMIN_NICKNAME', '站长');
-define('ITEMS_PER_PAGE', 20);
+define('ITEMS_PER_PAGE', lwCfgIntSafe('items_per_page', 20));
 
 // 游客模式：未注册访客可浏览的动态条数上限，其余功能需注册账号
 /* 游客模式可浏览的动态条数。
@@ -50,7 +87,8 @@ define('ITEMS_PER_PAGE', 20);
  * 注意：这个值同时影响 index.php 的 SSR 首屏、api/posts/list.php、
  * api/app_bootstrap.php 和 topic.php / u.php 的截断，改一处即全站生效。
  */
-define('GUEST_VISIBLE_POSTS', 5);
+define('GUEST_VISIBLE_POSTS', lwCfgIntSafe('guest_visible_posts', 5));   // 后台可配
+
 
 // （EXPECTED_HOSTS 已在文件开头定义，SITE_URL 的 Host 头校验需要它）
 

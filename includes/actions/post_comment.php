@@ -86,6 +86,19 @@ if (!function_exists('lw_do_post_comment')) {
                     'from_user'  => $user['nickname'] ?? '用户',
                     'is_read'    => false,
                 ]);
+
+                // 邮件提醒（5 分钟内同类只发一封，见 includes/mail_service.php）
+                if (is_file(__DIR__ . '/../mail_service.php')) {
+                    require_once __DIR__ . '/../mail_service.php';
+                    lwMailNotify('comment', (int)$post['user_id'], [
+                        'title' => $notifyContent,
+                        'lines' => [
+                            '评论内容：' . mb_substr((string)$content, 0, 120),
+                        ],
+                        'link' => (defined('SITE_URL') ? SITE_URL : '') . '/pages/post_detail.php?id=' . $postId,
+                        'linkText' => '查看并回复',
+                    ]);
+                }
             }
         }
 

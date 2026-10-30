@@ -55,6 +55,12 @@ if (!function_exists('lwLevelDailyCap')) {
     function lwLevelDailyCap(): int
     {
         $v = (int)getSetting('level_daily_cap', '200');
+        // 后台「等级与成长 → 每日经验上限」优先；0 表示不限制
+        if (function_exists('lwCfgInt')) {
+            $cfg = lwCfgInt('level_daily_cap', 100);
+            if ($cfg > 0) return $cfg;
+            if ($cfg === 0 && getSetting('level_daily_cap', null) !== null) return 0;
+        }
         return $v > 0 ? $v : 200;
     }
 }
@@ -63,6 +69,10 @@ if (!function_exists('lwLevelEnabled')) {
     /** 成长体系总开关。关闭后不再发经验、不显示徽章，但历史数据保留。 */
     function lwLevelEnabled(): bool
     {
+        // 统一走配置中心，与后台「等级与成长 → 启用等级系统」一致
+        if (function_exists('lwCfgBool')) {
+            return lwCfgBool('level_enabled', true);
+        }
         return getSetting('level_enabled', '1') !== '0';
     }
 }

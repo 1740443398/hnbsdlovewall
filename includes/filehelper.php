@@ -37,8 +37,8 @@ if (!defined('LW_FH_LOADED')) {
      */
     define('LW_FH_DIR', dirname(__DIR__) . '/data/filehelper');
     define('LW_FH_ROOM_TTL', 1800);        // 房间存活 30 分钟
-    define('LW_FH_RELAY_TTL', 60);         // 中转文件默认留存 60 秒
-    define('LW_FH_RELAY_MAX', 20 * 1024 * 1024);  // 中转单文件上限 20MB（受主机限制）
+    define('LW_FH_RELAY_TTL', function_exists('lwCfgInt') ? max(1, lwCfgInt('fh_relay_ttl_min', 1)) * 60 : 60); // 后台可配，默认 60 秒
+    define('LW_FH_RELAY_MAX', function_exists('lwCfgInt') ? max(1, min(20, lwCfgInt('fh_relay_max_mb', 20))) * 1024 * 1024 : 20 * 1024 * 1024); // 后台可配，上限 20MB（主机限制）
     define('LW_FH_MAX_FILE', 3 * 1024 * 1024 * 1024); // 整体上限 3GB
 
     /** 保证目录存在。 */

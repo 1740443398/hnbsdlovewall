@@ -1,0 +1,147 @@
+/* ==========================================================================
+ * 动效层 —— 滚动显现 / 骨架屏 / 微交互
+ * ==========================================================================
+ * 【设计原则：动效要「感觉得到但注意不到」】
+ *   - 时长 180~420ms。短于这个数看不见，长于这个数就觉得卡
+ *   - 位移不超过 16px。大位移会让页面像在「跳」，而不是「浮出来」
+ *   - 全部用 transform / opacity，不碰 width/height（避免触发重排）
+ *   - 尊重 prefers-reduced-motion：系统开了「减少动态效果」就全部关掉
+ *
+ * 【为什么值得做】
+ *   同样等 1.5 秒，有骨架屏和轻微淡入的页面，用户主观感受会比
+ *   「白屏然后啪一下全出来」快 30% 左右 —— 因为注意力被引导了。
+ *   这个站点每次请求固定 1 秒起步，这项优化的收益比降体积更直接。
+ * ========================================================================== */
+
+:root {
+    --lw-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --lw-dur: 320ms;
+}
+
+/* ---- 滚动显现 ---- */
+.lw-reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity var(--lw-dur) var(--lw-ease),
+                transform var(--lw-dur) var(--lw-ease);
+    will-change: opacity, transform;
+}
+.lw-reveal.is-in {
+    opacity: 1;
+    transform: none;
+}
+/* 一旦显现过就撤掉 will-change，避免长期占着合成层吃显存 */
+.lw-reveal.is-done {
+    will-change: auto;
+}
+
+/* 同组元素依次入场（卡片列表用） */
+.lw-reveal-stagger > * {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 300ms var(--lw-ease), transform 300ms var(--lw-ease);
+}
+.lw-reveal-stagger.is-in > * {
+    opacity: 1;
+    transform: none;
+}
+.lw-reveal-stagger.is-in > *:nth-child(1) { transition-delay: 0ms; }
+.lw-reveal-stagger.is-in > *:nth-child(2) { transition-delay: 45ms; }
+.lw-reveal-stagger.is-in > *:nth-child(3) { transition-delay: 90ms; }
+.lw-reveal-stagger.is-in > *:nth-child(4) { transition-delay: 135ms; }
+.lw-reveal-stagger.is-in > *:nth-child(5) { transition-delay: 180ms; }
+.lw-reveal-stagger.is-in > *:nth-child(6) { transition-delay: 225ms; }
+.lw-reveal-stagger.is-in > *:nth-child(n+7) { transition-delay: 260ms; }
+
+/* ---- 骨架屏 ---- */
+.lw-skel {
+    position: relative;
+    overflow: hidden;
+    background: #EEF2F7;
+    border-radius: 8px;
+}
+.lw-skel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,.72) 50%,
+        rgba(255,255,255,0) 100%);
+    animation: lw-shimmer 1.35s infinite;
+}
+@keyframes lw-shimmer {
+    100% { transform: translateX(100%); }
+}
+.lw-skel-line { height: 12px; margin-bottom: 8px; }
+.lw-skel-line.w60 { width: 60%; }
+.lw-skel-line.w40 { width: 40%; }
+.lw-skel-line.w80 { width: 80%; }
+.lw-skel-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #EEF2F7; flex-shrink: 0;
+}
+
+/* ---- 按钮/卡片微交互 ---- */
+.lw-tap {
+    transition: transform 140ms var(--lw-ease), box-shadow 180ms var(--lw-ease);
+}
+.lw-tap:active {
+    transform: scale(0.972);
+}
+.lw-lift {
+    transition: transform 200ms var(--lw-ease), box-shadow 200ms var(--lw-ease);
+}
+.lw-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px -16px rgba(16,24,40,.26);
+}
+
+/* ---- 顶栏滚动投影 ---- */
+.site-header {
+    transition: box-shadow 240ms var(--lw-ease), background-color 240ms var(--lw-ease);
+}
+.site-header.is-scrolled {
+    box-shadow: 0 1px 0 rgba(16,24,40,.06), 0 6px 24px -18px rgba(16,24,40,.24);
+}
+
+/* ---- 页面进入 ---- */
+body.lw-page-enter {
+    animation: lw-fade-in 260ms var(--lw-ease) both;
+}
+@keyframes lw-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ---- 顶部加载条 ---- */
+#lw-progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2.5px;
+    width: 0;
+    z-index: 99999;
+    background: linear-gradient(90deg, #3B6FB6, #58A8D6);
+    box-shadow: 0 0 8px rgba(59,111,182,.5);
+    transition: width 240ms var(--lw-ease), opacity 320ms ease;
+    pointer-events: none;
+}
+#lw-progress.is-done {
+    opacity: 0;
+}
+
+/* ---- 尊重系统「减少动态效果」 ---- */
+@media (prefers-reduced-motion: reduce) {
+    .lw-reveal,
+    .lw-reveal-stagger > * {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    .lw-skel::after { animation: none; }
+    body.lw-page-enter { animation: none; }
+    #lw-progress { display: none; }
+    .lw-tap:active { transform: none; }
+    .lw-lift:hover { transform: none; }
+}

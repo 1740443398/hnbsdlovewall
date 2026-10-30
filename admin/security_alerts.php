@@ -24,6 +24,19 @@ if (($admin['role'] ?? '') !== 'super_admin') {
 $page = 'security_alerts.php';
 $pageTitle = '安全告警';
 
+/* 接入统一后台布局。
+ *
+ * 原来这个页面只调了 adminFooter() 却没有 adminHeader()，
+ * 结果是「页脚有、页头没有」—— 没有侧边栏、没有顶栏、
+ * 也没有 layout.php 的配色变量，跟其它后台页面完全不像一家人。
+ *
+ * 现在补上：layout.php + adminHeader() + adminFooter() 三件套，
+ * 与 dashboard / users / settings 等页面完全一致。
+ */
+require_once __DIR__ . '/layout.php';
+$csrfToken = generateCSRFToken();
+adminHeader($pageTitle, $admin, $csrfToken);
+
 $logFile = __DIR__ . '/../data/_oom_alerts.log';
 $alerts = [];
 if (is_file($logFile)) {

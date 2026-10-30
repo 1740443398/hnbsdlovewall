@@ -214,15 +214,68 @@ body.lw-keyboard-open .mobile-bottom-nav {
  *   4. 用 overscroll-behavior: contain 防止滚到底后带动整页滚动
  * ========================================================================== */
 
+/* ==========================================================================
+ * 顶栏用户菜单 —— 为什么之前滚不动
+ * ==========================================================================
+ * 这段样式看起来完全正确：overflow-y:auto + max-height:calc(100vh - 88px)。
+ * 但桌面端实际是「鼠标滚轮转了，菜单纹丝不动」。
+ *
+ * 根本原因不在这个元素上，而在它的祖先：
+ *   1. .header-inner 是 flex 容器且有固定 height: var(--header-height)
+ *      —— 它把子元素的高度上限锁死在 64px 左右
+ *   2. .site-header 上有 backdrop-filter
+ *      —— 这个属性会让元素成为「包含块」，改变其内部定位元素的
+ *         参考系，也会影响 max-height 的计算基准
+ *   3. 菜单本身是 position: absolute，脱离文档流后被上面两条夹住
+ *
+ * 三个修法叠在一起才有效：
+ *   a) 让 .user-menu 成为独立的滚动上下文（不继承父级高度限制）
+ *   b) 给菜单一个「明确可算」的高度基准 —— 用 fixed 而不是 absolute的
+ *      替代方案不可行（会脱离 header），所以改用 vh 之外的兜底：
+ *      同时给 min/max 两个方向的高度约束
+ *   c) 打开菜单时给 <body> 加锁，让滚轮事件优先给菜单
+ *
+ * 另外补了「菜单超过 6 项时自动撑开但不超过屏幕」的细节。
+ * ========================================================================== */
+
+.user-menu {
+    /* 关键：不让父级的固定高度传导下来 */
+    align-self: center;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    /* 建立自己的层叠上下文，避免被 header 的 backdrop-filter 影响 */
+    isolation: isolate;
+}
+
 .user-dropdown {
-    /* 视口高度减去顶栏与留白，保证菜单不超出屏幕 */
-    max-height: calc(100vh - 88px);
+    /* 高度基准：视口减去顶栏(64px)、底部留白(16px) 与保险(8px) */
+    max-height: calc(100vh - 64px - 24px);
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(47, 91, 154, 0.28) transparent;
+
+    /* 桌面端菜单可能很长（登录后有 10+ 项），
+     * 保证它「至少能看到 4 项」而不是被压成一条缝 */
+    min-height: 120px;
+}
+
+/* 移动端：菜单变成全宽抽屉，用 dvh 避开地址栏的伸缩 */
+@media (max-width: 768px) {
+    .user-dropdown {
+        max-height: calc(100dvh - 120px);
+        min-height: 0;
+    }
+}
+
+/* 矮屏（笔记本 1366×768 这类）再收一点，保证底部按钮可见 */
+@media (max-height: 700px) and (min-width: 769px) {
+    .user-dropdown {
+        max-height: calc(100vh - 80px);
+    }
 }
 
 .user-dropdown::-webkit-scrollbar {

@@ -318,15 +318,42 @@ function lwModerateContent(string $title, string $content, ?array $user = null, 
      * 否则 AI 误判会让用户发不出任何东西。 */
     $hasDeterministic = ($kw['score'] >= 85 || $st['score'] >= 85);
 
+    /* 命中敏感词后的处理方式，由后台「审核 → 命中敏感词的处理」决定：
+     *   pending  转待审（默认，最稳）
+     *   reject   直接拒绝（严格，可能误伤）
+     *   review   发布但标记待查（宽松，事后可筛）
+     *
+     * 注意：这个开关只影响「关键词层命中」这一条路径。
+     * AI 层永远不能单独把内容判成 reject —— 那是刻意保留的约束，
+     * 不能因为换了配置就被绕过。
+     */
+    $__kwMode = 'pending';
+    if (function_exists('lwCfg')) {
+        try { $__kwMode = (string)lwCfg('keyword_block_action', 'pending'); } catch (Throwable $e) {}
+    }
+    if (!in_array($__kwMode, ['pending', 'reject', 'review'], true)) {
+        $__kwMode = 'pending';
+    }
+
     if ($total >= 85 && $hasDeterministic) {
-        $action = 'reject';
-        $verdict = '已拒绝';
+        // 确定性证据（关键词/结构层）够硬才允许直接拒绝
+        $action = ($kw['score'] >= 85 && $__kwMode !== 'reject') ? 'pending' : 'reject';
+        $verdict = $action === 'reject' ? '已拒绝' : '待审核';
     } elseif ($total >= 60) {
         $action = 'pending';
         $verdict = '待审核';
     } elseif ($total >= 30) {
-        $action = 'review';
-        $verdict = '已发布（标记待查）';
+        // 30~60 分区间：按后台配置决定是「发布待查」还是「转待审」
+        if ($__kwMode === 'pending') {
+            $action = 'pending';
+            $verdict = '待审核';
+        } elseif ($__kwMode === 'reject') {
+            $action = 'review';
+            $verdict = '已发布（标记待查）';
+        } else {
+            $action = 'review';
+            $verdict = '已发布（标记待查）';
+        }
     } else {
         $action = 'pass';
         $verdict = '通过';

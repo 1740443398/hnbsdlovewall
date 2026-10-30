@@ -200,6 +200,18 @@ if (!defined('LW_SELFHEAL_LOADED')) {
          */
         public static function can(string $op): array
         {
+            /* 后台「安全 → 启用自恢复守护」关掉后，熔断层整体失效。
+             * 数据自愈与磁盘保护仍然生效 —— 那两个是「防止数据损坏」，
+             * 不是「拦截请求」，没有关掉的理由。
+             */
+            if (function_exists('lwCfgBool')) {
+                try {
+                    if (!lwCfgBool('selfheal_enabled', true)) {
+                        return ['allowed' => true, 'reason' => 'disabled'];
+                    }
+                } catch (Throwable $e) {}
+            }
+
             $s = self::state();
             $b = $s['breakers'][$op] ?? null;
 
