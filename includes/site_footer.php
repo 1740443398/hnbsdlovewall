@@ -57,6 +57,13 @@ if (!function_exists('lwRenderFooter')) {
         ?>
     <footer class="site-footer">
         <div class="container">
+            <?php
+            // 后台「站点信息 → 页脚补充说明」
+            $__footerExtra = function_exists('lwCfg') ? trim((string)lwCfg('footer_extra', '')) : '';
+            if ($__footerExtra !== ''):
+            ?>
+            <p style="opacity:.75;font-size:12.5px;"><?= nl2br(htmlspecialchars($__footerExtra)) ?></p>
+            <?php endif; ?>
             <p><?= t('footer.disclaimer') ?></p>
             <p>&copy; 2026 <?= htmlspecialchars($siteName) ?> · 蕭遞版权所有</p>
             <p><?= t('footer.open_source') ?><a href="<?= htmlspecialchars($repoUrl) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($repoName) ?></a></p>

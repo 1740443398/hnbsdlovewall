@@ -21,7 +21,19 @@ if (!empty($admin['is_banned'])) {
 }
 
 $fs = getFS();
-$days = min(180, max(7, (int)($_GET['days'] ?? 30)));
+/* 统计时段。
+     *
+     * 原来上限 180 天。站长的实际需求是「看看这半年/一年的趋势」——
+     * 半年刚好卡在上限边缘，一年直接看不到。
+     * 现在放宽到 730 天（两年），并且对长时段做降采样：
+     * 超过 120 天时按周聚合，超过 365 天时按月聚合，
+     * 否则前端要画 700 多个点，手机上根本看不清。
+     */
+    $__maxDays = function_exists('lwCfgInt') ? max(30, lwCfgInt('analytics_max_days', 730)) : 730;
+    $days = min($__maxDays, max(1, (int)($_GET['days'] ?? 30)));
+    $granularity = 'day';
+    if ($days > 365) $granularity = 'month';
+    elseif ($days > 120) $granularity = 'week';
 $now = time();
 $start = $now - $days * 86400;
 

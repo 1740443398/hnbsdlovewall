@@ -61,7 +61,24 @@ $inviterName = $inviterRow ? (string)($inviterRow['nickname'] ?? '') : '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php require_once __DIR__ . '/../includes/pwa_head.php'; ?>
     <?php require_once __DIR__ . '/../includes/theme_dark_tokens.php'; ?>
-    <script src="<?= asset_url('/assets/js/anti_hijack.js') ?>?v=<?= asset_ver('/assets/js/anti_hijack.js') ?>"></script>
+    <?php
+    /* 防盗链脚本内联。
+     *
+     * 这个脚本只有 789 字节，但挂在线上主机上要花 3.5 秒 ——
+     * 因为主机的每个请求都固定约 1 秒起步（openresty 网关 + PHP 启动），
+     * 跟文件大小完全无关。
+     *
+     * 789 字节的东西让用户等 3.5 秒毫无道理，所以直接内联进页面：
+     * 少一个请求 = 少一次 1 秒起步的开销。注册页原本要等 5 个资源，
+     * 现在只剩 4 个。
+     */
+    ?>
+    <script><?php
+        $__ahi = __DIR__ . '/../assets/js/anti_hijack.min.js';
+        if (is_file($__ahi)) {
+            echo file_get_contents($__ahi);
+        }
+    ?></script>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= t('register.page_title') ?> - <?= SITE_NAME ?></title>
     <meta name="description" content="<?= htmlspecialchars(t('register.meta_desc')) ?>">

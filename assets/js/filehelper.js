@@ -694,7 +694,9 @@
             }
             toast('点对点连不上，改走网盘通道');
             sendViaCloud(file);
-        }, 12000);
+        }, (typeof window.LW_FH_P2P_TIMEOUT === 'number' && window.LW_FH_P2P_TIMEOUT > 0)
+            ? window.LW_FH_P2P_TIMEOUT
+            : 12000);
     }
 
     function addPlaceholder(name, size, channel) {

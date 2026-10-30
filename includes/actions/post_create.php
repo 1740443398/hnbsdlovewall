@@ -39,6 +39,10 @@ if (!function_exists('lw_do_post_create')) {
         $title    = trim((string)($in['title'] ?? ''));
         $content  = trim((string)($in['content'] ?? ''));
         $isAnonymous = !empty($in['is_anonymous']);
+        // 后台「内容与发帖 → 允许匿名发帖」关掉后拒绝匿名
+        if ($isAnonymous && function_exists('lwCfgBool') && !lwCfgBool('enable_anonymous', true)) {
+            return lwActionFail('本站已关闭匿名发帖');
+        }
         $visibility  = sanitizeInput(trim((string)($in['visibility'] ?? 'public')));
         $visibleTo   = sanitizeInput(trim((string)($in['visible_to'] ?? '')));
         $excludeTo   = sanitizeInput(trim((string)($in['exclude_to'] ?? '')));
@@ -59,8 +63,10 @@ if (!function_exists('lw_do_post_create')) {
         if ($title !== '' && (mb_strlen($title) < 2 || mb_strlen($title) > 200)) {
             return lwActionFail('标题长度应在2-200字符之间');
         }
-        if (mb_strlen($content) < 5 || mb_strlen($content) > 5000) {
-            return lwActionFail('内容长度应在5-5000字符之间');
+        $__minLen = function_exists('lwCfgInt') ? lwCfgInt('post_min_length', 5) : 5;
+        $__maxLen = function_exists('lwCfgInt') ? lwCfgInt('post_max_length', 5000) : 5000;
+        if (mb_strlen($content) < $__minLen || mb_strlen($content) > $__maxLen) {
+            return lwActionFail('内容长度应在' . $__minLen . '-' . $__maxLen . '字符之间');
         }
 
         // 图片：只接受站内相对路径，且必须是 /uploads/images/ 下的图片后缀，
@@ -78,7 +84,8 @@ if (!function_exists('lw_do_post_create')) {
                 continue;
             }
             $imageUrls[] = $u;
-            if (count($imageUrls) >= 9) {
+            $__maxImg = function_exists('lwCfgInt') ? lwCfgInt('max_images_per_post', 9) : 9;
+            if (count($imageUrls) >= $__maxImg) {
                 break;
             }
         }
@@ -87,6 +94,10 @@ if (!function_exists('lw_do_post_create')) {
         $poll = null;
         $pollQuestion = trim((string)($in['poll_question'] ?? ''));
         $pollOptionsRaw = trim((string)($in['poll_options'] ?? ''));
+        $__pollOn = function_exists('lwCfgBool') ? lwCfgBool('enable_poll', true) : true;
+        if (!$__pollOn && ($pollQuestion !== '' || $pollOptionsRaw !== '')) {
+            return lwActionFail('本站已关闭投票功能');
+        }
         if ($pollQuestion !== '' || $pollOptionsRaw !== '') {
             if ($pollQuestion === '') {
                 return lwActionFail('请填写投票标题');

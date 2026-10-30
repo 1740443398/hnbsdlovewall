@@ -43,7 +43,15 @@ function a0_0x4494(_0x5f0e02,_0x2e1806){_0x5f0e02=_0x5f0e02-0x1d3;var _0x631a16=
 })();
 /* ==== easter-eggs.min.js ==== */
 ;(function(){
-!function(){"use strict";if(0!==window.location.pathname.indexOf("/admin")){var e=["这一页被你遇见了，也算今天的巧合。","灯还亮着，故事就还没讲完。","慢一点也没关系，走廊本来就该慢慢走。","有些答案不在地图上，在拐角处。","路过一件小小的好事，记得收进口袋。"],t=["你要找的页面不在这里，但你来过，这一趟就不算白走。","拐错一个弯，有时也会遇见一处安静的风景。","教室的灯替你留着，先回首页吧。"],n=2500,r=2e3,o="lovewall_egg_last",a=null,i=["arrowup","arrowup","arrowdown","arrowdown","arrowleft","arrowright","arrowleft","arrowright","b","a"],l=0;"loading"===document.readyState?document.addEventListener("DOMContentLoaded",g,{once:!0}):g()}function c(e,t){var n=window[e];return"[object Array]"===Object.prototype.toString.call(n)&&n.length?n:t}function d(e,t){try{return window[e].getItem(t)}catch(e){return null}}function s(e,t,n){try{window[e].setItem(t,n)}catch(e){}}function u(e,t){if(!e||!e.length)return"";var n=d("localStorage",t),r=[];if(n)try{r=JSON.parse(n)}catch(e){r=[]}"[object Array]"!==Object.prototype.toString.call(r)&&(r=[]),r=r.filter(function(t){return"number"==typeof t&&t>=0&&t<e.length}),r.length>=e.length&&(r=[]);for(var o=[],a=0;a<e.length;a++)-1===r.indexOf(a)&&o.push(a);var i=o[Math.floor(Math.random()*o.length)];return r.push(i),s("localStorage",t,JSON.stringify(r)),e[i]}function w(){var e=function(){var e=["--primary","--accent","--accent-dark","--info","--success","--warning"],t=[];try{for(var n=window.getComputedStyle(document.documentElement),r=0;r<e.length;r++){var o=(n.getPropertyValue(e[r])||"").trim();o&&t.push(o)}}catch(e){}return t.length||(t=["#2F5B9A","#C9A96E","#A8843F","#2773C4","#2E8B57","#C7902A"]),t}(),t=Math.min(window.devicePixelRatio||1,2),r=document.createElement("canvas");r.className="lw-egg-canvas",document.body.appendChild(r);var o=r.getContext("2d"),i=0,l=0;function c(){i=window.innerWidth,l=window.innerHeight,r.width=Math.round(i*t),r.height=Math.round(l*t),r.style.width=i+"px",r.style.height=l+"px",o.setTransform(t,0,0,t,0,0)}c();for(var d=[],s=0;s<100;s++)d.push({x:Math.random()*i,y:-20-Math.random()*l*.4,vx:1.6*(Math.random()-.5),vy:1.4+2.4*Math.random(),w:5+5*Math.random(),h:8+8*Math.random(),rot:Math.random()*Math.PI,vr:.22*(Math.random()-.5),color:e[s%e.length]});var u=performance.now(),w=null,h=!1;function f(){h||(h=!0,null!==w&&(window.cancelAnimationFrame(w),w=null),document.removeEventListener("visibilitychange",m),window.removeEventListener("resize",c),r.parentNode&&r.parentNode.removeChild(r),a&&a.stop===f&&(a=null))}function m(){document.hidden&&f()}return document.addEventListener("visibilitychange",m),window.addEventListener("resize",c,{passive:!0}),w=window.requestAnimationFrame(function e(){if(!h){var t=performance.now()-u;o.clearRect(0,0,i,l);for(var r=t>2100?Math.max(0,(n-t)/400):1,a=0;a<d.length;a++){var c=d[a];c.x+=c.vx,c.y+=c.vy,c.vy+=.028,c.rot+=c.vr,o.save(),o.translate(c.x,c.y),o.rotate(c.rot),o.globalAlpha=r,o.fillStyle=c.color,o.fillRect(-c.w/2,-c.h/2,c.w,c.h),o.restore()}t>=n?f():w=window.requestAnimationFrame(e)}}),{stop:f}}function h(){(function(){var e=d("sessionStorage",o);if(null===e)return!0;var t=parseInt(e,10);return!!isNaN(t)||Date.now()-t>=6e4})()&&(s("sessionStorage",o,String(Date.now())),function(e,t){if(e){var n=document.createElement("div");n.className="lw-egg-toast",n.setAttribute("role","status"),n.textContent=e,document.body.appendChild(n),n.offsetWidth,n.classList.add("lw-egg-toast-show"),window.setTimeout(function(){n.classList.remove("lw-egg-toast-show"),window.setTimeout(function(){n.parentNode&&n.parentNode.removeChild(n)},450)},t)}}(u(c("LW_EGG_STRINGS",e),"lovewall_egg_bag"),n),window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches||(a&&a.stop(),a=w()))}function f(e){if(function(e){if(!e)return!1;var t=e.tagName;return"INPUT"===t||"TEXTAREA"===t||"SELECT"===t||!0===e.isContentEditable}(e.target))l=0;else{var t=(e.key||"").toLowerCase();t===i[l]?++l===i.length&&(l=0,h()):l=t===i[0]?1:0}}function m(){var e=document.querySelector("a.site-logo");if(e){var t=[],n=null;e.addEventListener("click",function(e){var o=Date.now();(t=t.filter(function(e){return o-e<r})).push(o),t.length>=5&&(e.preventDefault(),t=[],n&&(window.clearTimeout(n),n=null),h())})}else!function(){var e=[];document.addEventListener("click",function(t){var n=t.clientX,o=t.clientY;if(!(n>.25*window.innerWidth||o>.15*window.innerHeight)){var a=Date.now();(e=e.filter(function(e){return a-e<r})).push(a),e.length>=5&&(e=[],h())}})}()}function v(){var e=document.getElementById("lw404Scene");if(e)for(var n=document.getElementById("lwSceneCaption"),r=c("LW_EGG_SCENE_TEXTS",t),o=e.querySelectorAll("[data-lw-egg]"),a=0;a<o.length;a++)(function(e){e.addEventListener("click",function(){i(e)}),e.addEventListener("keydown",function(t){"Enter"!==t.key&&" "!==t.key&&"Spacebar"!==t.key||(t.preventDefault(),i(e))})})(o[a]);function i(t){var o=u(r,"lovewall_egg_scene_bag");if(o){for(var a=e.querySelectorAll("[data-lw-egg]"),i=0;i<a.length;i++)a[i].classList.remove("lw-egg-active");t&&t.classList.add("lw-egg-active"),n&&(n.classList.remove("lw-scene-caption-show"),n.textContent=o,n.offsetWidth,n.classList.add("lw-scene-caption-show"))}}}function g(){document.addEventListener("keydown",f),!(!window.matchMedia||!window.matchMedia("(pointer: coarse)").matches)&&m(),v()}}();
+(function (){'use strict';if (window.location.pathname.indexOf('/admin')===0) return;if (window.LW_EGG_OFF===true) return;var FALLBACK_CELEBRATE=[
+'这一页被你遇见了，也算今天的巧合。','灯还亮着，故事就还没讲完。','慢一点也没关系，走廊本来就该慢慢走。','有些答案不在地图上，在拐角处。','路过一件小小的好事，记得收进口袋。'
+];var FALLBACK_SCENE=[
+'你要找的页面不在这里，但你来过，这一趟就不算白走。','拐错一个弯，有时也会遇见一处安静的风景。','教室的灯替你留着，先回首页吧。'
+];function cfgNum(name,dflt,min,max){var v=window[name];v=parseInt(v,10);if (isNaN(v)) return dflt;if (typeof min==='number' && v < min) return min;if (typeof max==='number' && v > max) return max;return v;}var EGG_URL=(typeof window.LW_EGG_URL==='string' && window.LW_EGG_URL)
+? window.LW_EGG_URL
+: 'https://www.bilibili.com/video/BV1GJ411x7h7/';var ANIM_MS=cfgNum('LW_EGG_ANIM_MS',2500,500,10000);var RATE_LIMIT_MS=60000;var TAP_WINDOW_MS=2000;var TAP_NEEDED=cfgNum('LW_EGG_TAPS',5,3,20);var RATE_KEY='lovewall_egg_last';var BAG_KEY='lovewall_egg_bag';var SCENE_BAG_KEY='lovewall_egg_scene_bag';function readStrings(globalName,fallback){var v=window[globalName];if (Object.prototype.toString.call(v)==='[object Array]' && v.length) return v;return fallback;}function reducedMotion(){return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);}function storeGet(store,key){try{return window[store].getItem(key);}catch (e){return null;}}function storeSet(store,key,val){try{window[store].setItem(key,val);}catch (e){}}function pickNoRepeat(list,bagKey){if (!list || !list.length) return '';var raw=storeGet('localStorage',bagKey);var bag=[];if (raw){try{bag=JSON.parse(raw);}catch (e){bag=[];}}if (Object.prototype.toString.call(bag) !=='[object Array]') bag=[];bag=bag.filter(function (i){return typeof i==='number' && i >=0 && i < list.length;});if (bag.length >=list.length) bag=[];var remaining=[];for (var i=0;i < list.length;i++){if (bag.indexOf(i)===-1) remaining.push(i);}var pick=remaining[Math.floor(Math.random() * remaining.length)];bag.push(pick);storeSet('localStorage',bagKey,JSON.stringify(bag));return list[pick];}function showToast(text,ms){if (!text) return;var el=document.createElement('div');el.className='lw-egg-toast';el.setAttribute('role','status');el.textContent=text;document.body.appendChild(el);void el.offsetWidth;el.classList.add('lw-egg-toast-show');window.setTimeout(function (){el.classList.remove('lw-egg-toast-show');window.setTimeout(function (){if (el.parentNode) el.parentNode.removeChild(el);},450);},ms);}var activeConfetti=null;function tokenColors(){var names=['--primary','--accent','--accent-dark','--info','--success','--warning'];var out=[];try{var cs=window.getComputedStyle(document.documentElement);for (var i=0;i < names.length;i++){var v=(cs.getPropertyValue(names[i]) || '').trim();if (v) out.push(v);}}catch (e){}if (!out.length){out=['#2F5B9A','#C9A96E','#A8843F','#2773C4','#2E8B57','#C7902A'];}return out;}function launchConfetti(){var colors=tokenColors();var dpr=Math.min(window.devicePixelRatio || 1,2);var canvas=document.createElement('canvas');canvas.className='lw-egg-canvas';document.body.appendChild(canvas);var ctx=canvas.getContext('2d');var W=0,H=0;function resize(){W=window.innerWidth;H=window.innerHeight;canvas.width=Math.round(W * dpr);canvas.height=Math.round(H * dpr);canvas.style.width=W + 'px';canvas.style.height=H + 'px';ctx.setTransform(dpr,0,0,dpr,0,0);}resize();var COUNT=100;var parts=[];for (var i=0;i < COUNT;i++){parts.push({x: Math.random() * W,y: -20 - Math.random() * H * 0.4,vx: (Math.random() - 0.5) * 1.6,vy: 1.4 + Math.random() * 2.4,w: 5 + Math.random() * 5,h: 8 + Math.random() * 8,rot: Math.random() * Math.PI,vr: (Math.random() - 0.5) * 0.22,color: colors[i % colors.length]});}var start=performance.now();var raf=null;var stopped=false;function stop(){if (stopped) return;stopped=true;if (raf !==null){window.cancelAnimationFrame(raf);raf=null;}document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('resize',resize);if (canvas.parentNode) canvas.parentNode.removeChild(canvas);if (activeConfetti && activeConfetti.stop===stop) activeConfetti=null;}function onVisibility(){if (document.hidden) stop();}function frame(){if (stopped) return;var t=performance.now() - start;ctx.clearRect(0,0,W,H);var fade=t > ANIM_MS - 400 ? Math.max(0,(ANIM_MS - t) / 400) : 1;for (var i=0;i < parts.length;i++){var p=parts[i];p.x +=p.vx;p.y +=p.vy;p.vy +=0.028;p.rot +=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.globalAlpha=fade;ctx.fillStyle=p.color;ctx.fillRect(-p.w / 2,-p.h / 2,p.w,p.h);ctx.restore();}if (t >=ANIM_MS){stop();return;}raf=window.requestAnimationFrame(frame);}document.addEventListener('visibilitychange',onVisibility);window.addEventListener('resize',resize,{passive: true});raf=window.requestAnimationFrame(frame);return{stop: stop};}function rateAllowed(){var last=storeGet('sessionStorage',RATE_KEY);if (last===null) return true;var t=parseInt(last,10);if (isNaN(t)) return true;return Date.now() - t >=RATE_LIMIT_MS;}function markTriggered(){storeSet('sessionStorage',RATE_KEY,String(Date.now()));}function celebrate(){if (!rateAllowed()) return;markTriggered();var texts=readStrings('LW_EGG_STRINGS',FALLBACK_CELEBRATE);showToast(pickNoRepeat(texts,BAG_KEY),ANIM_MS);if (!reducedMotion()){if (activeConfetti) activeConfetti.stop();activeConfetti=launchConfetti();}var dest=(typeof window.LW_EGG_URL==='string' && window.LW_EGG_URL)
+? window.LW_EGG_URL
+: EGG_URL;window.setTimeout(function (){try{window.location.assign(dest);}catch (e){try{window.open(dest,'_blank','noopener');}catch (e2){}}},ANIM_MS);}var KONAMI=['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];function isEditable(el){if (!el) return false;var tag=el.tagName;return tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT' || el.isContentEditable===true;}var konamiPos=0;function onKeydown(e){if (isEditable(e.target)){konamiPos=0;return;}var key=(e.key || '').toLowerCase();if (key===KONAMI[konamiPos]){konamiPos++;if (konamiPos===KONAMI.length){konamiPos=0;celebrate();}}else{konamiPos=(key===KONAMI[0]) ? 1 : 0;}}function initLogoTaps(){var logo=document.querySelector('a.site-logo');if (!logo){initCornerTaps();return;}var taps=[];var navTimer=null;var TAP_DELAY=200;function goHome(){var href=logo.getAttribute('href') || '/';try{window.location.href=href;}catch (e){try{logo.click();}catch (e2){}}}logo.addEventListener('click',function (e){var now=Date.now();taps=taps.filter(function (ts){return now - ts < TAP_WINDOW_MS;});taps.push(now);e.preventDefault();if (taps.length >=TAP_NEEDED){taps=[];if (navTimer){window.clearTimeout(navTimer);navTimer=null;}try{celebrate();}catch (err){goHome();}return;}if (navTimer) window.clearTimeout(navTimer);navTimer=window.setTimeout(function (){navTimer=null;taps=[];goHome();},TAP_DELAY);});}function initCornerTaps(){var taps=[];document.addEventListener('click',function (e){var x=e.clientX;var y=e.clientY;if (x > window.innerWidth * 0.25 || y > window.innerHeight * 0.15) return;var now=Date.now();taps=taps.filter(function (ts){return now - ts < TAP_WINDOW_MS;});taps.push(now);if (taps.length >=TAP_NEEDED){taps=[];celebrate();}});}function initScene(){var scene=document.getElementById('lw404Scene');if (!scene) return;var caption=document.getElementById('lwSceneCaption');var texts=readStrings('LW_EGG_SCENE_TEXTS',FALLBACK_SCENE);var hotspots=scene.querySelectorAll('[data-lw-egg]');function pick(){return pickNoRepeat(texts,SCENE_BAG_KEY);}function show(el){var text=pick();if (!text) return;var all=scene.querySelectorAll('[data-lw-egg]');for (var i=0;i < all.length;i++){all[i].classList.remove('lw-egg-active');}if (el) el.classList.add('lw-egg-active');if (caption){caption.classList.remove('lw-scene-caption-show');caption.textContent=text;void caption.offsetWidth;caption.classList.add('lw-scene-caption-show');}}for (var i=0;i < hotspots.length;i++){(function (el){el.addEventListener('click',function (){show(el);});el.addEventListener('keydown',function (e){if (e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){e.preventDefault();show(el);}});})(hotspots[i]);}}function init(){document.addEventListener('keydown',onKeydown);initLogoTaps();initScene();}if (document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init,{once: true});}else{init();}})();
 })();
 /* ==== polish.obf.js ==== */
 ;(function(){
@@ -99,6 +107,267 @@ function a0_0x28b9(_0x3f8c61,_0xac0120){_0x3f8c61=_0x3f8c61-0xb7;var _0x177c00=a
         '这叫 Self-XSS，是真实存在的攻击方式。'
     ].join("\n");
     console.log('%c' + info, 'font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.75;color:#4A5568;');
+})();
+
+})();
+/* ==== motion.js ==== */
+;(function(){
+/**
+ * 动效层 —— 滚动显现 / 骨架屏 / 顶部加载条
+ *
+ * ==========================================================================
+ * 三个观察者，各管一件事
+ * ==========================================================================
+ *   1. IntersectionObserver（显现）：元素进入视口才播动画。
+ *      滚出视口后再进来不重播 —— 反复播会让人烦，也浪费性能。
+ *   2. MutationObserver（骨架屏）：动态插入的内容自动套骨架屏。
+ *   3. 加载条：任何 fetch / 表单提交都显示一条细进度条。
+ *
+ * ==========================================================================
+ * 为什么不引 AOS / animate.css
+ * ==========================================================================
+ * 那些库动辄几十 KB，而这里要的只有「淡入 + 上移 14px」一个效果。
+ * 自己写 200 行能做到同样的事，还省掉一个网络请求 ——
+ * 在「每个请求固定 1 秒」的主机上，这点尤其重要。
+ * ==========================================================================
+ */
+(function () {
+  'use strict';
+
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* ---------------------------------------------------------------- 显现 */
+
+  var io = null;
+
+  function ensureIO() {
+    if (io || reduce || !('IntersectionObserver' in window)) return io;
+    io = new IntersectionObserver(function (entries) {
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        if (!e.isIntersecting) continue;
+        var el = e.target;
+        el.classList.add('is-in');
+        // 动画结束后撤掉 will-change，释放合成层
+        window.setTimeout(function (node) {
+          return function () { node.classList.add('is-done'); };
+        }(el), 700);
+        io.unobserve(el);
+      }
+    }, {
+      rootMargin: '0px 0px -8% 0px',
+      threshold: 0.06
+    });
+    return io;
+  }
+
+  /**
+   * 给需要显现的元素打标。
+   *
+   * 只挑「列表项 / 卡片 / 独立段落」这类块级元素，
+   * 不给行内元素和已经很小的东西加 —— 那会让页面看起来在抖。
+   */
+  function markReveal(root) {
+    if (reduce) return;
+    var sel = [
+      '.post-card',
+      '.u-post',
+      '.comment-item',
+      '.tool-card',
+      '.bk-card',
+      '.stat-card',
+      '.section',
+      '.me-panel',
+      '.message-item'
+    ].join(',');
+
+    var nodes = (root || document).querySelectorAll(sel);
+    var ob = ensureIO();
+    if (!ob) return;
+
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.classList.contains('lw-reveal') || n.hasAttribute('data-no-reveal')) continue;
+      n.classList.add('lw-reveal');
+      ob.observe(n);
+    }
+  }
+
+  /* -------------------------------------------------------------- 骨架屏 */
+
+  /**
+   * 生成一段骨架屏 HTML。
+   * @param {number} lines 行数
+   */
+  function skeletonHtml(lines) {
+    var out = '<div class="lw-skel-wrap" style="padding:16px;">';
+    for (var i = 0; i < (lines || 3); i++) {
+      out += '<div class="lw-skel lw-skel-line ' + (i === 0 ? 'w80' : (i % 2 ? 'w60' : 'w40')) + '"></div>';
+    }
+    out += '</div>';
+    return out;
+  }
+
+  /** 把一个容器临时填成骨架屏。返回还原函数。 */
+  function skelInto(el, lines) {
+    if (!el || reduce) return function () {};
+    var prev = el.innerHTML;
+    el.innerHTML = skeletonHtml(lines);
+    return function () {
+      // 只在「内容还没被真实数据替换」时还原，避免覆盖掉新渲染的内容
+      if (el.querySelector('.lw-skel-wrap')) el.innerHTML = prev;
+    };
+  }
+
+  /* ------------------------------------------------------------ 顶部加载条 */
+
+  var bar = null;
+  var barTimer = null;
+  var barRunning = 0;
+
+  function ensureBar() {
+    if (reduce) return null;
+    if (bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'lw-progress';
+    (document.body || document.documentElement).appendChild(bar);
+    return bar;
+  }
+
+  function barStart() {
+    var b = ensureBar();
+    if (!b) return;
+    barRunning++;
+    b.classList.remove('is-done');
+    b.style.opacity = '1';
+    b.style.width = '12%';
+    clearTimeout(barTimer);
+    // 缓慢爬升到 80%，不真的到 100% —— 100% 等数据回来才给
+    barTimer = setTimeout(function () {
+      if (barRunning > 0 && b) b.style.width = '72%';
+    }, 260);
+  }
+
+  function barDone() {
+    barRunning = Math.max(0, barRunning - 1);
+    if (barRunning > 0) return;
+    var b = ensureBar();
+    if (!b) return;
+    b.style.width = '100%';
+    setTimeout(function () {
+      if (!b) return;
+      b.classList.add('is-done');
+      setTimeout(function () {
+        if (b && barRunning === 0) b.style.width = '0';
+      }, 340);
+    }, 160);
+  }
+
+  /* --------------------------------------------------------- 接管 fetch */
+
+  // 让所有 fetch 自动带加载条（不含跨域，避免给第三方请求加条）
+  if (window.fetch && !window.__lwFetchWrapped) {
+    window.__lwFetchWrapped = true;
+    var origFetch = window.fetch;
+    window.fetch = function (input, init) {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var sameOrigin = url.indexOf('/') === 0 ||
+        url.indexOf(location.origin) === 0 ||
+        url.indexOf('http') !== 0;   // 相对路径
+      if (!sameOrigin) return origFetch.apply(this, arguments);
+
+      barStart();
+      var p;
+      try {
+        p = origFetch.apply(this, arguments);
+      } catch (e) {
+        barDone();
+        throw e;
+      }
+      return p.then(function (r) {
+        barDone();
+        return r;
+      }, function (e) {
+        barDone();
+        throw e;
+      });
+    };
+  }
+
+  /* ------------------------------------------------------- 顶栏滚动投影 */
+
+  function initHeaderShadow() {
+    var header = document.querySelector('.site-header');
+    if (!header) return;
+    var last = -1;
+    function onScroll() {
+      var y = window.scrollY || window.pageYOffset || 0;
+      var on = y > 8;
+      if (on !== last) {
+        header.classList.toggle('is-scrolled', on);
+        last = on;
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  /* ------------------------------------------------------------ 启动 */
+
+  function boot() {
+    if (!reduce) document.body.classList.add('lw-page-enter');
+
+    markReveal(document);
+    initHeaderShadow();
+
+    // 动态插入的内容（翻页、AJAX 渲染）也要能被观察到
+    if ('MutationObserver' in window) {
+      var mo = new MutationObserver(function (muts) {
+        var has = false;
+        for (var i = 0; i < muts.length; i++) {
+          if (muts[i].addedNodes && muts[i].addedNodes.length) { has = true; break; }
+        }
+        if (has) markReveal(document);
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // 站内链接点击 / 表单提交：显示加载条，让「点了有反应」
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      if (!href || href.charAt(0) === '#' || a.target === '_blank' ||
+          href.indexOf('javascript:') === 0 || a.hasAttribute('download')) return;
+      if (href.indexOf(location.origin) === 0 || href.charAt(0) === '/') barStart();
+    }, true);
+
+    document.addEventListener('submit', function () { barStart(); }, true);
+
+    // 页面从 bfcache 恢复时，把加载条收掉（否则会一直挂着）
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) {
+        barRunning = 0;
+        var b = ensureBar();
+        if (b) { b.style.width = '0'; b.classList.add('is-done'); }
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
+
+  // 对外暴露，供页面按需使用
+  window.LWMotion = {
+    markReveal: markReveal,
+    skeleton: skeletonHtml,
+    skelInto: skelInto,
+    barStart: barStart,
+    barDone: barDone,
+  };
 })();
 
 })();

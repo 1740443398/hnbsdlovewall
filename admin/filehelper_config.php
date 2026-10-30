@@ -135,13 +135,21 @@ if (isset($_GET['test'])) {
     }
 }
 ?>
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>网盘中转配置 · 管理后台</title>
+<?php
+/* 接入统一后台布局（侧边栏 + 顶栏 + 主题变量）。
+ *
+ * 原来这些页面自带一份完整 <!DOCTYPE html> 和自己的配色，
+ * 跟 layout.php 的视觉体系对不上 —— 没有侧边栏、没有顶栏、
+ * 暗色模式也不跟随。现在统一走 adminHeader / adminFooter。
+ */
+require_once __DIR__ . '/layout.php';
+$csrfToken = generateCSRFToken();
+adminHeader('网盘中转配置', $admin, $csrfToken);
+?>
+
 <style>
+/* 本页特有样式（表格 / 卡片细节）。
+ * 颜色优先用 layout.php 的 CSS 变量，跟随明暗主题。 */
 *{box-sizing:border-box}
 body{margin:0;background:#F5F7FA;color:#1F2733;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.65}
 .wrap{max-width:680px;margin:0 auto;padding:24px 18px 60px}
@@ -196,8 +204,7 @@ input:focus{border-color:#2F5B9A;background:#fff}
 .pending-note{font-size:11.5px;color:#9AA4B2;margin:10px 0 0;line-height:1.6}
 .warn{background:#FEF8EC;border-left:3px solid #F2994A;padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#8A5A1F;margin-top:12px}
 </style>
-</head>
-<body>
+
 <div class="wrap">
     <a class="back" href="/admin/dashboard.php">← 返回仪表盘</a>
     <h1>网盘中转配置</h1>
@@ -337,5 +344,5 @@ input:focus{border-color:#2F5B9A;background:#fff}
         建议单独注册一个小号专用，不要用主账号。
     </div>
 </div>
-</body>
-</html>
+<?php adminFooter(); ?>
+

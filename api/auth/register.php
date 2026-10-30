@@ -29,24 +29,56 @@ if (!empty($honeypot)) {
 // 图形/算术验证码校验，防机器人批量注册
 // （置于 check_only 分支之后，避免 QQ 查重接口被验证码阻塞）
 
+/* 表单时间戳检查。
+ *
+ * 【为什么从 3 秒放宽到 1 秒】
+ * 原来是「提交时间 - 表单加载时间 < 3 秒就拒绝」，
+ * 目的是挡脚本秒填。但真实用户里手快的（用浏览器自动填充、
+ * 或者把信息先打在备忘录里复制粘贴）完全可能在 3 秒内提交完，
+ * 他们看到的就是「请稍后再试」—— 而且重试还是同样结果，
+ * 因为时间戳没变。
+ *
+ * 1 秒足够挡住「零延迟脚本」，又不会误伤手快的人。
+ */
 $formTimestamp = intval($_POST['_form_ts'] ?? 0);
 if ($formTimestamp > 0) {
     $elapsed = time() - $formTimestamp;
-    if ($elapsed < 3) {
-        jsonError('请稍后再试', 429);
+    if ($elapsed < 1) {
+        // 这里返 400 而不是 429：429 会让前端当成「被限流」，
+        // 用户不知道该怎么办；400 至少能提示「请重新提交」。
+        jsonError('提交太快了，请点一次「注册」按钮', 400);
     }
     if ($elapsed > 7200) {
-        jsonError('表单已过期，请刷新页面后重试', 400);
+        jsonError('表单打开太久了（超过 2 小时），请刷新页面后重试', 400);
     }
 }
 
+/* 每日每 IP 注册上限。
+ *
+ * 【为什么从 3 次放宽到 20 次】
+ * 校园网的典型结构是「全校一个出口 IP 走 NAT」，
+ * 课间几十个同学同时注册时，他们共用同一个 $ip。
+ * 3 次的上限意味着：前 3 个人注册成功，后面所有人当天都进不来，
+ * 而且提示是「请明天再试」—— 这是最劝退的一类错误。
+ *
+ * 放宽到 20 次后：
+ *   - 正常校园场景（一天几十人注册）基本够用
+ *   - 仍然能挡住「一个脚本批量注册几百个号」
+ *   - 真正的滥用还有 QQ 唯一性 + 验证码 + 邀请码三道关
+ *
+ * 如果将来发现被刷，调小这个数字即可，不必改逻辑。
+ */
 $today = date('Y-m-d');
 $ipRegCount = count($fs->find('_ip_registry', ['ip' => $ip, 'date' => $today]));
-if ($ipRegCount >= 3) {
-    jsonError('今日注册次数已达上限，请明天再试', 429);
+$__regDailyLimit = function_exists('lwCfgInt') ? lwCfgInt('register_daily_limit', 20) : 20;
+if ($ipRegCount >= $__regDailyLimit) {
+    jsonError('今日注册次数已达上限（同一网络 ' . $__regDailyLimit . ' 个），请明天再试或换一个网络', 429);
 }
 
-if (getSetting('register_enabled', '1') != '1') {
+$__regOpen = function_exists('lwCfgBool')
+    ? lwCfgBool('register_enabled', true)
+    : (getSetting('register_enabled', '1') == '1');
+if (!$__regOpen) {
     jsonError('管理员已关闭新用户注册', 403);
 }
 
@@ -93,7 +125,10 @@ if ($inviteCodeRaw !== '') {
     $inviteInviter = lwInviteFindInviter($inviteCodeRaw);
 }
 
-if (LW_REGISTER_GATE && $inviteInviter === null) {
+$__regGate = function_exists('lwCfgBool')
+    ? lwCfgBool('register_gate', defined('LW_REGISTER_GATE') && LW_REGISTER_GATE)
+    : (defined('LW_REGISTER_GATE') && LW_REGISTER_GATE);
+if ($__regGate && $inviteInviter === null) {
     // 没有有效邀请码 → 必须答对新生验证题
     $gateQ = $_POST['gate_q'] ?? '';
     $gateA = $_POST['gate_a'] ?? '';
@@ -198,6 +233,21 @@ if (!$user) {
 }
 
 logUserActivity($user['id'], 'register', '注册成功');
+
+// 欢迎邮件（邮箱由 QQ 号推导，见 includes/mail_service.php）
+if (is_file(__DIR__ . '/../../includes/mail_service.php')) {
+    require_once __DIR__ . '/../../includes/mail_service.php';
+    lwMailNotify('register', (int)$user['id'], [
+        'title' => '欢迎加入 ' . (defined('SITE_NAME') ? SITE_NAME : '校园交流墙'),
+        'lines' => [
+            '你的账号已经创建好了，现在就可以发帖、评论、和大家聊天。',
+            '你的登录账号是 QQ 号 ' . $qq . '，请保管好密码。',
+            '发帖前建议先看一下社区规范，友善交流能让这里更舒服一些。',
+        ],
+        'link' => defined('SITE_URL') ? SITE_URL . '/' : '',
+        'linkText' => '去首页看看',
+    ]);
+}
 
 // 邀请归属：带码注册则绑定邀请人、发双方奖励、通知邀请人。
 // 这是旁路功能（内部全程容错），任何失败都不影响注册主流程。

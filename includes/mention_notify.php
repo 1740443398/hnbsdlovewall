@@ -65,7 +65,20 @@ if (!function_exists('lwNotifyMentions')) {
             }
             $done[$uid] = true;
 
-            $fs->insert('notifications', [
+            // 被提及邮件
+        if (is_file(__DIR__ . '/mail_service.php')) {
+            require_once __DIR__ . '/mail_service.php';
+            lwMailNotify('mention', (int)$uid, [
+                'title' => ($fromName ?? '有人') . ' 在内容里提到了你',
+                'lines' => [
+                    '有人在一篇内容里 @ 了你，去看看说了什么。',
+                ],
+                'link' => defined('SITE_URL') ? SITE_URL . '/' : '',
+                'linkText' => '去看看',
+            ]);
+        }
+
+        $fs->insert('notifications', [
                 'user_id'    => $uid,
                 'type'       => 'mention',
                 'content'    => $actorNick . ' 在' . $where . '里提到了你：' . $snippet,

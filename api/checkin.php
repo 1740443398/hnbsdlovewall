@@ -12,6 +12,11 @@
  * 返回：{ checked_today, streak, total, last_date, today }
  */
 require_once __DIR__ . '/../config/config.php';
+
+// 后台「等级与成长 → 启用签到」关闭后直接返回（不允许打卡）
+if (function_exists('lwCfgBool') && !lwCfgBool('checkin_enabled', true)) {
+    jsonError('签到功能已关闭', 403);
+}
 require_once __DIR__ . '/../includes/actions/checkin.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

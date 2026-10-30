@@ -62,6 +62,20 @@ if (!function_exists('lw_do_post_like')) {
                     'from_user'   => $user['nickname'] ?? '用户',
                     'is_read'     => false,
                 ]);
+
+                // 点赞邮件。注意：点赞很频繁，邮件服务内部有
+                // 「同收件人同类型 5 分钟一封」的限频，不会刷屏。
+                if (is_file(__DIR__ . '/../mail_service.php')) {
+                    require_once __DIR__ . '/../mail_service.php';
+                    lwMailNotify('like', (int)$post['user_id'], [
+                        'title' => $notifyContent,
+                        'lines' => [
+                            '你的帖子收到了一个赞。',
+                        ],
+                        'link' => (defined('SITE_URL') ? SITE_URL : '') . '/pages/post_detail.php?id=' . $postId,
+                        'linkText' => '去看看',
+                    ]);
+                }
             }
             // 成长体系：只有「新增点赞」才给作者发经验，取消点赞不扣（避免反复点赞刷经验）
             lwGrowthAward((int)$post['user_id'], 'post_liked');

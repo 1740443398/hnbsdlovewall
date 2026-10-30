@@ -4,8 +4,12 @@ require_once __DIR__ . '/includes/site_footer.php';
 
 $fs = getFS();
 
-$maintenanceMode = getSetting('maintenance_mode', '0') == '1';
-$maintenanceMsg = getSetting('maintenance_message', '网站正在维护中，请稍后再来。');
+$maintenanceMode = function_exists('lwCfgBool')
+    ? lwCfgBool('maintenance_mode', false)
+    : (getSetting('maintenance_mode', '0') == '1');
+$maintenanceMsg = function_exists('lwCfg')
+    ? (string)lwCfg('maintenance_message', '网站正在维护中，请稍后再来。')
+    : getSetting('maintenance_message', '网站正在维护中，请稍后再来。');
 if ($maintenanceMode) {
     $user = getCurrentUser();
     $isAdmin = $user && in_array($user['role'], ['admin', 'super_admin']);

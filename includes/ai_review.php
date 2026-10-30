@@ -65,13 +65,19 @@ if (!defined('LW_AI_REVIEW_LOADED')) {
             return;
         }
 
+        // 后台「审核 → 启用 AI 审核」关掉后直接跳过
+        if (function_exists('lwCfgBool') && !lwCfgBool('ai_moderation_enabled', true)) {
+            return;
+        }
+
         $ai = lwAiScan($title, $content);
         if (empty($ai['ok'])) {
             return;   // AI 不可用就跳过，不影响帖子
         }
 
         $score = (int)($ai['score'] ?? 0);
-        if ($score < 60) {
+        $__threshold = function_exists('lwCfgInt') ? lwCfgInt('ai_review_threshold', 60) : 60;
+        if ($score < $__threshold) {
             return;   // 60 分以下不动，正常内容
         }
 

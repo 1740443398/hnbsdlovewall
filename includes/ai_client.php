@@ -309,7 +309,81 @@ function aiStreamCompletion(array $cfg, array $messages, $timeout, callable $onD
  * @param int   $timeout  单次请求超时（秒）
  * @return array{ok:bool,status:int,resp:?array,error:string,unconfigured:bool,key_tries:int}
  */
+/* =====================================================================
+ * AI 总额度控制
+ * =====================================================================
+ * 多把 Key 轮换能扛住单 Key 耗尽，但挡不住「整站把额度用光」——
+ * 比如有人写脚本反复调 AI 翻译，或者审核链路某天出现死循环，
+ * 半夜就把四把 Key 全烧完，第二天所有人都用不了。
+ *
+ * 所以在真正发请求之前加一道总量闸门：
+ *   - 每日上限：默认 2000 次（后台可配，0 = 不限）
+ *   - 计数落 data/_ai_usage.json，按日期分桶，跨天自动重置
+ *   - 超限直接返回失败（调用方都有兜底逻辑，AI 挂了不影响主流程）
+ *
+ * 为什么是「次数」而不是「token」：
+ *   token 要等响应回来才知道，那时已经花掉了，管不住。
+ *   次数是发请求前就能数的，这才是真正的闸门。
+ * ===================================================================== */
+if (!function_exists('aiQuotaCheck')) {
+    function aiQuotaCheck(): array
+    {
+        $limit = function_exists('lwCfgInt') ? lwCfgInt('ai_daily_quota', 2000) : 2000;
+        if ($limit <= 0) {
+            return ['ok' => true, 'used' => 0, 'limit' => 0];
+        }
+
+        $today = date('Y-m-d');
+        $file  = dirname(__DIR__) . '/data/_ai_usage.json';
+        $data  = ['date' => $today, 'count' => 0];
+
+        if (is_file($file)) {
+            $raw = @file_get_contents($file);
+            $j = $raw !== false ? json_decode($raw, true) : null;
+            if (is_array($j) && ($j['date'] ?? '') === $today) {
+                $data = ['date' => $today, 'count' => (int)($j['count'] ?? 0)];
+            }
+        }
+
+        if ($data['count'] >= $limit) {
+            return ['ok' => false, 'used' => $data['count'], 'limit' => $limit];
+        }
+        return ['ok' => true, 'used' => $data['count'], 'limit' => $limit];
+    }
+
+    /** 记一次调用。失败静默 —— 计数写不进去也不能影响主流程。 */
+    function aiQuotaBump(): void
+    {
+        try {
+            $today = date('Y-m-d');
+            $dir = dirname(__DIR__) . '/data';
+            if (!is_dir($dir)) return;
+            $file = $dir . '/_ai_usage.json';
+
+            $count = 0;
+            if (is_file($file)) {
+                $raw = @file_get_contents($file);
+                $j = $raw !== false ? json_decode($raw, true) : null;
+                if (is_array($j) && ($j['date'] ?? '') === $today) {
+                    $count = (int)($j['count'] ?? 0);
+                }
+            }
+            $count++;
+            @file_put_contents($file, json_encode(['date' => $today, 'count' => $count]), LOCK_EX);
+        } catch (Throwable $e) {}
+    }
+}
+
 function aiChatCompletion(array $cfg, array $messages, $timeout = 60) {
+    // 总量闸门：超了就拒绝，避免整站额度一夜烧光
+    $__q = aiQuotaCheck();
+    if (empty($__q['ok'])) {
+        return ['ok' => false, 'status' => 429, 'resp' => null,
+                'error' => '今日 AI 总调用次数已达上限（' . $__q['limit'] . ' 次），明天恢复',
+                'unconfigured' => false, 'key_tries' => 0, 'quota_exceeded' => true];
+    }
+    aiQuotaBump();
+
     $keys  = aiResolveApiKeys($cfg);
     $model = trim((string)($cfg['model'] ?? ''));
 

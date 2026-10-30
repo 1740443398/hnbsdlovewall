@@ -574,6 +574,19 @@ function lwStripSessionCookieForPublic()
      */
     function lwCacheShared($maxAge = 60, $swr = 0)
     {
+        /* 后台「性能与缓存 → 启用磁盘缓存」关掉后，把共享缓存降为 0。
+         *
+         * 这里的「磁盘缓存」指浏览器/中间层的 HTTP 缓存，不是服务器本地文件。
+         * 关掉它意味着每次请求都回源 —— 只在排查「改了代码但页面没变」时才该关。
+         */
+        if (function_exists('lwCfgBool')) {
+            try {
+                if (!lwCfgBool('enable_disk_cache', true)) {
+                    $maxAge = 0;
+                    $swr = 0;
+                }
+            } catch (Throwable $e) {}
+        }
         $GLOBALS['lw_cache_shared'] = ['max_age' => max(0, (int)$maxAge), 'swr' => max(0, (int)$swr)];
 
         // 响应头还没发出去：立刻按新档位重发一次（这一步让接口不必等到 echo 才生效）
