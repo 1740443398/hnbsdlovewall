@@ -27,6 +27,35 @@ When redistributing, ship `LICENSE`, `THIRD_PARTY_LICENSES.md` and `licenses/` t
 
 ## Features
 
+### Unified Configuration Center *(new in v2.4.2)*
+
+All 55 tunable settings live in one admin page (`/admin/config_center.php`), grouped into 10 sections: site info, access & registration, content & posting, moderation, levels & growth, Android client, performance & caching, file transfer, easter eggs, security.
+
+The page is **data-driven** — adding a setting means writing one entry in `includes/cfg_registry.php`:
+
+```php
+'my_option' => [
+    'label' => 'Display name', 'type' => 'number', 'default' => '10',
+    'min' => 1, 'max' => 100, 'hint' => 'What changes when you edit this',
+],
+```
+
+Read it anywhere with `lwCfg('my_option')` / `lwCfgInt()` / `lwCfgBool()`. The form, validation and bounds checking appear automatically.
+
+### Redeem Code Management *(new in v2.4.2)*
+
+`/admin/points_codes.php` — generate 1–500 codes in a batch with custom point values, copy them all at once, void unused codes per batch, and review redemption history (who redeemed what, when). Users redeem codes in `/pages/shop.php` but cannot generate them.
+
+### Motion & Loading Effects *(new in v2.4.2)*
+
+`assets/css/motion.css` + `assets/js/motion.js` — scroll-reveal via IntersectionObserver (plays once), skeleton screens, a top progress bar that hooks into `fetch`/clicks/forms, and a header shadow on scroll.
+
+Only `transform` and `opacity` are animated (no layout thrashing), and everything honours `prefers-reduced-motion`.
+
+### Bilibili-style User Profile *(new in v2.4.2)*
+
+`/pages/u.php?id=N` — 10rem banner, avatar overlapping the edge, large numeric stats, card-based post list. Falls back to a gradient plus subtle grid texture when no cover image is set.
+
 ### Core Social Features
 - Post creation with categories (Lost & Found, Study Help, Social Chat, Confession Wall, School Info, Announcements)
 - Anonymous posting support
@@ -41,8 +70,11 @@ When redistributing, ship `LICENSE`, `THIRD_PARTY_LICENSES.md` and `licenses/` t
 - Private-message notifications in the notification center (sender name plus a short preview)
 - Report system for posts and private messages (with chat record selection)
 - External URL risk warning in private messages
-- Email notifications (welcome email for new users, password-reset verification code email; both clarify this is NOT a phishing/scam site, include the open-source repo link and the developer's real identity as a guarantee)
-- Every outgoing email carries the site URL in its footer
+- **Email notification system** (`includes/mail_service.php`) — automatic `QQ号@qq.com` address derivation, per-user preferences, rate limiting (1 per type per recipient per 5 min), and a full send log visible in the admin panel
+  - Triggers: registration welcome · post commented · post liked · new follower · @mention · account banned / unbanned
+  - Security-class mails (ban / password / login alert) cannot be opted out
+  - Every failure is logged with a specific reason (auth failed · connection timeout · rejected recipient · openssl missing)
+- **Admin-only mail console** (`/admin/mail_settings.php`) — SMTP editing, one-click test send, 3 templates, broadcast by audience segment, delivery log. Not exposed to regular users.
 - Roll call / check-in page (`pages/rollcall.php`)
 
 ### File Transfer Helper (`/filehelper`)
@@ -357,6 +389,28 @@ therefore driven by **request count**, not bytes:
   (it grew `enhancements.js` from 524 KB to 824 KB), so size wins over obfuscation.
 - Regenerate bundles after touching any bundled source: `python tools/lw_bundle_assets.py`.
 
+### Measured results (v2.4.2)
+
+| Change | Before | After | Saved |
+|---|---|---|---|
+| Register page | 2261 ms | **1487 ms** | 774 ms |
+| External resources on register | 5 | **3** | 2 requests |
+| Homepage CSS/JS requests | 17 | **2** | 15 requests |
+
+Three optimisations made the register page faster:
+
+1. **Inlined `anti_hijack.js`** — 789 bytes that took **3.5 seconds**. On this host a request costs ~1 s regardless of size, so a 789-byte file is as expensive as an 800 KB one.
+2. **Inlined `manifest.css` as a data URI** — 782 bytes, 2.3 seconds saved.
+3. **`bundle.js` `defer`** — no longer blocks parsing.
+
+**The lesson**: on this host, *request count* dominates *payload size*. A 789-byte file costing 3.5 s is not a bug — it is the fixed per-request overhead.
+
+### Other performance work
+
+- `ai_widget.min.css` folded into `bundle.css` (was a duplicate reference on every page).
+- Analytics time range raised from 180 to **730 days**, with automatic downsampling: past 120 days aggregates by week, past 365 days by month. Otherwise the chart would try to plot 700+ points on a phone screen.
+- AI calls are gated by a daily quota (`ai_daily_quota`, default 2000) with the counter in `data/_ai_usage.json`. This is a request-count gate, not a token gate — tokens are only known after the call returns, which is too late to stop anything.
+
 ## Technical Stack
 
 - **Backend**: Hand-written PHP 8.4 (no framework, no Composer)
@@ -526,14 +580,54 @@ Also at the top level: `index.php` (entry point), `init.php` (initialization), `
 
 ## Configuration
 
-Edit `config/constants.php` to customize:
-- `SITE_NAME` - Site name
-- `EXPECTED_HOSTS` - Allowed host whitelist (anti-impersonation guard)
-- `SUPER_ADMIN_QQ` - Super admin QQ number
-- `BCRYPT_COST` - Password hashing cost
-- `SESSION_LIFETIME` - Session lifetime
-- `ITEMS_PER_PAGE` - Posts per page
-- `GUEST_VISIBLE_POSTS` - Number of posts visible to guests
+### Everything tunable is in the admin panel
+
+58 settings across 10 sections live at **`/admin/config_center.php`** — no code editing, no re-upload. This is the intended way to change site behaviour: site name, registration limits, post length and image limits, AI moderation thresholds, level caps, Android version info, cache TTLs, file-transfer limits, easter egg behaviour, and security timeouts.
+
+### Two things that must stay in files
+
+| File | Why it cannot be a setting |
+|---|---|
+| `config/constants.php` → `EXPECTED_HOSTS` | Anti-impersonation whitelist. If it were runtime-editable, an attacker who gained admin access could add their own domain. |
+| `config/constants.php` → `SUPER_ADMIN_QQ` | Bootstrap identity. Needed before any settings can be read. |
+
+### Credentials (never commit these)
+
+```
+config/db_config.php       MySQL credentials
+config/mail_config.php     SMTP authorization code
+config/ai_config.php       AI API keys
+config/sign_secret.php     signing secret
+config/feijipan_config.php cloud drive credentials
+```
+
+All five are listed in `.gitignore`. The build script (`tools/lw_build_dist.py`) also strips them from the public release.
+
+### Constants that read from settings
+
+These `define()` calls resolve the current setting value at load time:
+
+```php
+define('ITEMS_PER_PAGE',      lwCfgIntSafe('items_per_page', 20));
+define('GUEST_VISIBLE_POSTS', lwCfgIntSafe('guest_visible_posts', 5));
+define('SESSION_LIFETIME',    lwCfgIntSafe('session_lifetime_hours', 24) * 3600);
+define('COOKIE_REMEMBER_DAYS',lwCfgIntSafe('remember_days', 15));
+define('MAX_SINGLE_IMAGE_SIZE', lwCfgIntSafe('max_single_image_mb', 5) * 1024 * 1024);
+```
+
+**Order matters**: `filestorage.php` → `cfg_registry.php` → `constants.php`. A constant cannot be redefined, so the lookup capability must exist *before* the definition.
+
+### Email (SMTP)
+
+Configure through the admin panel (`/admin/mail_settings.php`), not by editing `config/mail_config.php` — the panel rewrites that file in a canonical format.
+
+The file must `return` an array:
+
+```php
+return [ 'host' => 'smtp.qq.com', 'port' => 465, 'user' => '...', 'pass' => '...' ];
+```
+
+`QQMailer::cfg()` accepts both this and the legacy `$MAIL_CFG = [...]` form, but the old form silently returned `null` and disabled all mail — which is exactly the bug that broke email in v2.4.1.
 
 ## Notes
 
@@ -543,11 +637,35 @@ Edit `config/constants.php` to customize:
 - `data/*.json` is written in **compact form** (no indentation) to save disk quota on shared hosting and speed up `json_decode`
 - Multi-language support (Simplified Chinese, Traditional Chinese, English); language is detected automatically and can be switched via the language switcher in the header (stored in a cookie)
 - Secret-bearing config files (`config/mail_config.php`, `config/sync_config.php`, `config/ai_config.php`) are **excluded from version control** — supply your own credentials. The AI assistant degrades gracefully when left unconfigured
-- Every email sent to users includes the site URL
+- Every email sent to users includes the site URL in its footer, plus a plain-language opt-out pointer (personal centre → notification settings)
+- **Session handling has a non-obvious constraint**: `ini_set('session.gc_maxlifetime', ...)` is silently ignored on shared hosts. The site works around this by pointing `session.save_path` at `data/_sessions` and setting `gc_probability=0`, then doing its own age-based cleanup. Without this, logins were dropped after 24 minutes instead of 24 hours
 - The project is designed for deployment on shared hosting (e.g., InfinityFree)
 
 ## Known TODOs
 
-- The **list branches** of `users.php`, `posts.php` and `announcements.php` under `api/admin/` still lack fine-grained permission checks (all write endpoints are checked)
-- The Android "desktop UA" behaviour has not yet been fully validated on a real device
-- The launcher's "public IP mode" only warns that the built-in server does not listen externally; for LAN/WAN access you still need your own port forwarding or Apache/Nginx
+### Permission coverage
+The **list branches** of `users.php`, `posts.php` and `announcements.php` under `api/admin/` still lack fine-grained permission checks (all write endpoints are checked). Read-only leakage, not write escalation.
+
+### Email
+- No one-click unsubscribe page yet. Users can turn off notification types in their personal centre, but there is no signed unsubscribe link in the mail footer.
+- Broadcast sending is deliberately capped at 100 per batch with a 350 ms gap. QQ Mail rate-limits aggressive senders; raising this will get the SMTP credential throttled.
+
+### Data layer
+- `getFS()->find()` is a full-table scan. Fine at the current scale (hundreds of rows, ~3 ms), but past a few thousand rows it needs an index layer. No index layer exists today.
+
+### Android
+- The "desktop UA" behaviour has not been fully validated on a real device.
+- The v3 client was compiled and its API layer verified, but end-to-end flows (login persistence across process death, comment loading, profile stats) depend on device testing that has not been done.
+
+### Unverified claims
+
+These are **implemented but not confirmed working in production**:
+
+| Feature | What is verified | What is not |
+|---|---|---|
+| Email delivery | SMTP send succeeded in 1218 ms, logged | Whether it landed in inbox vs spam for real users |
+| Login persistence | Session files persist on server | Whether Android WebView keeps cookies across process death on real hardware |
+| Motion effects | CSS/JS ships in bundle | Visual result (no screenshot verification available) |
+| Broadcast | Logic runs, logs written | Actual delivery to 100+ @qq.com addresses without throttling |
+
+**Be honest about this in any handover.** "Deployed" is not "verified working".

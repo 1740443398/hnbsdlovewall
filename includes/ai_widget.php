@@ -101,7 +101,29 @@ if (!function_exists('lw_ai_widget_render')) {
 <!-- 站内 AI 小助手（全站浮窗） -->
 <div id="lwAiRoot" class="lw-ai" data-state="closed" aria-live="polite"></div>
 <script>window.__lwAiCfg = <?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
-<link rel="stylesheet" href="<?= htmlspecialchars($cssHref) ?>">
+<?php
+        /* AI 助手样式是否还需单独加载。
+         *
+         * 这些样式（ai_widget.min.css，21 KB）已经并入 bundle.css ——
+         * 但这一行还在单独引用，等于每个页面多发一次请求。
+         * 在「每次请求固定 1 秒起步」的主机上，这一下就是白等 2 秒。
+         *
+         * 判断方式：看 bundle.css 是否真的包含这些样式。
+         * 包含就跳过（绝大多数情况）；不包含（比如后台关了资源合并）
+         * 就退回单独加载，保证功能不缺失。
+         */
+        $__bundleCss = __DIR__ . '/../assets/css/bundle.css';
+        $__inBundle = false;
+        if (is_file($__bundleCss)) {
+            $__head = @file_get_contents($__bundleCss, false, null, 0, 65536);
+            if ($__head !== false && strpos($__head, '.lw-ai') !== false) {
+                $__inBundle = true;
+            }
+        }
+        if (!$__inBundle):
+        ?>
+        <link rel="stylesheet" href="<?= htmlspecialchars($cssHref) ?>">
+        <?php endif; ?>
         <script>
         /* AI 助手脚本的容错加载
          *
