@@ -148,7 +148,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
                 return $x !== '';
             }));
 
-            // 按范围挑收件人
+            /* 按范围挑收件人。
+             *
+             * 【字段名踩过的坑】
+             * 原来读的是 last_login_at / last_active_at —— 这两个字段
+             * 在 users 表里根本不存在（实际字段叫 last_visit）。
+             * 结果「最近 30 天活跃」和「超 30 天未登录」都选不出任何人，
+             * 群发等于没发。
+             *
+             * 现在用 last_visit；它为空的老账号按「从未访问」处理，
+             * 归到「沉默用户」里 —— 这些人其实最需要被唤醒。
+             */
             $fs2 = getFS();
             $allUsers = $fs2->read('users');
             $ids = [];
@@ -160,13 +170,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
                 if (!empty($u['is_banned'])) continue;
                 if (lwMailAddressOf($u) === '') continue;
 
+                $last = trim((string)($u['last_visit'] ?? ''));
+                $ts = $last !== '' ? (strtotime($last) ?: 0) : 0;
+
                 if ($scope === 'all') {
                     $ids[] = $uid;
-                } else {
-                    $last = (string)($u['last_login_at'] ?? $u['last_active_at'] ?? '');
-                    $ts = $last !== '' ? (strtotime($last) ?: 0) : 0;
-                    if ($scope === 'active' && $ts >= $cut30) $ids[] = $uid;
-                    if ($scope === 'inactive' && $ts < $cut30) $ids[] = $uid;
+                } elseif ($scope === 'active') {
+                    if ($ts >= $cut30) $ids[] = $uid;
+                } elseif ($scope === 'inactive') {
+                    // 含从未访问过的（$ts === 0）
+                    if ($ts < $cut30) $ids[] = $uid;
+                } elseif ($scope === 'owner') {
+                    // 只发站长自己（用来先给自己试一封）
+                    if ((string)($u['qq'] ?? '') === '1740443398') $ids[] = $uid;
                 }
             }
 
@@ -194,6 +210,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
             }
         }
     }
+}
+
+// ---- 计算各范围的实际收件人数（供表单显示）-----------------------------------
+$scopeCounts = ['all' => 0, 'active' => 0, 'inactive' => 0, 'owner' => 0];
+$cut30 = time() - 30 * 86400;
+foreach ($fs->read('users') as $u) {
+    $uid = (int)($u['id'] ?? 0);
+    if ($uid <= 0) continue;
+    if (!empty($u['is_banned'])) continue;
+    if (lwMailAddressOf($u) === '') continue;
+
+    $scopeCounts['all']++;
+    $ts = trim((string)($u['last_visit'] ?? '')) !== ''
+        ? (strtotime((string)$u['last_visit']) ?: 0) : 0;
+    if ($ts >= $cut30) $scopeCounts['active']++;
+    else $scopeCounts['inactive']++;
+    if ((string)($u['qq'] ?? '') === '1740443398') $scopeCounts['owner']++;
 }
 
 // ---- 读当前配置 ------------------------------------------------------------
@@ -387,53 +420,87 @@ adminHeader('邮件设置', $admin, $csrfToken);
     if (!isset($templates[$selKey])) $selKey = 'announce';
     $sel = $templates[$selKey];
     ?>
-    <form method="post" class="section" style="margin-top:16px;">
+    <form method="post" class="section" style="margin-top:16px;" id="broadcastForm">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
         <input type="hidden" name="act" value="broadcast">
         <input type="hidden" name="tpl" value="<?= htmlspecialchars($selKey) ?>">
-        <div class="section-header"><h3>群发邮件</h3></div>
-        <div class="section-body">
-            <div class="hint" style="margin-bottom:12px;">
-                仅后台可用，普通用户没有入口。发信按 QQ 号推导的邮箱，
-                自动跳过被封禁与没有 QQ 号的账号。每封之间有间隔，避免被 QQ 邮箱限流。
-            </div>
 
+        <div class="section-header">
+            <h3>群发邮件</h3>
+            <span style="font-size:12px;color:var(--text-muted,#98A2B3);">
+                仅后台可用 · 自动跳过封禁与无 QQ 号账号
+            </span>
+        </div>
+
+        <div class="section-body">
+            <!-- 模板选择 -->
             <div class="mail-field">
                 <label>选用模板</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <?php foreach ($templates as $k => $t): ?>
-                        <a href="?tpl=<?= urlencode($k) ?>"
-                           style="padding:6px 13px;border-radius:8px;font-size:12.5px;text-decoration:none;
-                                  <?= $k === $selKey
-                                      ? 'background:var(--primary,#2F5B9A);color:#fff;'
-                                      : 'background:var(--bg-secondary,#F3F6FA);color:var(--text-secondary,#5A6472);' ?>">
+                        <button type="button"
+                                class="tpl-btn <?= $k === $selKey ? 'active' : '' ?>"
+                                data-tpl="<?= htmlspecialchars($k) ?>"
+                                data-subject="<?= htmlspecialchars((string)$t['subject']) ?>"
+                                data-title="<?= htmlspecialchars((string)$t['title']) ?>"
+                                data-lines="<?= htmlspecialchars((string)$t['lines']) ?>"
+                                data-link="<?= htmlspecialchars((string)$t['link']) ?>"
+                                data-linktext="<?= htmlspecialchars((string)$t['linkText']) ?>">
                             <?= htmlspecialchars($t['name']) ?>
-                        </a>
+                        </button>
                     <?php endforeach; ?>
                 </div>
             </div>
 
+            <!-- 收件范围 + 数量（放在最上面，因为这是最关键的决策）-->
+            <div class="bs-scope-box">
+                <div class="bs-scope-title">发给谁</div>
+                <div class="bs-scope-grid">
+                    <?php
+                    $scopes = [
+                        'all'      => ['全部用户', $scopeCounts['all'], '所有能收信的账号'],
+                        'active'   => ['最近 30 天活跃', $scopeCounts['active'], '30 天内访问过站点'],
+                        'inactive' => ['沉默用户', $scopeCounts['inactive'], '超 30 天未访问或从未访问'],
+                        'owner'    => ['只发给自己', $scopeCounts['owner'], '先试一封确认效果'],
+                    ];
+                    foreach ($scopes as $sk => $sinfo):
+                    ?>
+                    <label class="bs-scope-opt">
+                        <input type="radio" name="scope" value="<?= $sk ?>"
+                               <?= $sk === 'all' ? 'checked' : '' ?>>
+                        <span class="bs-scope-name"><?= htmlspecialchars($sinfo[0]) ?></span>
+                        <span class="bs-scope-count"><?= (int)$sinfo[1] ?> 人</span>
+                        <span class="bs-scope-desc"><?= htmlspecialchars($sinfo[2]) ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- 主题 -->
             <div class="mail-field">
-                <label>主题</label>
+                <label>邮件主题</label>
                 <input class="mail-input" name="subject"
                        value="<?= htmlspecialchars((string)$sel['subject']) ?>">
             </div>
 
+            <!-- 正文标题 -->
             <div class="mail-field">
-                <label>标题</label>
+                <label>正文标题</label>
                 <input class="mail-input" name="title"
                        value="<?= htmlspecialchars((string)$sel['title']) ?>">
             </div>
 
+            <!-- 正文内容 -->
             <div class="mail-field">
-                <label>正文</label>
+                <label>正文内容</label>
                 <div class="hint">每行一段，空行会被忽略</div>
                 <textarea class="mail-input" name="lines" rows="5"><?= htmlspecialchars((string)$sel['lines']) ?></textarea>
             </div>
 
+            <!-- 按钮 -->
             <div class="mail-grid">
                 <div class="mail-field">
-                    <label>按钮链接</label>
+                    <label>按钮链接（可留空）</label>
                     <input class="mail-input" name="link" value="<?= htmlspecialchars((string)$sel['link']) ?>">
                 </div>
                 <div class="mail-field">
@@ -442,29 +509,178 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 </div>
             </div>
 
-            <div class="mail-grid">
-                <div class="mail-field">
-                    <label>收件人范围</label>
-                    <select class="mail-input" name="scope">
-                        <option value="all">全部用户（<?= count($fs->read('users')) ?> 人）</option>
-                        <option value="active">最近 30 天活跃</option>
-                        <option value="inactive">超过 30 天未登录</option>
-                    </select>
+            <!-- 批量大小 -->
+            <div class="mail-field">
+                <label>本批最多发送</label>
+                <div class="hint">
+                    QQ 邮箱对短时间大量发信有限制。建议 30 封一批，
+                    发完看下方记录，再点一次继续发下一批。
                 </div>
-                <div class="mail-field">
-                    <label>本批最多发送</label>
-                    <div class="hint">建议 30 封一批，多批发送</div>
-                    <input class="mail-input" name="limit" type="number" value="30" min="1" max="100">
-                </div>
+                <input class="mail-input" name="limit" type="number" value="30" min="1" max="100"
+                       style="max-width:140px;">
             </div>
 
-            <button type="submit" class="btn btn-primary"
-                    onclick="return confirm('确定按当前设置群发？');">开始群发</button>
-            <span style="font-size:12px;color:var(--text-muted,#98A2B3);margin-left:10px;">
-                发完请看下方记录
-            </span>
+            <!-- 发送按钮（醒目）-->
+            <div class="bs-send-bar">
+                <button type="submit" class="bs-send-btn" id="bsSendBtn">
+                    开始群发
+                </button>
+                <span class="bs-send-hint" id="bsSendHint">
+                    将发送给 <b id="bsCount"><?= $scopeCounts['all'] ?></b> 人
+                </span>
+            </div>
         </div>
     </form>
+
+    <style>
+    .tpl-btn {
+        padding: 6px 13px; border-radius: 8px; font-size: 12.5px; font-family: inherit;
+        border: 1px solid transparent; cursor: pointer;
+        background: var(--bg-secondary, #F3F6FA); color: var(--text-secondary, #5A6472);
+        transition: background .15s, color .15s;
+    }
+    .tpl-btn:hover { background: #E8EDF5; }
+    .tpl-btn.active { background: var(--primary, #2F5B9A); color: #fff; }
+    </style>
+
+    <script>
+    (function () {
+        var form = document.getElementById('broadcastForm');
+        if (!form) return;
+
+        var counts = <?= json_encode($scopeCounts) ?>;
+        var countEl = document.getElementById('bsCount');
+        var btn = document.getElementById('bsSendBtn');
+        var hint = document.getElementById('bsSendHint');
+        var limitInput = form.querySelector('input[name="limit"]');
+
+        function update() {
+            var sel = form.querySelector('input[name="scope"]:checked');
+            var scope = sel ? sel.value : 'all';
+            var total = counts[scope] || 0;
+            var limit = parseInt(limitInput.value, 10) || 30;
+            var actual = Math.min(total, limit);
+
+            countEl.textContent = total;
+            btn.textContent = '开始群发（' + actual + ' 封）';
+
+            if (total === 0) {
+                btn.disabled = true;
+                hint.innerHTML = '<span style="color:#C0392B;">该范围内没有可发送的收件人</span>';
+            } else if (actual < total) {
+                btn.disabled = false;
+                hint.innerHTML = '将发送给 <b>' + actual + '</b> 人'
+                    + '（该范围共 ' + total + ' 人，剩余 ' + (total - actual) + ' 人需再发一批）';
+            } else {
+                btn.disabled = false;
+                hint.innerHTML = '将发送给 <b>' + total + '</b> 人';
+            }
+        }
+
+        form.querySelectorAll('input[name="scope"]').forEach(function (r) {
+            r.addEventListener('change', update);
+        });
+        limitInput.addEventListener('input', update);
+
+        form.addEventListener('submit', function (e) {
+            var sel = form.querySelector('input[name="scope"]:checked');
+            var scope = sel ? sel.value : 'all';
+            var total = counts[scope] || 0;
+            var limit = parseInt(limitInput.value, 10) || 30;
+            var actual = Math.min(total, limit);
+
+            if (total === 0) {
+                e.preventDefault();
+                alert('该范围内没有可发送的收件人');
+                return;
+            }
+            if (!confirm('确定向 ' + actual + ' 位用户群发邮件？\n\n主题：'
+                    + form.querySelector('input[name="subject"]').value)) {
+                e.preventDefault();
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = '正在发送，请稍候…';
+        });
+
+        // ---- 模板切换（不刷新页面）----
+        var tplBtns = form.querySelectorAll('.tpl-btn');
+        var subjectInput = form.querySelector('input[name="subject"]');
+        var titleInput = form.querySelector('input[name="title"]');
+        var linesInput = form.querySelector('textarea[name="lines"]');
+        var linkInput = form.querySelector('input[name="link"]');
+        var linkTextInput = form.querySelector('input[name="linkText"]');
+        var tplHidden = form.querySelector('input[name="tpl"]');
+
+        tplBtns.forEach(function (b) {
+            b.addEventListener('click', function () {
+                tplBtns.forEach(function (x) { x.classList.remove('active'); });
+                this.classList.add('active');
+
+                subjectInput.value = this.dataset.subject || '';
+                titleInput.value = this.dataset.title || '';
+                linesInput.value = this.dataset.lines || '';
+                linkInput.value = this.dataset.link || '';
+                linkTextInput.value = this.dataset.linktext || '';
+                if (tplHidden) tplHidden.value = this.dataset.tpl || '';
+
+                update();
+            });
+        });
+
+        update();
+    })();
+    </script>
+
+    <style>
+    .bs-scope-box {
+        padding: 14px 16px;
+        background: #F7F9FC;
+        border: 1px solid #E4E9F0;
+        border-radius: 11px;
+        margin-bottom: 16px;
+    }
+    .bs-scope-title {
+        font-size: 13px; font-weight: 600; color: #1F2733; margin-bottom: 10px;
+    }
+    .bs-scope-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;
+    }
+    .bs-scope-opt {
+        display: block; padding: 10px 12px; background: #fff;
+        border: 1.5px solid #E4E9F0; border-radius: 9px; cursor: pointer;
+        transition: border-color .15s, background .15s;
+    }
+    .bs-scope-opt:hover { border-color: rgba(47,91,154,.4); }
+    .bs-scope-opt:has(input:checked) {
+        border-color: #2F5B9A; background: #F0F6FF;
+    }
+    .bs-scope-opt input { margin-right: 6px; }
+    .bs-scope-name { font-size: 13px; font-weight: 600; color: #1F2733; }
+    .bs-scope-count {
+        float: right; font-size: 12.5px; font-weight: 700; color: #2F5B9A;
+    }
+    .bs-scope-desc {
+        display: block; font-size: 11.5px; color: #98A2B3; margin-top: 4px; line-height: 1.5;
+    }
+    .bs-send-bar {
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        padding: 16px 18px; margin-top: 18px;
+        background: linear-gradient(135deg, #F0F6FF, #EAF7F1);
+        border: 1px solid #D6E6FA; border-radius: 11px;
+    }
+    .bs-send-btn {
+        padding: 11px 28px; font-size: 14px; font-weight: 700; font-family: inherit;
+        color: #fff; background: #2F5B9A; border: 0; border-radius: 9px;
+        cursor: pointer; transition: background .15s, transform .1s;
+        box-shadow: 0 2px 8px -3px rgba(47,91,154,.5);
+    }
+    .bs-send-btn:hover:not(:disabled) { background: #24487C; }
+    .bs-send-btn:active:not(:disabled) { transform: scale(.98); }
+    .bs-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .bs-send-hint { font-size: 13px; color: #2F5B9A; }
+    .bs-send-hint b { font-size: 15px; }
+    </style>
 
     <!-- ============ 发送记录 ============ -->
     <div class="section" style="margin-top:16px;">

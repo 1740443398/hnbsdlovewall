@@ -170,14 +170,50 @@ if (!defined('LW_OWNER_OVERLAY_LOADED')) {
      *
      * 站长的积分显示为 ∞ —— 符号而不是数字，
      * 因为任何具体数字都会被人拿去比较「我离站长还差多少」。
+     *
+     * =====================================================================
+     * 【重要：参数支持两种类型】
+     * =====================================================================
+     * 这个函数历史上被两处定义过：
+     *   - includes/owner_overlay.php   lwUserPoints($user)    接收数组
+     *   - includes/widgets.php         lwUserPoints($userId)  接收整数
+     *
+     * 因为 owner_overlay 先加载，它的版本生效，于是
+     * lwUserPoints(2) 传整数时 $user['points'] 取不到 → 永远返回 0。
+     * 表现就是「兑换码兑换成功，但积分没加」。
+     *
+     * 现在两种都支持：
+     *   传数组 → 直接用
+     *   传整数 → 自己查用户表
+     * =====================================================================
+     *
+     * @param array|int $user 用户记录或用户 ID
+     * @return int|string 积分，站长返回 '∞'
      */
     function lwUserPoints($user)
     {
+        // 传的是 ID：查出来再走下面的逻辑
+        if (is_numeric($user)) {
+            $uid = (int)$user;
+            if ($uid <= 0) {
+                return 0;
+            }
+            $u = function_exists('getFS') ? getFS()->findById('users', $uid) : null;
+            if (!$u) {
+                return 0;
+            }
+            $user = $u;
+        }
+
+        if (!is_array($user)) {
+            return 0;
+        }
+
         $overlay = lwOwnerOverlay($user, 'points');
         if ($overlay !== null) {
             return $overlay;
         }
-        return $user['points'] ?? 0;
+        return (int)($user['points'] ?? 0);
     }
 
     /**

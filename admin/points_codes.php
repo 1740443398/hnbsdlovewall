@@ -32,17 +32,46 @@ $newCodes = [];
 
 $fs = getFS();
 
+/* 可选商品列表（装扮）。用于生成「商品兑换码」——
+ * 用户兑换后直接拿到该装扮，不经过积分。
+ */
+$allWidgets = [];
+foreach ((array)$fs->read('widgets') as $w) {
+    if (empty($w['active'])) continue;
+    $allWidgets[] = [
+        'id'    => (int)($w['id'] ?? 0),
+        'name'  => (string)($w['name'] ?? ''),
+        'slot'  => (string)($w['slot'] ?? ''),
+        'price' => (int)($w['price'] ?? 0),
+        'days'  => (int)($w['days'] ?? 0),
+    ];
+}
+usort($allWidgets, function ($a, $b) {
+    $so = ['avatar_frame' => 1, 'bubble' => 2, 'badge' => 3, 'title' => 4];
+    $ca = $so[$a['slot']] ?? 9;
+    $cb = $so[$b['slot']] ?? 9;
+    return $ca === $cb ? strcmp($a['name'], $b['name']) : $ca - $cb;
+});
+
+$slotNames = [
+    'avatar_frame' => '头像框',
+    'bubble'       => '气泡',
+    'badge'        => '徽章',
+    'title'        => '头衔',
+];
+
 // ---- 生成 --------------------------------------------------------------
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === 'gen') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $msg = 'CSRF 校验失败，请刷新重试';
         $msgType = 'err';
     } else {
-        $count  = max(1, min(500, (int)($_POST['count'] ?? 10)));
-        $points = max(1, min(100000, (int)($_POST['points'] ?? 100)));
-        $note   = trim((string)($_POST['note'] ?? ''));
+        $count    = max(1, min(500, (int)($_POST['count'] ?? 10)));
+        $points   = max(0, min(100000, (int)($_POST['points'] ?? 100)));
+        $note     = trim((string)($_POST['note'] ?? ''));
+        $widgetId = max(0, (int)($_POST['widget_id'] ?? 0));
 
-        $r = lwPointsCodeBatch($count, $points, (int)$admin['id'], $note);
+        $r = lwPointsCodeBatch($count, $points, (int)$admin['id'], $note, $widgetId);
         if (empty($r['ok'])) {
             $msg = (string)($r['error'] ?? '生成失败');
             $msgType = 'err';
@@ -141,6 +170,24 @@ adminHeader('兑换码管理', $admin, $csrfToken);
 }
 .pc-copy { margin-top: 10px; }
 
+.pc-type-box {
+    padding: 14px 16px; background: #F7F9FC;
+    border: 1px solid #E4E9F0; border-radius: 11px; margin-bottom: 16px;
+}
+.pc-type-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.pc-type-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+.pc-type-opt {
+    flex: 1 1 180px; display: block; padding: 11px 13px; background: #fff;
+    border: 1.5px solid #E4E9F0; border-radius: 9px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.pc-type-opt:hover { border-color: rgba(47,91,154,.4); }
+.pc-type-opt:has(input:checked) { border-color: #2F5B9A; background: #F0F6FF; }
+.pc-type-opt span { font-size: 13px; font-weight: 600; margin-left: 6px; }
+.pc-type-opt small {
+    display: block; font-size: 11.5px; color: #98A2B3; margin-top: 4px; margin-left: 22px;
+}
+
 .pc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .pc-table th {
     text-align: left; padding: 9px 10px; font-size: 12px; font-weight: 600;
@@ -163,7 +210,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
     <div class="pc-msg <?= $msgType ?>"><?= htmlspecialchars($msg) ?></div>
     <?php endif; ?>
 
-    <form method="post" class="section">
+    <form method="post" class="section" id="genForm">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
         <input type="hidden" name="act" value="gen">
         <div class="section-header"><h3>生成兑换码</h3></div>
@@ -188,7 +235,55 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                     <input class="pc-input" name="note" placeholder="可留空">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">生成</button>
+
+            <!-- 码类型：积分码 / 商品码 -->
+            <div class="pc-type-box">
+                <div class="pc-type-title">兑换什么</div>
+                <div class="pc-type-tabs">
+                    <label class="pc-type-opt">
+                        <input type="radio" name="code_type" value="points" checked
+                               onchange="toggleType('points')">
+                        <span>积分码</span>
+                        <small>兑换后账户增加积分</small>
+                    </label>
+                    <label class="pc-type-opt">
+                        <input type="radio" name="code_type" value="widget"
+                               onchange="toggleType('widget')">
+                        <span>商品码</span>
+                        <small>兑换后直接获得指定装扮</small>
+                    </label>
+                </div>
+
+                <div id="widgetPicker" style="display:none;margin-top:12px;">
+                    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">
+                        选择商品
+                    </label>
+                    <div class="hint" style="margin-bottom:8px;">
+                        共 <?= count($allWidgets) ?> 个在售装扮。选中的商品会直接发给兑换人，
+                        不扣积分。
+                    </div>
+                    <select class="pc-input" name="widget_id" id="widgetSelect">
+                        <option value="0">— 请选择 —</option>
+                        <?php
+                        $curSlot = '';
+                        foreach ($allWidgets as $w):
+                            if ($w['slot'] !== $curSlot):
+                                if ($curSlot !== '') echo '</optgroup>';
+                                $curSlot = $w['slot'];
+                                echo '<optgroup label="' . htmlspecialchars($slotNames[$curSlot] ?? $curSlot) . '">';
+                            endif;
+                        ?>
+                        <option value="<?= $w['id'] ?>">
+                            <?= htmlspecialchars($w['name']) ?>
+                            （<?= $w['price'] ?> 积分 / <?= $w['days'] > 0 ? $w['days'] . ' 天' : '永久' ?>）
+                        </option>
+                        <?php endforeach; ?>
+                        <?php if ($curSlot !== '') echo '</optgroup>'; ?>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="genBtn">生成积分码</button>
         </div>
     </form>
 

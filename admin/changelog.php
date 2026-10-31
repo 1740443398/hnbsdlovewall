@@ -173,6 +173,13 @@ adminHeader('更新日志管理', $admin, $csrfToken);
 .cl-add:hover { border-color: var(--primary, #2F5B9A); color: var(--primary, #2F5B9A); }
 
 .cl-actions { display: flex; gap: 10px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+.cl-new-ver {
+    padding: 9px 20px; font-size: 13.5px; font-weight: 600; font-family: inherit;
+    color: #2F5B9A; background: #F0F6FF;
+    border: 1px solid rgba(47,91,154,.3); border-radius: 9px; cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+.cl-new-ver:hover { background: #E3EEFC; border-color: rgba(47,91,154,.5); }
 </style>
 
 <div class="cl-wrap">
@@ -235,7 +242,10 @@ adminHeader('更新日志管理', $admin, $csrfToken);
         <?php endforeach; ?>
 
         <div class="cl-actions">
-            <button type="submit" class="btn btn-primary">保存更新日志</button>
+            <button type="submit" class="btn btn-primary">保存全部改动</button>
+            <button type="button" class="cl-new-ver" onclick="addVersion()">
+                + 发布新版本
+            </button>
             <span style="font-size:12px;color:var(--text-muted,#98A2B3)">
                 保存后立即生效，刷新 /changelog.php 就能看到
             </span>
@@ -252,6 +262,79 @@ adminHeader('更新日志管理', $admin, $csrfToken);
 
 <script>
 var CL_TYPES = <?= json_encode($types, JSON_UNESCAPED_UNICODE) ?>;
+
+/* 发布新版本：在最前面插入一个空版本块。
+ *
+ * 【为什么要这个按钮】
+ * 原来只能改现有版本 —— 想加 v2.4.4 得手动在文件里插数组，
+ * 手机上根本做不到。这个按钮直接在页面顶部插一个新块，
+ * 填完保存就上线。
+ */
+function addVersion() {
+    var forms = document.querySelectorAll('form');
+    var mainForm = null;
+    for (var i = 0; i < forms.length; i++) {
+        if (forms[i].querySelector('input[name="act"][value="save"]')) {
+            mainForm = forms[i];
+            break;
+        }
+    }
+    if (!mainForm) return;
+
+    // 现有版本数 → 新索引
+    var existing = mainForm.querySelectorAll('.cl-ver');
+    var newIdx = existing.length;
+
+    // 自动推算下一个版本号
+    var nextVer = 'v2.4.4';
+    if (existing.length) {
+        var firstVer = existing[0].querySelector('input[name$="[version]"]');
+        if (firstVer) {
+            var m = (firstVer.value || '').match(/v?(\d+)\.(\d+)\.(\d+)/);
+            if (m) {
+                nextVer = 'v' + m[1] + '.' + m[2] + '.' + (parseInt(m[3], 10) + 1);
+            }
+        }
+    }
+
+    var today = new Date();
+    var dateStr = today.getFullYear() + '-'
+        + String(today.getMonth() + 1).padStart(2, '0') + '-'
+        + String(today.getDate()).padStart(2, '0');
+
+    var div = document.createElement('div');
+    div.className = 'cl-ver';
+    div.style.borderColor = '#2F5B9A';
+    div.style.background = '#F7FAFF';
+    div.innerHTML =
+        '<div class="cl-ver-head">'
+        + '<input type="text" name="ver[' + newIdx + '][version]" value="' + nextVer
+        + '" placeholder="v2.4.4" style="width:110px;font-weight:600;">'
+        + '<input type="text" name="ver[' + newIdx + '][date]" value="' + dateStr
+        + '" style="width:130px;">'
+        + '<select name="ver[' + newIdx + '][channel]" style="padding:7px 9px;border-radius:8px;border:1px solid #E4E9F0;">'
+        + '<option value="both">网页 + App</option>'
+        + '<option value="web">仅网页</option>'
+        + '<option value="app">仅 App</option>'
+        + '</select>'
+        + '<span style="font-size:12px;color:#2F5B9A;font-weight:600;">新版本</span>'
+        + '</div>'
+        + '<div class="cl-items" data-ver="' + newIdx + '"></div>'
+        + '<button type="button" class="cl-add" onclick="addItem(' + newIdx + ')">+ 添加一条</button>';
+
+    // 插到第一个版本之前
+    var firstVer = mainForm.querySelector('.cl-ver');
+    if (firstVer) {
+        mainForm.insertBefore(div, firstVer);
+    } else {
+        mainForm.insertBefore(div, mainForm.querySelector('.cl-actions'));
+    }
+
+    // 默认给一条空行
+    addItem(newIdx);
+
+    div.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
 
 function addItem(vi) {
     var wrap = document.querySelector('.cl-items[data-ver="' + vi + '"]');
