@@ -1,0 +1,213 @@
+/* ==========================================================================
+ * Markdown 编辑器与富文本样式
+ * ========================================================================== */
+
+/* ---- 工具栏 ---- */
+.lw-md-toolbar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 7px 8px;
+    background: var(--bg-secondary, #F7F9FC);
+    border: 1px solid var(--border-color, #E4E9F0);
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+}
+.lw-md-btn {
+    min-width: 30px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text-secondary, #5A6472);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .14s, border-color .14s, color .14s;
+}
+.lw-md-btn:hover {
+    background: #fff;
+    border-color: var(--border-color, #E4E9F0);
+    color: var(--text-primary, #1F2733);
+}
+.lw-md-btn:active { transform: scale(.96); }
+.lw-md-toggle {
+    margin-left: auto;
+    padding: 0 12px;
+    color: var(--primary, #2F5B9A);
+    border-color: rgba(47,91,154,.22);
+    background: rgba(47,91,154,.06);
+}
+.lw-md-toggle:hover {
+    background: rgba(47,91,154,.12);
+    border-color: rgba(47,91,154,.34);
+}
+
+/* 工具栏紧贴 textarea：去掉 textarea 的上圆角 */
+.lw-md-toolbar + textarea {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+}
+
+/* ---- 预览 ---- */
+.lw-md-preview-wrap {
+    border: 1px solid var(--border-color, #E4E9F0);
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+}
+.lw-md-preview-head {
+    padding: 7px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted, #98A2B3);
+    background: var(--bg-secondary, #F7F9FC);
+    border-bottom: 1px solid var(--border-light, #EEF2F7);
+}
+.lw-md-preview-body {
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.78;
+    color: var(--text-primary, #1F2733);
+    min-height: 80px;
+    max-height: 460px;
+    overflow-y: auto;
+}
+.lw-md-counter {
+    padding: 6px 12px;
+    font-size: 11.5px;
+    color: var(--text-muted, #98A2B3);
+    text-align: right;
+    background: var(--bg-secondary, #F7F9FC);
+    border-top: 1px solid var(--border-light, #EEF2F7);
+}
+
+/* ---- 富文本正文渲染 ---- */
+.lw-rich h1, .lw-rich h2, .lw-rich h3, .lw-rich h4,
+.post-detail-content h1, .post-detail-content h2,
+.post-detail-content h3, .post-detail-content h4,
+.lw-md-preview-body h1, .lw-md-preview-body h2,
+.lw-md-preview-body h3, .lw-md-preview-body h4 {
+    margin: 1.1em 0 .5em;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--text-primary, #1F2733);
+}
+.lw-rich h1, .post-detail-content h1, .lw-md-preview-body h1 { font-size: 1.42em; }
+.lw-rich h2, .post-detail-content h2, .lw-md-preview-body h2 { font-size: 1.24em; }
+.lw-rich h3, .post-detail-content h3, .lw-md-preview-body h3 { font-size: 1.1em; }
+.lw-rich h4, .post-detail-content h4, .lw-md-preview-body h4 { font-size: 1em; }
+
+.lw-rich ul, .lw-rich ol,
+.post-detail-content ul, .post-detail-content ol,
+.lw-md-preview-body ul, .lw-md-preview-body ol {
+    margin: .6em 0;
+    padding-left: 1.5em;
+}
+.lw-rich li, .post-detail-content li, .lw-md-preview-body li {
+    margin: .28em 0;
+    line-height: 1.72;
+}
+
+.lw-rich blockquote,
+.post-detail-content blockquote,
+.lw-md-preview-body blockquote {
+    margin: .8em 0;
+    padding: .55em 1em;
+    border-left: 3px solid rgba(47,91,154,.34);
+    background: rgba(47,91,154,.045);
+    border-radius: 0 8px 8px 0;
+    color: var(--text-secondary, #5A6472);
+}
+
+.lw-rich hr, .post-detail-content hr, .lw-md-preview-body hr {
+    margin: 1.4em 0;
+    border: 0;
+    height: 1px;
+    background: var(--border-color, #E4E9F0);
+}
+
+/* 行内代码 */
+.lw-code-inline {
+    padding: .12em .42em;
+    font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    font-size: .88em;
+    background: rgba(47,91,154,.075);
+    color: #2F5B9A;
+    border-radius: 5px;
+    word-break: break-word;
+}
+
+/* 代码块 */
+.lw-code-block {
+    position: relative;
+    margin: .9em 0;
+    padding: 13px 16px;
+    overflow-x: auto;
+    background: #1E252F;
+    border-radius: 10px;
+    line-height: 1.65;
+}
+.lw-code-block code {
+    font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    font-size: 12.8px;
+    color: #C9D6E4;
+    white-space: pre;
+    word-break: normal;
+    background: none;
+    padding: 0;
+}
+
+/* 表格 */
+.lw-rich table, .post-detail-content table, .lw-md-preview-body table {
+    width: 100%;
+    margin: .9em 0;
+    border-collapse: collapse;
+    font-size: .92em;
+    border: 1px solid var(--border-color, #E4E9F0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.lw-rich th, .post-detail-content th, .lw-md-preview-body th {
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 600;
+    background: var(--bg-secondary, #F7F9FC);
+    border-bottom: 1px solid var(--border-color, #E4E9F0);
+}
+.lw-rich td, .post-detail-content td, .lw-md-preview-body td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-light, #F0F3F8);
+}
+.lw-rich tr:last-child td, .post-detail-content tr:last-child td { border-bottom: 0; }
+
+/* 图片 */
+.lw-md-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: .8em auto;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px -6px rgba(16,24,40,.2);
+}
+
+/* 链接 */
+.lw-rich a, .post-detail-content a, .lw-md-preview-body a {
+    color: var(--primary, #2F5B9A);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(47,91,154,.28);
+    transition: border-color .14s;
+}
+.lw-rich a:hover, .post-detail-content a:hover { border-bottom-color: var(--primary, #2F5B9A); }
+
+/* 移动端 */
+@media (max-width: 640px) {
+    .lw-md-toolbar { padding: 6px; gap: 3px; }
+    .lw-md-btn { min-width: 27px; height: 26px; font-size: 12px; padding: 0 6px; }
+    .lw-code-block { padding: 11px 12px; font-size: 12px; }
+    .lw-rich table, .post-detail-content table { font-size: .86em; }
+    .lw-rich th, .lw-rich td { padding: 7px 9px; }
+}

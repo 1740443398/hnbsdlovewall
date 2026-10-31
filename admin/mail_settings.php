@@ -115,6 +115,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
     }
 }
 
+// ---- SMTP 连通性探测（不发信）-----------------------------------------------
+$probe = null;
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === 'probe') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $msg = 'CSRF 校验失败，请刷新重试';
+        $msgType = 'err';
+    } else {
+        $probe = QQMailer::testConnection();
+    }
+}
+
 // ---- 群发 ------------------------------------------------------------------
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === 'broadcast') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -323,8 +334,15 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 <div class="hint">
                     不是 QQ 密码，是「QQ 邮箱 → 设置 → 账户 → POP3/SMTP 服务」里生成的授权码。
                     留空表示不修改。
+                    <?php if ($configured && !empty($curCfg['pass'])): ?>
+                    <br><span style="color:#178A62;font-weight:600;">
+                        当前已设置：<?= str_repeat('·', 16) ?>
+                    </span>
+                    <?php endif; ?>
                 </div>
-                <input class="mail-input" name="pass" type="password" placeholder="留空则不修改">
+                <input class="mail-input" name="pass" type="password"
+                       placeholder="<?= $configured && !empty($curCfg['pass']) ? '已设置 ················（留空则不修改）' : '未设置，请填写授权码' ?>"
+                       autocomplete="new-password">
             </div>
 
             <div class="mail-grid">

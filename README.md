@@ -56,6 +56,80 @@ Only `transform` and `opacity` are animated (no layout thrashing), and everythin
 
 `/pages/u.php?id=N` — 10rem banner, avatar overlapping the edge, large numeric stats, card-based post list. Falls back to a gradient plus subtle grid texture when no cover image is set.
 
+### Changelog Management *(new in v2.4.3)*
+
+The public changelog (`/changelog.php`) is editable from the admin panel at
+`/admin/changelog.php` — no code editing, no re-upload. Versions, dates, channels and
+individual entries can all be edited in the browser; changes take effect immediately.
+
+Stored in the `settings` table under `changelog_json`. The built-in defaults in
+`includes/changelog_data.php` serve as a fallback and can be restored with one click.
+
+**Writing guidelines** (enforced by the editor's inline hints):
+
+- Say what the user will *feel*, not what the code changed
+- Keep each entry under 40 characters so it fits on a phone without truncation
+- Never write "全面升级" / "大幅优化" — they carry no information
+- Use concrete numbers: "opens about 1 s faster" beats "performance significantly improved"
+
+### Owner Honor Values
+
+The site owner's profile displays fixed honor values regardless of real statistics:
+
+| Field | Value |
+|---|---|
+| Followers | 91.78亿 (9,178,000,000) |
+| Level | 100 |
+| Points | ∞ |
+| Title | 站长 |
+
+Implemented in `includes/owner_overlay.php`. The owner can override each value via
+`users.owner_followers` / `owner_level` / `owner_points`, or leave them unset to fall back
+to the constants `LW_OWNER_FOLLOWERS` / `LW_OWNER_LEVEL`.
+
+### Markdown & HTML in Posts *(new in v2.4.2)*
+
+Posts, comments and bios render **Markdown** and a **whitelisted subset of HTML**.
+
+```markdown
+# Heading
+**bold** *italic* ~~strike~~ `inline code`
+
+```php
+echo 'code blocks keep their indentation';
+```
+
+> Blockquote
+
+- List item
+1. Ordered item
+
+| Column | Column |
+|--------|--------|
+| cell   | cell   |
+
+[link](https://example.com)  ![image](/uploads/images/x.png)
+```
+
+**Security model — escape first, then restore the whitelist.** The entire body is
+`htmlspecialchars()`-escaped (so no tag can execute), then only tags on the allowlist are
+turned back into real markup. Anything not on the list simply stays as visible text. This
+is *not* a blacklist filter — a tag like `<svg onload=...>` never gets a chance to be
+restored in the first place.
+
+| Layer | Allowed |
+|---|---|
+| Tags | `p br hr strong em del u mark code pre blockquote ul ol li h1-h4 a img table thead tbody tr th td` |
+| Attributes | `a[href,title]` · `img[src,alt]` · `code[class=language-*]` |
+| Protocols | `http:` `https:` `mailto:` · site-relative paths · anchors |
+
+Verified against 18 XSS vectors (`<script>`, `onerror=`, `javascript:`, `<svg onload>`,
+`<iframe>`, `<math><script>`, `<video><source onerror>`, …) — all blocked.
+
+**Editor** — toolbar (bold/italic/heading/list/quote/code/link/image/table), live preview,
+`Ctrl+B` / `Ctrl+I`, auto-continue lists on Enter, Tab indentation, word count, and
+draft auto-save (recoverable within 24 hours).
+
 ### Core Social Features
 - Post creation with categories (Lost & Found, Study Help, Social Chat, Confession Wall, School Info, Announcements)
 - Anonymous posting support

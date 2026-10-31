@@ -3420,6 +3420,10 @@
             n.id +
             '" data-post-id="' +
             (n.post_id || '') +
+            '" data-link="' +
+            (n.link || '') +
+            '" data-type="' +
+            (n.type || '') +
             '" data-cat="' + cls[0] + '" data-pri="' + cls[1] + '">' +
             '<div class="notif-icon">' +
             icon +
@@ -3459,9 +3463,43 @@
             } catch (err) {}
           }
 
-          if (postId) {
+          /* 点击通知后的跳转。
+           *
+           * 【原来只处理 post_id】
+           * 互动通知（评论/点赞）带 post_id，能跳；
+           * 但系统消息（admin 类型，占全部通知的 555/710）没有 post_id，
+           * 点了完全没反应 —— 用户以为坏了。
+           *
+           * 【现在三级兜底】
+           *   1. 有 link 字段 → 直接跳（举报、封禁这类指向具体页面）
+           *   2. 有 post_id → 跳帖子详情
+           *   3. 都没有 → 按类型给一个合理的落地页
+           */
+          const link = item.getAttribute('data-link') || '';
+          const ntfType = item.getAttribute('data-type') || '';
+
+          let target = '';
+          if (link) {
+            target = link.charAt(0) === '/' ? (SITE_URL + link) : link;
+          } else if (postId) {
+            target = SITE_URL + '/pages/post_detail.php?id=' + postId;
+          } else if (ntfType === 'admin' || ntfType === 'system') {
+            // 系统消息：站务通知大多指向后台或公告
+            target = SITE_URL + '/pages/notifications.php';
+          } else if (ntfType === 'achievement') {
+            target = SITE_URL + '/pages/user_center.php?tab=achievements';
+          } else if (ntfType === 'invite') {
+            target = SITE_URL + '/pages/user_center.php?tab=invite';
+          } else if (ntfType === 'follow') {
+            target = SITE_URL + '/pages/notifications.php';
+          } else if (ntfType === 'pm') {
+            target = SITE_URL + '/pages/messages.php';
+          }
+
+          if (target) {
             this.panel.classList.remove('show');
-            window.location.href = SITE_URL + '/pages/post_detail.php?id=' + postId;
+            // 站内相对路径统一处理，避免 // 或漏协议
+            window.location.href = target;
           }
         });
       });

@@ -1,0 +1,179 @@
+
+/* ==========================================================================
+ * 细节优化样式
+ * ========================================================================== */
+
+/* 49. 键盘焦点可见 */
+body.using-keyboard *:focus {
+    outline: 2px solid rgba(47,91,154,.55);
+    outline-offset: 2px;
+}
+body:not(.using-keyboard) *:focus { outline: none; }
+
+/* 50. 滚动时降级动效（省电） */
+body.is-scrolling .lw-reveal,
+body.is-scrolling .lw-lift {
+    transition: none !important;
+}
+
+/* 51. 批量操作条 */
+.lw-batch-bar { display: none; }
+
+/* 52. 表格列宽拖拽手柄 */
+.lw-col-resize:hover { background: rgba(47,91,154,.16); }
+
+/* 53. 图片加载失败占位 */
+img[data-failed="1"] {
+    background: #EEF2F7;
+    object-fit: contain;
+}
+
+/* 54. 打印样式 */
+@media print {
+    .site-header, .site-footer, .lw-md-toolbar, .lw-md-preview-wrap,
+    .comment-form, .post-actions, .mobile-nav, .lw-bottom-bar,
+    .lw-ai, #lw-progress, .back-to-top { display: none !important; }
+
+    .lw-printable {
+        max-width: 100% !important;
+        font-size: 12pt;
+        line-height: 1.7;
+        color: #000;
+    }
+    .lw-printable a { color: #000; text-decoration: underline; }
+    .lw-code-block {
+        background: #F5F5F5 !important;
+        border: 1px solid #DDD;
+    }
+    .lw-code-block code { color: #000 !important; }
+    body { background: #fff !important; }
+}
+
+/* 55. 选中文本样式 */
+::selection {
+    background: rgba(47,91,154,.22);
+    color: inherit;
+}
+
+/* 56. 滚动条统一 */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(47,91,154,.28) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+    background: rgba(47,91,154,.24);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(47,91,154,.42); background-clip: padding-box; }
+
+/* 57. 按钮禁用态统一 */
+button:disabled, .btn:disabled {
+    opacity: .55 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+/* 58. 输入框占位符统一 */
+input::placeholder, textarea::placeholder {
+    color: #B6BFCB;
+    opacity: 1;
+}
+
+/* 59. 链接下划线只在悬停时出现（正文除外） */
+a:not(.lw-rich a):not(.post-detail-content a) { text-decoration: none; }
+
+/* 60. 减少动画偏好时禁用所有过渡 */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* 61. 高对比度模式 */
+@media (prefers-contrast: more) {
+    .post-card, .u-card, .section { border-width: 2px !important; }
+    .lw-code-block code { color: #fff !important; }
+}
+
+/* 62. 暗色模式基础适配（跟随系统） */
+@media (prefers-color-scheme: dark) {
+    .lw-md-preview-body,
+    .lw-md-preview-head { background: #1A1F28; color: #D6DEE8; }
+    .lw-md-toolbar { background: #1A1F28; border-color: #2A3341; }
+    .lw-md-btn { color: #9AA8BC; }
+    .lw-md-btn:hover { background: #232B36; border-color: #2A3341; color: #E4EBF5; }
+}
+
+/* 63. 长单词换行（防溢出） */
+.lw-rich, .post-detail-content, .comment-text, .u-post-body {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+/* 64. 表格横向滚动（窄屏） */
+.lw-rich table, .post-detail-content table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+@media (min-width: 769px) {
+    .lw-rich table, .post-detail-content table {
+        display: table;
+        white-space: normal;
+    }
+}
+
+/* 65. 空状态统一 */
+.empty-state {
+    padding: 44px 20px;
+    text-align: center;
+    color: var(--text-muted, #98A2B3);
+    font-size: 13.5px;
+    line-height: 1.8;
+}
+
+/* 66. 加载骨架统一 */
+.lw-loading-skeleton {
+    background: linear-gradient(90deg, #EEF2F7 25%, #F5F8FC 50%, #EEF2F7 75%);
+    background-size: 200% 100%;
+    animation: lw-shimmer-bg 1.4s infinite;
+    border-radius: 6px;
+}
+@keyframes lw-shimmer-bg {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 67. 安全区域适配（iPhone 刘海） */
+@supports (padding: max(0px)) {
+    .site-header {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+    .lw-bottom-bar {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+}
+
+/* 68. 触摸目标最小尺寸 */
+@media (pointer: coarse) {
+    .lw-md-btn { min-width: 36px; height: 34px; }
+    button, .btn, a.dropdown-item { min-height: 34px; }
+}
+
+/* 69. 防止 iOS 输入框缩放 */
+@media (max-width: 768px) {
+    input, textarea, select { font-size: 16px !important; }
+}
+
+/* 70. 图片长按菜单保护（可选内容） */
+.no-save img { -webkit-touch-callout: none; user-select: none; }

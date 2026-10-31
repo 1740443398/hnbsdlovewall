@@ -427,6 +427,9 @@ require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/selfheal.php';
 // 站内邮件通知服务（统一入口 + 发送记录 + 限频）
 require_once __DIR__ . '/../includes/mail_service.php';
+// 富文本渲染（Markdown + 白名单 HTML）
+require_once __DIR__ . '/../includes/text_linkify.php';
+require_once __DIR__ . '/../includes/richtext.php';
 
 /* =====================================================================
  * 全站维护模式拦截

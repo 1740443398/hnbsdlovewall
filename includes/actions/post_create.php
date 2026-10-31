@@ -180,6 +180,8 @@ if (!function_exists('lw_do_post_create')) {
             'category'     => $category,
             'title'        => sanitizeInput($title),
             'content'      => sanitizeInput($content),
+            // 纯文本摘要：通知、搜索结果、列表页都用它（避免把 Markdown 标记带出去）
+            'content_plain' => function_exists('lwRichPlain') ? lwRichPlain($content, 200) : mb_substr($content, 0, 200),
             'images'       => json_encode($imageUrls, JSON_UNESCAPED_UNICODE),
             'is_anonymous' => $isAnonymous ? 1 : 0,
             'visibility'   => $visibility,

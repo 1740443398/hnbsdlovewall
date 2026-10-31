@@ -1196,7 +1196,22 @@ function checkPermission($user, $permissionKey) {
  * @param string $type 通知类型，默认 admin
  * @return int 实际推送人数
  */
-function notifyAdmins($content, $type = 'admin') {
+/**
+ * 给所有管理员发一条站内通知。
+ *
+ * @param string $content 通知正文
+ * @param string $type    类型（admin / system）
+ * @param string $link    点击通知后跳转的路径，例如 '/admin/reports.php'
+ *                        留空则前端按类型给一个默认落地页。
+ * @param array  $extra   额外字段（如 post_id / target_qq），会并入通知记录
+ * @return int 发出的条数
+ *
+ * 【为什么要 link 参数】
+ * 原来管理员收到「有新的帖子举报」只能自己去后台翻 ——
+ * 点通知什么都不发生。加上 link 后可以直接跳到举报处理页，
+ * 处理完再回来，少走两步。
+ */
+function notifyAdmins($content, $type = 'admin', $link = '', $extra = []) {
     $fs = getFS();
     $users = $fs->read('users');
     $sent = 0;
@@ -1210,12 +1225,16 @@ function notifyAdmins($content, $type = 'admin') {
         if (getPermissionMode($u) === 't1') {
             continue;
         }
-        $fs->insert('notifications', [
+        $row = array_merge([
             'user_id' => $u['id'],
             'type' => $type,
             'content' => $content,
             'is_read' => false,
-        ]);
+        ], is_array($extra) ? $extra : []);
+        if ($link !== '') {
+            $row['link'] = $link;
+        }
+        $fs->insert('notifications', $row);
         $sent++;
     }
     return $sent;
