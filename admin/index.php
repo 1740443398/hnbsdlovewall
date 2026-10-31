@@ -23,18 +23,18 @@ $csrfToken = generateCSRFToken();
     <style>
         :root {
             --font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --bg: #f4f6fa;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --text-secondary: #64748b;
-            --primary: #111827;
+            --bg: var(--bg);
+            --card-bg: var(--card-bg);
+            --text: var(--text);
+            --text-secondary: var(--text-secondary);
+            --primary: var(--text);
             --primary-hover: #000000;
-            --primary-light: #f1f5f9;
+            --primary-light: var(--primary-light);
             --danger: #ef4444;
-            --danger-light: #fef2f2;
-            --border: #e2e8f0;
-            --input-bg: #f4f4f5;
-            --input-focus: #ffffff;
+            --danger-light: var(--danger-light);
+            --border: var(--border);
+            --input-bg: var(--bg-secondary);
+            --input-focus: var(--card-bg);
             --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.06);
             --shadow-lg: 0 24px 80px rgba(0,0,0,0.10);
             --radius: 12px;
@@ -63,7 +63,7 @@ $csrfToken = generateCSRFToken();
         .login-card {
             background: var(--card-bg);
             border-radius: var(--card-radius);
-            border: 1px solid #f1f5f9;
+            border: 1px solid var(--primary-light);
             box-shadow: var(--shadow-lg);
             padding: 40px 32px;
         }
@@ -154,7 +154,7 @@ $csrfToken = generateCSRFToken();
         }
         .btn-primary {
             background: var(--primary);
-            color: var(--on-solid, #fff);
+            color: var(--on-solid, var(--card-bg));
             box-shadow: 0 4px 16px rgba(0,0,0,0.06);
         }
         .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 8px 28px rgba(0,0,0,0.10); }
@@ -174,7 +174,7 @@ $csrfToken = generateCSRFToken();
         .spinner {
             width: 18px; height: 18px;
             border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: #FFFFFF;
+            border-top-color: var(--card-bg);
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
             display: none;

@@ -41,7 +41,7 @@ adminHeader('管理员管理', $adminUser, $csrfToken);
     transition: background 0.18s ease;
 }
 .user-picker-item:last-child { border-bottom: none; }
-.user-picker-item:hover { background: var(--bg-secondary, #f4f6fa); }
+.user-picker-item:hover { background: var(--bg-secondary, var(--bg)); }
 .user-picker-item img {
     width: 30px;
     height: 30px;

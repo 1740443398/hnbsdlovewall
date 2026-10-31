@@ -19,7 +19,7 @@ adminHeader('QQ修改审核', $adminUser, $csrfToken);
     .qc-status { padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
     .qc-status.pending { background: var(--warning-light, #fbf6ed); color: var(--warning, #b8860b); }
     .qc-status.approved { background: var(--success-light, #e8f4ec); color: var(--success, #2e7d32); }
-    .qc-status.rejected { background: var(--danger-light, #faecee); color: var(--danger, #c0392b); }
+    .qc-status.rejected { background: var(--danger-light, #faecee); color: var(--danger, var(--danger)); }
 </style>
 
 <div class="section">

@@ -67,43 +67,43 @@ adminHeader('自恢复守护', $admin, $csrfToken);
 /* 本页特有样式（表格 / 卡片细节）。
  * 颜色优先用 layout.php 的 CSS 变量，跟随明暗主题。 */
 *{box-sizing:border-box}
-body{margin:0;background:#F5F7FA;color:#1F2733;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.65}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.65}
 .wrap{max-width:900px;margin:0 auto;padding:24px 18px 60px}
-a.back{display:inline-block;margin-bottom:16px;color:#5B667A;text-decoration:none;font-size:13px}
+a.back{display:inline-block;margin-bottom:16px;color:var(--text-secondary);text-decoration:none;font-size:13px}
 h1{font-size:20px;margin:0 0 4px}
-.sub{color:#6B7684;font-size:13px;margin:0 0 22px}
-.card{background:#fff;border:1px solid #E4E9F0;border-radius:12px;padding:20px;margin-bottom:16px}
+.sub{color:var(--text-secondary);font-size:13px;margin:0 0 22px}
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
 .card h2{font-size:15px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
 .grid{display:flex;gap:24px;flex-wrap:wrap}
 .item{flex:1;min-width:120px}
-.label{font-size:12px;color:#9AA4B2;margin-bottom:4px}
+.label{font-size:12px;color:var(--text-muted);margin-bottom:4px}
 .val{font-size:22px;font-weight:700}
-.val.ok{color:#178A62}
-.val.warn{color:#E07B39}
-.val.bad{color:#C0392B}
-.unit{font-size:12px;font-weight:400;color:#9AA4B2}
+.val.ok{color:var(--success)}
+.val.warn{color:var(--warning)}
+.val.bad{color:var(--danger)}
+.unit{font-size:12px;font-weight:400;color:var(--text-muted)}
 .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
-.badge.on{background:#FDECEC;color:#C0392B;border:1px solid #F5C6C6}
-.badge.off{background:#EAF7F1;color:#178A62;border:1px solid #C5E9D8}
-.msg{background:#EAF7F1;color:#178A62;border:1px solid #C5E9D8;padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:16px}
+.badge.on{background:var(--danger-light);color:var(--danger);border:1px solid var(--danger-light)}
+.badge.off{background:var(--success-light);color:var(--success);border:1px solid var(--success-light)}
+.msg{background:var(--success-light);color:var(--success);border:1px solid var(--success-light);padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:16px}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #EEF1F6}
-th{color:#9AA4B2;font-weight:600;font-size:11.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bg-secondary)}
+th{color:var(--text-muted);font-weight:600;font-size:11.5px}
 tr:last-child td{border-bottom:0}
 .btn{display:inline-block;padding:9px 18px;border:0;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none}
-.btn-primary{background:linear-gradient(135deg,#4F7FE0,#2F5B9A);color:#fff}
-.btn-ghost{background:#F0F3F8;color:#4A5568}
+.btn-primary{background:linear-gradient(135deg,var(--info),var(--primary));color:var(--card-bg)}
+.btn-ghost{background:var(--border-light);color:var(--text-secondary)}
 .actions{display:flex;gap:9px;margin-top:8px}
-.empty{color:#9AA4B2;font-size:13px;padding:12px 0}
-.tip{background:#F8FAFC;border-left:3px solid #4F7FE0;padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#5B667A;margin-top:12px;line-height:1.7}
-code{background:#F0F3F8;padding:1px 5px;border-radius:4px;font-size:12px}
+.empty{color:var(--text-muted);font-size:13px;padding:12px 0}
+.tip{background:var(--bg-secondary);border-left:3px solid var(--info);padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:var(--text-secondary);margin-top:12px;line-height:1.7}
+code{background:var(--border-light);padding:1px 5px;border-radius:4px;font-size:12px}
 .kind{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:600}
-.kind.breaker{background:#FDECEC;color:#C0392B}
-.kind.heal{background:#FEF8EC;color:#B06A16}
-.kind.disk{background:#FEF8EC;color:#B06A16}
-.kind.safe_mode{background:#EEF1F6;color:#5B667A}
-.kind.write{background:#FDECEC;color:#C0392B}
-.kind.reset,.kind.state{background:#EEF1F6;color:#5B667A}
+.kind.breaker{background:var(--danger-light);color:var(--danger)}
+.kind.heal{background:var(--warning-light);color:#B06A16}
+.kind.disk{background:var(--warning-light);color:#B06A16}
+.kind.safe_mode{background:var(--bg-secondary);color:var(--text-secondary)}
+.kind.write{background:var(--danger-light);color:var(--danger)}
+.kind.reset,.kind.state{background:var(--bg-secondary);color:var(--text-secondary)}
 </style>
 
 <div class="wrap">

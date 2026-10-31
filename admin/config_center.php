@@ -85,66 +85,20 @@ adminHeader('全站配置', $admin, $csrfToken);
 .cfg-msg {
     padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px;
 }
-.cfg-msg.ok  { background: #EAF7F1; color: #178A62; border: 1px solid #C5E9D8; }
-.cfg-msg.err { background: #FDECEC; color: #C0392B; border: 1px solid #F5C6C6; }
-
-.cfg-tabs {
-    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px;
-    border-bottom: 1px solid var(--border-color, #E4E9F0); padding-bottom: 10px;
-}
-.cfg-tab {
-    padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 600;
-    background: transparent; border: 0; cursor: pointer; color: var(--text-secondary, #5A6472);
-    font-family: inherit; transition: background .15s, color .15s;
-}
-.cfg-tab:hover { background: var(--bg-hover, #F0F3F8); }
-.cfg-tab.active { background: var(--primary, #2F5B9A); color: #fff; }
-
-.cfg-group { display: none; }
+.cfg-msg.ok  { background: var(--success-light); color: var(--success); border: 1px solid var(--success-light); }
+.cfg-msg.err { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-light); }
+.cfg-tab.active { background: var(--primary, var(--primary)); color: var(--card-bg); }
 .cfg-group.active { display: block; }
-
-.cfg-item {
-    padding: 16px 0; border-bottom: 1px solid var(--border-light, #F0F3F8);
-}
-.cfg-item:last-child { border-bottom: 0; }
-.cfg-label {
-    font-size: 14px; font-weight: 600; color: var(--text-primary, #1F2733);
-    display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
-}
-.cfg-hint {
-    font-size: 12.5px; color: var(--text-muted, #98A2B3); line-height: 1.6; margin-bottom: 8px;
-}
-.cfg-input, .cfg-textarea, .cfg-select {
-    width: 100%; padding: 9px 12px; font-size: 13.5px; font-family: inherit;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 9px;
-    background: var(--bg-input, #fff); color: var(--text-primary, #1F2733);
-    outline: none; transition: border-color .15s;
-}
-.cfg-input:focus, .cfg-textarea:focus, .cfg-select:focus {
-    border-color: var(--primary, #2F5B9A);
-}
-.cfg-textarea { min-height: 78px; resize: vertical; line-height: 1.65; }
-
-.cfg-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.cfg-input, .cfg-textarea,
+.cfg-input:focus, .cfg-textarea:focus,
 .cfg-switch input { display: none; }
-.cfg-switch-track {
-    width: 44px; height: 25px; border-radius: 99px; background: #D5DCE6;
-    position: relative; transition: background .18s;
-}
 .cfg-switch-track::after {
     content: ""; position: absolute; top: 2.5px; left: 2.5px;
-    width: 20px; height: 20px; border-radius: 50%; background: #fff;
+    width: 20px; height: 20px; border-radius: 50%; background: var(--card-bg);
     box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: transform .18s;
 }
-.cfg-switch input:checked + .cfg-switch-track { background: var(--primary, #2F5B9A); }
+.cfg-switch input:checked +
 .cfg-switch input:checked + .cfg-switch-track::after { transform: translateX(19px); }
-.cfg-switch-text { font-size: 13px; color: var(--text-secondary, #5A6472); }
-
-.cfg-range { font-size: 11.5px; color: var(--text-muted, #98A2B3); margin-left: 6px; font-weight: 400; }
-
-.cfg-actions {
-    margin-top: 20px; display: flex; gap: 10px; align-items: center;
-}
 </style>
 
 <div class="cfg-wrap">
@@ -175,7 +129,7 @@ adminHeader('全站配置', $admin, $csrfToken);
                     $val  = (string)($it['value'] ?? '');
                     $name = 'cfg[' . $key . ']';
                 ?>
-                <div class="cfg-item">
+                <div class="adm-field">
                     <div class="cfg-label">
                         <?= htmlspecialchars($it['label'] ?? $key) ?>
                         <?php if ($type === 'number' && (isset($it['min']) || isset($it['max']))): ?>

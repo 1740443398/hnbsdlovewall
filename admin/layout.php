@@ -1207,6 +1207,237 @@ function adminHeader($title, $adminUser, $csrfToken) {
 }
 .sidebar-nav .nav-item-hidden { display: none !important; }
 .sidebar-nav .nav-section-empty { display: none !important; }
+
+/* ==========================================================================
+ * 统一组件规范（v2.4.4）
+ * ==========================================================================
+ * 【为什么需要这一层】
+ * 后台 40 多个页面，每个都自定义了 rp- / bs- / pc- / cl- / cfg- 这类前缀，
+ * 于是同样一个「按钮」在不同页面长得不一样，同样一个「卡片」圆角不同，
+ * 同样一个「状态徽章」配色不同 —— 用户点来点去会觉得像好几个网站。
+ *
+ * 这一层定义一套标准组件，所有页面都应该优先用它们：
+ *   .adm-card     卡片容器
+ *   .adm-toolbar  工具栏（搜索 + 筛选按钮）
+ *   .adm-table    表格
+ *   .adm-badge    状态徽章（配 -ok/-warn/-err/-info/-muted）
+ *   .adm-empty    空状态
+ *   .adm-form-*   表单
+ *
+ * 老页面不用一次性全改 —— 新写的用这套，改到的顺手换。
+ * ========================================================================== */
+
+/* ---- 卡片 ---- */
+.adm-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+.adm-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+.adm-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+}
+.adm-card-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    line-height: 1.6;
+}
+.adm-card-body { padding: 18px; }
+.adm-card-body.is-flush { padding: 0; }
+
+/* ---- 工具栏 ---- */
+.adm-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.adm-toolbar-spacer { flex: 1 1 auto; }
+
+.adm-input {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color var(--transition), background var(--transition);
+}
+.adm-input:focus {
+    border-color: var(--primary);
+    background: var(--input-focus);
+}
+.adm-input::placeholder { color: var(--text-muted); }
+
+/* ---- 表格 ---- */
+.adm-table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+.adm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.adm-table thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.adm-table tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text);
+    vertical-align: middle;
+}
+.adm-table tbody tr:last-child td { border-bottom: 0; }
+.adm-table tbody tr:hover { background: var(--bg-secondary); }
+
+/* ---- 徽章 ---- */
+.adm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.adm-badge-ok    { background: var(--success-light); color: var(--success); }
+.adm-badge-warn  { background: var(--warning-light); color: var(--warning); }
+.adm-badge-err   { background: var(--danger-light);  color: var(--danger); }
+.adm-badge-info  { background: var(--info-light);    color: var(--info); }
+.adm-badge-muted { background: var(--bg-secondary);  color: var(--text-muted); }
+
+/* ---- 空状态 ---- */
+.adm-empty {
+    padding: 44px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+/* ---- 表单 ---- */
+.adm-field { margin-bottom: 16px; }
+.adm-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+.adm-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    margin-bottom: 6px;
+}
+.adm-field .adm-input,
+.adm-field textarea,
+.adm-field select { width: 100%; }
+.adm-field textarea {
+    padding: 9px 12px;
+    font-size: 13.5px;
+    font-family: inherit;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    resize: vertical;
+}
+.adm-field textarea:focus {
+    border-color: var(--primary);
+    background: var(--input-focus);
+}
+
+/* ---- 栅格 ---- */
+.adm-grid { display: grid; gap: 14px; }
+.adm-grid-2 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.adm-grid-3 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+/* ---- 提示条 ---- */
+.adm-alert {
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 16px;
+    border: 1px solid transparent;
+}
+.adm-alert-ok   { background: var(--success-light); color: var(--success); border-color: var(--success-light); }
+.adm-alert-warn { background: var(--warning-light); color: var(--warning); border-color: var(--warning-light); }
+.adm-alert-err  { background: var(--danger-light);  color: var(--danger);  border-color: var(--danger-light); }
+.adm-alert-info { background: var(--info-light);    color: var(--info);    border-color: var(--info-light); }
+
+/* ---- 分页 ---- */
+.adm-pager {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.adm-pager a, .adm-pager button {
+    padding: 6px 13px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    text-decoration: none;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+.adm-pager a:hover, .adm-pager button:hover:not(:disabled) {
+    background: var(--primary);
+    color: var(--on-solid);
+    border-color: var(--primary);
+}
+.adm-pager .is-current {
+    background: var(--primary);
+    color: var(--on-solid);
+    border-color: var(--primary);
+}
+.adm-pager button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---- 移动端 ---- */
+@media (max-width: 640px) {
+    .adm-card-body { padding: 14px; }
+    .adm-table thead th, .adm-table tbody td { padding: 9px 10px; }
+    .adm-toolbar { gap: 8px; }
+}
 </style>
     <?php // 交互式图表：必须在 </head> 之前，否则 dashboard 的初始化脚本会因 LwChart 未定义而静默失败 ?>
     <link rel="stylesheet" href="/assets/css/lw_chart.css?v=<?= @filemtime(__DIR__ . '/../assets/css/lw_chart.css') ?: 1 ?>">

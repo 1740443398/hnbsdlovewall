@@ -102,7 +102,7 @@ adminHeader('装扮管理', $adminUser, $csrfToken);
     .wg-preview-box {
         flex: 0 0 300px; display: flex; flex-direction: column; align-items: center; gap: 10px;
         padding: 20px; border: 1px dashed var(--border-color, #DDE3EC); border-radius: 14px;
-        background: var(--bg-secondary, #F7F9FC);
+        background: var(--bg-secondary, var(--bg));
     }
     /* 预览用的「头像取景框」：结构与前台 lwAvatarComposite 完全一致，
        管理员看到的就是上线后的真实效果 —— 所见即所得，不靠想象。 */
@@ -110,10 +110,10 @@ adminHeader('装扮管理', $adminUser, $csrfToken);
         width: 128px; height: 128px; border-radius: 50%; isolation: isolate; }
     .wg-stage img { position: absolute; inset: 6%; width: 88%; height: 88%; border-radius: 50%; object-fit: cover; z-index: 1; }
     .wg-stage .wg-frame { position: absolute; inset: 0; border-radius: 50%; z-index: 2; pointer-events: none; }
-    .wg-stage .wg-ring { position: absolute; inset: 0; z-index: 3; color: #2F5B9A; }
+    .wg-stage .wg-ring { position: absolute; inset: 0; z-index: 3; color: var(--primary); }
     .wg-stage .wg-ring svg { width: 100%; height: 100%; display: block; }
     .wg-tip { font-size: 12px; color: var(--text-secondary); line-height: 1.7; margin: 0; }
-    .wg-thumb { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #EDF1F5;
+    .wg-thumb { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--bg-secondary);
         border: 1px solid var(--border-color, #DDE3EC); }
     .wg-file { display: none; }
     .wg-upload-btn { display: inline-flex; align-items: center; gap: 6px; }

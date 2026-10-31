@@ -151,58 +151,58 @@ adminHeader('网盘中转配置', $admin, $csrfToken);
 /* 本页特有样式（表格 / 卡片细节）。
  * 颜色优先用 layout.php 的 CSS 变量，跟随明暗主题。 */
 *{box-sizing:border-box}
-body{margin:0;background:#F5F7FA;color:#1F2733;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.65}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.65}
 .wrap{max-width:680px;margin:0 auto;padding:24px 18px 60px}
 h1{font-size:20px;margin:0 0 4px}
-.sub{color:#6B7684;font-size:13px;margin:0 0 22px}
-.back{display:inline-block;margin-bottom:16px;color:#5B667A;text-decoration:none;font-size:13px}
-.back:hover{color:#2F5B9A}
-.card{background:#fff;border:1px solid #E4E9F0;border-radius:12px;padding:22px 20px;margin-bottom:16px}
+.sub{color:var(--text-secondary);font-size:13px;margin:0 0 22px}
+.back{display:inline-block;margin-bottom:16px;color:var(--text-secondary);text-decoration:none;font-size:13px}
+.back:hover{color:var(--primary)}
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:22px 20px;margin-bottom:16px}
 .field{margin-bottom:18px}
 .field:last-child{margin-bottom:0}
 label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
-.hint{font-size:12px;color:#9AA4B2;margin:0 0 7px}
+.hint{font-size:12px;color:var(--text-muted);margin:0 0 7px}
 input[type=text],input[type=password],input[type=number]{
-    width:100%;padding:10px 12px;border:1px solid #E4E9F0;border-radius:9px;
-    font-size:14px;font-family:inherit;color:#1F2733;background:#F8FAFC;outline:none;
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;
+    font-size:14px;font-family:inherit;color:var(--text);background:var(--bg-secondary);outline:none;
     transition:border-color .15s;
 }
-input:focus{border-color:#2F5B9A;background:#fff}
+input:focus{border-color:var(--primary);background:var(--card-bg)}
 .switch{display:flex;align-items:center;gap:9px}
 .switch input{width:18px;height:18px;margin:0;cursor:pointer}
 .switch label{margin:0;font-weight:500;cursor:pointer}
 .actions{display:flex;gap:9px;margin-top:20px}
 .btn{padding:10px 20px;border:0;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center}
-.btn-primary{background:linear-gradient(135deg,#4F7FE0,#2F5B9A);color:#fff}
-.btn-ghost{background:#F0F3F8;color:#4A5568}
+.btn-primary{background:linear-gradient(135deg,var(--info),var(--primary));color:var(--card-bg)}
+.btn-ghost{background:var(--border-light);color:var(--text-secondary)}
 .btn:hover{opacity:.92}
 .msg{padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:16px}
-.msg.ok{background:#EAF7F1;color:#178A62;border:1px solid #C5E9D8}
-.msg.err{background:#FDECEC;color:#C0392B;border:1px solid #F5C6C6}
-.note{background:#F8FAFC;border-left:3px solid #4F7FE0;padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#5B667A;margin-top:16px}
-.note b{color:#1F2733}
+.msg.ok{background:var(--success-light);color:var(--success);border:1px solid var(--success-light)}
+.msg.err{background:var(--danger-light);color:var(--danger);border:1px solid var(--danger-light)}
+.note{background:var(--bg-secondary);border-left:3px solid var(--info);padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:var(--text-secondary);margin-top:16px}
+.note b{color:var(--text)}
 .stat-card{padding:20px 20px 18px}
 .stat-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .stat-head h2{font-size:15px;margin:0}
-.mini-btn{font-size:12px;color:#2F5B9A;text-decoration:none;padding:4px 10px;border-radius:7px;background:#F0F4FA}
+.mini-btn{font-size:12px;color:var(--primary);text-decoration:none;padding:4px 10px;border-radius:7px;background:#F0F4FA}
 .mini-btn:hover{background:#E4ECF8}
 .stat-grid{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:16px}
 .stat-item{flex:1;min-width:96px}
-.stat-label{font-size:12px;color:#9AA4B2;margin-bottom:4px}
-.stat-value{font-size:22px;font-weight:700;color:#1F2733;line-height:1.2}
-.stat-value .unit{font-size:12px;font-weight:400;color:#9AA4B2}
-.stat-value.warn{color:#E07B39}
-.stat-value.good{color:#178A62}
+.stat-label{font-size:12px;color:var(--text-muted);margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700;color:var(--text);line-height:1.2}
+.stat-value .unit{font-size:12px;font-weight:400;color:var(--text-muted)}
+.stat-value.warn{color:var(--warning)}
+.stat-value.good{color:var(--success)}
 .bar-wrap{height:7px;background:#EDF1F7;border-radius:99px;overflow:hidden;margin-bottom:6px}
-.bar-fill{height:100%;background:linear-gradient(90deg,#4F7FE0,#2F5B9A);border-radius:99px;transition:width .3s}
-.bar-tip{font-size:11.5px;color:#9AA4B2;margin-bottom:14px}
-.stat-ok{font-size:13px;color:#178A62;margin:0;padding-top:4px}
-.stat-err{font-size:12.5px;color:#C0392B;margin:10px 0 0}
-.pending-box{margin-top:14px;padding-top:14px;border-top:1px solid #EEF1F6}
-.pending-tip{font-size:13px;color:#5B667A;margin:0 0 10px;line-height:1.6}
-.pending-tip b{color:#E07B39}
-.pending-note{font-size:11.5px;color:#9AA4B2;margin:10px 0 0;line-height:1.6}
-.warn{background:#FEF8EC;border-left:3px solid #F2994A;padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#8A5A1F;margin-top:12px}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--info),var(--primary));border-radius:99px;transition:width .3s}
+.bar-tip{font-size:11.5px;color:var(--text-muted);margin-bottom:14px}
+.stat-ok{font-size:13px;color:var(--success);margin:0;padding-top:4px}
+.stat-err{font-size:12.5px;color:var(--danger);margin:10px 0 0}
+.pending-box{margin-top:14px;padding-top:14px;border-top:1px solid var(--bg-secondary)}
+.pending-tip{font-size:13px;color:var(--text-secondary);margin:0 0 10px;line-height:1.6}
+.pending-tip b{color:var(--warning)}
+.pending-note{font-size:11.5px;color:var(--text-muted);margin:10px 0 0;line-height:1.6}
+.warn{background:var(--warning-light);border-left:3px solid #F2994A;padding:12px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#8A5A1F;margin-top:12px}
 </style>
 
 <div class="wrap">

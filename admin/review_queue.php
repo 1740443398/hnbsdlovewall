@@ -28,20 +28,20 @@ adminHeader($pageTitle, $admin, $csrfToken);
 ?>
 <style>
 .rq-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.rq-tab{padding:7px 16px;border-radius:8px;border:1px solid #dfe4ea;background:#fff;cursor:pointer;font-size:.86rem;color:#4a5568}
-.rq-tab.active{background:#2F5B9A;color:#fff;border-color:#2F5B9A}
+.rq-tab{padding:7px 16px;border-radius:8px;border:1px solid #dfe4ea;background:var(--card-bg);cursor:pointer;font-size:.86rem;color:var(--text-secondary)}
+.rq-tab.active{background:var(--primary);color:var(--card-bg);border-color:var(--primary)}
 .rq-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
-.rq-stat{background:#fff;border-radius:10px;padding:14px 16px;border-left:4px solid #2F5B9A}
-.rq-stat .n{font-size:1.7rem;font-weight:700;color:#1a202c}
-.rq-stat .l{font-size:.78rem;color:#718096;margin-top:2px}
-.rq-item{background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid #edf1f5}
-.rq-item.processing{border-left:4px solid #e08a2e}
+.rq-stat{background:var(--card-bg);border-radius:10px;padding:14px 16px;border-left:4px solid var(--primary)}
+.rq-stat .n{font-size:1.7rem;font-weight:700;color:var(--text)}
+.rq-stat .l{font-size:.78rem;color:var(--text-secondary);margin-top:2px}
+.rq-item{background:var(--card-bg);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid var(--bg-secondary)}
+.rq-item.processing{border-left:4px solid var(--warning)}
 .rq-item.handled{opacity:.65}
-.rq-item h4{margin:0 0 6px;font-size:.95rem;color:#2d3748}
-.rq-item .meta{font-size:.76rem;color:#a0aec0;margin-bottom:8px}
-.rq-item .excerpt{font-size:.85rem;color:#4a5568;background:#f7fafc;padding:8px 10px;border-radius:6px;margin-bottom:10px;line-height:1.6}
+.rq-item h4{margin:0 0 6px;font-size:.95rem;color:var(--text)}
+.rq-item .meta{font-size:.76rem;color:var(--text-muted);margin-bottom:8px}
+.rq-item .excerpt{font-size:.85rem;color:var(--text-secondary);background:var(--bg-secondary);padding:8px 10px;border-radius:6px;margin-bottom:10px;line-height:1.6}
 .rq-item .acts{display:flex;gap:8px;flex-wrap:wrap}
-.rq-empty{text-align:center;padding:50px;color:#a0aec0;background:#fff;border-radius:10px}
+.rq-empty{text-align:center;padding:50px;color:var(--text-muted);background:var(--card-bg);border-radius:10px}
 </style>
 
 <div class="page-header">

@@ -19,7 +19,7 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
 ?>
 
 <style>
-    .bk-tip { color: var(--text-muted, #888); font-size: 13px; line-height: 1.6; }
+    .bk-tip { color: var(--text-muted, var(--text-muted)); font-size: 13px; line-height: 1.6; }
     .bk-box { border: 1px solid var(--border, #e2e5ea); border-radius: 12px; padding: 16px; margin-top: 12px; }
     .bk-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
 
@@ -33,12 +33,12 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
         cursor: pointer;
         transition: border-color .18s ease, background .18s ease;
     }
-    .bk-drop:hover, .bk-drop.dragging { border-color: var(--primary, #2F5B9A); background: rgba(47, 91, 154, .05); }
-    .bk-drop.has-file { border-style: solid; border-color: var(--success, #2E8B57); }
+    .bk-drop:hover, .bk-drop.dragging { border-color: var(--primary, var(--primary)); background: rgba(47, 91, 154, .05); }
+    .bk-drop.has-file { border-style: solid; border-color: var(--success, var(--success)); }
     .bk-drop-ico { font-size: 28px; line-height: 1; margin-bottom: 6px; }
     .bk-drop-main { font-size: 14px; font-weight: 600; }
-    .bk-drop-sub { font-size: 12px; color: var(--text-muted, #888); margin-top: 4px; }
-    .bk-drop-file { font-size: 12.5px; color: var(--success, #2E8B57); font-weight: 600; margin-top: 8px; word-break: break-all; }
+    .bk-drop-sub { font-size: 12px; color: var(--text-muted, var(--text-muted)); margin-top: 4px; }
+    .bk-drop-file { font-size: 12.5px; color: var(--success, var(--success)); font-weight: 600; margin-top: 8px; word-break: break-all; }
 </style>
 
 <div class="section">

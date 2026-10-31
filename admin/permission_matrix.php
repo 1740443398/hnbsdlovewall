@@ -51,7 +51,7 @@ table.matrix td.perm-name { color: var(--text); font-weight: 500; }
 .col-admin { min-width: 120px; }
 .col-admin .a-name { font-weight: 600; color: var(--text); }
 .col-admin .a-role { font-size: 11px; }
-.badge-all { background: var(--primary); color: var(--on-solid, #fff); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.badge-all { background: var(--primary); color: var(--on-solid, var(--card-bg)); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
 </style>
 
 <div class="section">

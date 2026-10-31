@@ -580,7 +580,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 .donut-legend em { font-style: normal; color: var(--text-secondary); width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
 /* 活跃时段热力：24 格两行，深浅由 --v 控制 */
 .heat { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
-.heat-cell { aspect-ratio: 1 / 1; border-radius: 4px; background: var(--primary); opacity: var(--v, .1); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: var(--on-solid, #fff); }
+.heat-cell { aspect-ratio: 1 / 1; border-radius: 4px; background: var(--primary); opacity: var(--v, .1); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: var(--on-solid, var(--card-bg)); }
 .dash-hint { font-size: 11px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
 .dash-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 13px; }
 /* 待办中心 */
@@ -589,7 +589,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 .todo-list a { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px; text-decoration: none; color: var(--text); font-size: 13px; }
 .todo-list a:hover { color: var(--primary); }
 .todo-list b { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
-.todo-list b.hot { color: var(--on-solid, #fff); background: var(--danger); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.todo-list b.hot { color: var(--on-solid, var(--card-bg)); background: var(--danger); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
 
 .dashboard-grid {
     display: grid;
@@ -657,7 +657,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
     height: 7px;
     margin-right: 5px;
     border-radius: 50%;
-    background: var(--success, #2E8B57);
+    background: var(--success, var(--success));
     vertical-align: middle;
     box-shadow: 0 0 0 0 rgba(46, 139, 87, .55);
     animation: onlinePulse 2s ease-out infinite;
@@ -672,25 +672,25 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 }
 
 /* ===== 资源占用卡片 ===== */
-.res-card{background:#fff;border-radius:14px;padding:18px 20px;margin-top:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+.res-card{background:var(--card-bg);border-radius:14px;padding:18px 20px;margin-top:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
 .res-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.res-head h3{margin:0;font-size:15px;font-weight:600;color:#1F2733}
-.res-head .res-refresh{border:0;background:#F0F3F8;color:#4A5568;font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer}
+.res-head h3{margin:0;font-size:15px;font-weight:600;color:var(--text)}
+.res-head .res-refresh{border:0;background:var(--border-light);color:var(--text-secondary);font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer}
 .res-head .res-refresh:hover{background:#E4E9F1}
 .res-total{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
-.res-total .num{font-size:28px;font-weight:700;color:#2F5B9A;font-variant-numeric:tabular-nums}
-.res-total .of{font-size:13px;color:#9AA4B2}
-.res-bar{height:8px;background:#EEF1F6;border-radius:4px;overflow:hidden;margin-bottom:6px}
-.res-bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4F7FE0,#22B07D);transition:width .4s ease}
-.res-pct{font-size:12px;color:#9AA4B2;margin-bottom:16px}
+.res-total .num{font-size:28px;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
+.res-total .of{font-size:13px;color:var(--text-muted)}
+.res-bar{height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:6px}
+.res-bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--info),#22B07D);transition:width .4s ease}
+.res-pct{font-size:12px;color:var(--text-muted);margin-bottom:16px}
 .res-rows{display:flex;flex-direction:column;gap:9px}
 .res-row{display:flex;align-items:center;gap:10px;font-size:13px}
 .res-row .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.res-row .name{flex:1 1 auto;color:#4A5568}
-.res-row .cnt{color:#9AA4B2;font-size:11px}
-.res-row .val{font-variant-numeric:tabular-nums;color:#1F2733;font-weight:600;min-width:62px;text-align:right}
-.res-mem{margin-top:14px;padding-top:12px;border-top:1px solid #EEF1F6;font-size:12px;color:#6B7684;display:flex;gap:18px;flex-wrap:wrap}
-.res-mem b{color:#1F2733;font-variant-numeric:tabular-nums}
+.res-row .name{flex:1 1 auto;color:var(--text-secondary)}
+.res-row .cnt{color:var(--text-muted);font-size:11px}
+.res-row .val{font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;min-width:62px;text-align:right}
+.res-mem{margin-top:14px;padding-top:12px;border-top:1px solid var(--bg-secondary);font-size:12px;color:var(--text-secondary);display:flex;gap:18px;flex-wrap:wrap}
+.res-mem b{color:var(--text);font-variant-numeric:tabular-nums}
 
 </style>
 

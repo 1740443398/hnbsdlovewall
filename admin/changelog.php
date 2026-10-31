@@ -123,59 +123,32 @@ adminHeader('更新日志管理', $admin, $csrfToken);
 
 <style>
 .cl-wrap { max-width: 920px; }
-.cl-msg { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
-.cl-msg.ok  { background: #EAF7F1; color: #178A62; border: 1px solid #C5E9D8; }
-.cl-msg.err { background: #FDECEC; color: #C0392B; border: 1px solid #F5C6C6; }
-
-.cl-tip {
-    padding: 12px 15px; border-radius: 10px; font-size: 12.5px; line-height: 1.8;
-    background: #F0F6FF; border: 1px solid #D6E6FA; color: #2F5B9A; margin-bottom: 18px;
-}
+.cl-msg.ok  { background: var(--success-light); color: var(--success); border: 1px solid var(--success-light); }
+.cl-msg.err { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-light); }
 .cl-tip b { color: #1F3F6E; }
-
-.cl-ver {
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 14px; background: #fff;
-}
-.cl-ver-head {
-    display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;
-}
 .cl-ver-head input {
     padding: 7px 11px; font-size: 13.5px; font-family: inherit;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 8px; outline: none;
+    border: 1px solid var(--border-color, var(--border)); border-radius: 8px; outline: none;
 }
-.cl-ver-head input:focus { border-color: var(--primary, #2F5B9A); }
-
-.cl-item {
-    display: flex; gap: 7px; margin-bottom: 8px; align-items: flex-start;
-}
+.cl-ver-head input:focus { border-color: var(--primary, var(--primary)); }
 .cl-item select {
     padding: 7px 9px; font-size: 12.5px; font-family: inherit;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 8px;
-    background: #fff; outline: none; flex: 0 0 76px;
+    border: 1px solid var(--border-color, var(--border)); border-radius: 8px;
+    background: var(--card-bg); outline: none; flex: 0 0 76px;
 }
 .cl-item input[type="text"] {
     flex: 1; padding: 7px 11px; font-size: 13px; font-family: inherit;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 8px; outline: none;
+    border: 1px solid var(--border-color, var(--border)); border-radius: 8px; outline: none;
 }
-.cl-item input[type="text"]:focus { border-color: var(--primary, #2F5B9A); }
+.cl-item input[type="text"]:focus { border-color: var(--primary, var(--primary)); }
 .cl-item .del {
-    flex: 0 0 30px; height: 32px; border: 1px solid #F5C6C6; border-radius: 8px;
-    background: #FEF6F6; color: #C0392B; cursor: pointer; font-size: 15px; line-height: 1;
+    flex: 0 0 30px; height: 32px; border: 1px solid var(--danger-light); border-radius: 8px;
+    background: var(--danger-light); color: var(--danger); cursor: pointer; font-size: 15px; line-height: 1;
 }
-.cl-item .del:hover { background: #C0392B; color: #fff; }
-
-.cl-add {
-    padding: 6px 13px; font-size: 12.5px; border-radius: 7px;
-    border: 1px dashed var(--border-color, #D5DCE6); background: transparent;
-    color: var(--text-secondary, #5A6472); cursor: pointer; font-family: inherit;
-}
-.cl-add:hover { border-color: var(--primary, #2F5B9A); color: var(--primary, #2F5B9A); }
-
-.cl-actions { display: flex; gap: 10px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+.cl-item .del:hover { background: var(--danger); color: var(--card-bg); }
 .cl-new-ver {
     padding: 9px 20px; font-size: 13.5px; font-weight: 600; font-family: inherit;
-    color: #2F5B9A; background: #F0F6FF;
+    color: var(--primary); background: var(--info-light);
     border: 1px solid rgba(47,91,154,.3); border-radius: 9px; cursor: pointer;
     transition: background .15s, border-color .15s;
 }
@@ -200,7 +173,7 @@ adminHeader('更新日志管理', $admin, $csrfToken);
         <input type="hidden" name="act" value="save">
 
         <?php foreach ($versions as $vi => $v): ?>
-        <div class="cl-ver">
+        <div class="adm-card">
             <div class="cl-ver-head">
                 <input type="text" name="ver[<?= $vi ?>][version]"
                        value="<?= htmlspecialchars((string)($v['version'] ?? '')) ?>"

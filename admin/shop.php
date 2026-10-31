@@ -58,7 +58,7 @@ adminHeader('商城管理', $adminUser, $csrfToken);
 <style>
     .sm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 18px; }
     .sm-stat {
-        padding: 14px 16px; border-radius: 12px; background: var(--bg-secondary, #F7F9FC);
+        padding: 14px 16px; border-radius: 12px; background: var(--bg-secondary, var(--bg));
         border: 1px solid var(--border-color, #E6EAF0);
     }
     .sm-stat b { display: block; font-size: 1.4rem; line-height: 1.2; color: var(--text-primary); }
@@ -68,7 +68,7 @@ adminHeader('商城管理', $adminUser, $csrfToken);
     .sm-bulk {
         position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
         padding: 10px 12px; margin-bottom: 12px; border-radius: 12px;
-        background: var(--card-bg, #fff); border: 1px solid var(--border-color, #E6EAF0);
+        background: var(--card-bg, var(--card-bg)); border: 1px solid var(--border-color, #E6EAF0);
         box-shadow: 0 6px 18px -12px rgba(16,24,40,.35);
     }
     .sm-bulk .sm-sel { font-size: 13px; color: var(--text-secondary); margin-right: 4px; }
@@ -77,12 +77,12 @@ adminHeader('商城管理', $adminUser, $csrfToken);
     .sm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .sm-table th, .sm-table td { padding: 9px 10px; border-bottom: 1px solid var(--border-color, #EEF1F5); text-align: left; }
     .sm-table th { font-size: 12px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
-    .sm-table tbody tr:hover { background: var(--bg-secondary, #F7F9FC); }
+    .sm-table tbody tr:hover { background: var(--bg-secondary, var(--bg)); }
     .sm-thumb { width: 34px; height: 34px; border-radius: 50%; display: inline-block; vertical-align: middle;
-        background: #EEF2F7; border: 1px solid var(--border-color, #E1E7EF); position: relative; overflow: hidden; }
+        background: var(--border-light); border: 1px solid var(--border-color, #E1E7EF); position: relative; overflow: hidden; }
     .sm-thumb img { position: absolute; inset: 6%; width: 88%; height: 88%; border-radius: 50%; object-fit: cover; }
     .sm-off { color: #B03A35; font-size: 12px; }
-    .sm-on  { color: #2E8B57; font-size: 12px; }
+    .sm-on  { color: var(--success); font-size: 12px; }
     .sm-tag { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px;
         background: var(--bg-secondary, #F1F4F8); color: var(--text-secondary); }
 </style>

@@ -86,38 +86,38 @@ foreach ($tree as $inviterId => $list) {
 .ig-wrap { padding: 0 0 40px; }
 .ig-stats { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
 .ig-stat {
-    flex: 1; min-width: 140px; background: #fff; border: 1px solid #E4E9F0;
+    flex: 1; min-width: 140px; background: var(--card-bg); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px 18px;
 }
 .ig-stat .n { font-size: 24px; font-weight: 700; line-height: 1.2; }
-.ig-stat .l { font-size: 12px; color: #9AA4B2; margin-top: 3px; }
-.ig-tree { background: #fff; border: 1px solid #E4E9F0; border-radius: 12px; overflow: hidden; }
-.ig-node { border-bottom: 1px solid #F0F3F8; }
+.ig-stat .l { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.ig-tree { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.ig-node { border-bottom: 1px solid var(--border-light); }
 .ig-node:last-child { border-bottom: 0; }
 .ig-row {
     display: flex; align-items: center; gap: 10px;
     padding: 12px 16px; cursor: pointer; user-select: none;
 }
-.ig-row:hover { background: #FAFBFD; }
+.ig-row:hover { background: var(--bg-secondary); }
 .ig-caret {
-    width: 16px; text-align: center; color: #9AA4B2; font-size: 11px;
+    width: 16px; text-align: center; color: var(--text-muted); font-size: 11px;
     transition: transform .15s; flex-shrink: 0;
 }
 .ig-caret.open { transform: rotate(90deg); }
 .ig-avatar {
     width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
     background: #E8EEF8; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 600; color: #4F7FE0; overflow: hidden;
+    font-size: 13px; font-weight: 600; color: var(--info); overflow: hidden;
 }
 .ig-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .ig-name { font-weight: 600; font-size: 14px; }
-.ig-meta { font-size: 12px; color: #9AA4B2; }
+.ig-meta { font-size: 12px; color: var(--text-muted); }
 .ig-badge {
     font-size: 11px; padding: 2px 8px; border-radius: 99px;
-    background: #EAF7F1; color: #178A62; font-weight: 600;
+    background: var(--success-light); color: var(--success); font-weight: 600;
 }
-.ig-badge.warn { background: #FDECEC; color: #C0392B; }
-.ig-badge.idle { background: #F0F3F8; color: #9AA4B2; }
+.ig-badge.warn { background: var(--danger-light); color: var(--danger); }
+.ig-badge.idle { background: var(--border-light); color: var(--text-muted); }
 .ig-children {
     padding: 0 16px 12px 46px; display: none;
 }
@@ -125,21 +125,21 @@ foreach ($tree as $inviterId => $list) {
 .ig-child {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 10px; border-radius: 8px; font-size: 13px;
-    border-left: 2px solid #E4E9F0; margin-bottom: 4px; padding-left: 12px;
+    border-left: 2px solid var(--border); margin-bottom: 4px; padding-left: 12px;
 }
-.ig-child:hover { background: #FAFBFD; }
-.ig-empty { padding: 40px 20px; text-align: center; color: #9AA4B2; font-size: 14px; }
+.ig-child:hover { background: var(--bg-secondary); }
+.ig-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
 .ig-tip {
-    background: #F8FAFC; border-left: 3px solid #4F7FE0; padding: 12px 14px;
-    border-radius: 0 8px 8px 0; font-size: 12.5px; color: #5B667A;
+    background: var(--bg-secondary); border-left: 3px solid var(--info); padding: 12px 14px;
+    border-radius: 0 8px 8px 0; font-size: 12.5px; color: var(--text-secondary);
     margin-bottom: 18px; line-height: 1.7;
 }
 .ig-filter { margin-bottom: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .ig-filter input {
-    padding: 8px 12px; border: 1px solid #E4E9F0; border-radius: 9px;
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 9px;
     font-size: 13px; font-family: inherit; outline: none; width: 220px;
 }
-.ig-filter input:focus { border-color: #2F5B9A; }
+.ig-filter input:focus { border-color: var(--primary); }
 </style>
 
 <div class="ig-wrap">

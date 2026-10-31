@@ -38,139 +38,55 @@ adminHeader('举报处理', $admin, $csrfToken);
 ?>
 
 <style>
-.rp-toolbar {
-    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
-    margin-bottom: 16px;
-}
-.rp-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.rp-tab {
-    padding: 7px 15px; border-radius: 9px; font-size: 13px; font-weight: 600;
-    background: var(--bg-secondary, #F3F6FA); border: 0; cursor: pointer;
-    color: var(--text-secondary, #5A6472); font-family: inherit;
-    transition: background .15s, color .15s;
-}
-.rp-tab:hover { background: #E8EDF5; }
-.rp-tab.active { background: var(--primary, #2F5B9A); color: #fff; }
+.rp-tab.active { background: var(--primary, var(--primary)); color: var(--card-bg); }
 .rp-tab .num {
     display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 5px;
     border-radius: 9px; font-size: 11px; line-height: 17px;
     background: rgba(255,255,255,.25);
 }
-.rp-tab:not(.active) .num { background: #D5DCE6; color: #4A5568; }
-
-.rp-search {
-    flex: 1 1 200px; min-width: 160px; padding: 8px 12px; font-size: 13px;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 9px;
-    background: var(--bg-input, #fff); outline: none; font-family: inherit;
-}
-
-.rp-list { display: flex; flex-direction: column; gap: 10px; }
-
-.rp-item {
-    background: var(--surface, #fff);
-    border: 1px solid var(--border-light, #E9EEF5);
-    border-radius: 12px;
-    padding: 14px 16px;
-    transition: border-color .16s, box-shadow .16s;
-}
-.rp-item:hover { border-color: rgba(47,91,154,.3); box-shadow: 0 4px 16px -10px rgba(16,24,40,.2); }
+.rp-tab:not(.active) .num { background: var(--border); color: var(--text-secondary); }
 .rp-item.is-pending { border-left: 3px solid #E8A33D; }
 .rp-item.is-handled { opacity: .78; }
-
-.rp-head {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    margin-bottom: 8px; font-size: 12px;
-}
-.rp-kind {
-    padding: 2px 8px; border-radius: 5px; font-weight: 600; font-size: 11.5px;
-}
-.rp-kind.post { background: #EAF1FB; color: #2F5B9A; }
+.rp-kind.post { background: #EAF1FB; color: var(--primary); }
 .rp-kind.pm   { background: #F3EEFB; color: #6B46C1; }
-.rp-status {
-    padding: 2px 8px; border-radius: 5px; font-weight: 600; font-size: 11.5px;
-}
-.rp-status.pending  { background: #FEF3E7; color: #B4761F; }
-.rp-status.ignored  { background: #EEF2F7; color: #5A6472; }
-.rp-status.warned   { background: #FEF3E7; color: #B4761F; }
-.rp-status.removed  { background: #FDECEC; color: #C0392B; }
-.rp-status.banned   { background: #FDECEC; color: #C0392B; }
-.rp-status.resolved { background: #EAF7F1; color: #178A62; }
-.rp-time { color: var(--text-muted, #98A2B3); margin-left: auto; }
-
-.rp-target {
-    font-size: 14px; font-weight: 600; color: var(--text-primary, #1F2733);
-    margin-bottom: 4px; word-break: break-word;
-}
-.rp-sub { font-size: 12.5px; color: var(--text-muted, #98A2B3); margin-bottom: 8px; }
-.rp-reason {
-    font-size: 13px; color: var(--text-secondary, #5A6472); line-height: 1.7;
-    padding: 9px 12px; background: var(--bg-secondary, #F7F9FC);
-    border-radius: 8px; margin-bottom: 8px; white-space: pre-wrap; word-break: break-word;
-}
-.rp-meta { font-size: 12px; color: var(--text-muted, #98A2B3); }
-.rp-note {
-    font-size: 12.5px; color: #178A62; margin-top: 6px;
-    padding: 7px 10px; background: #EAF7F1; border-radius: 7px;
-}
-
-.rp-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.rp-btn {
-    padding: 6px 13px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
-    border: 1px solid var(--border-color, #E4E9F0); background: #fff;
-    color: var(--text-secondary, #5A6472); cursor: pointer; font-family: inherit;
-    transition: all .15s;
-}
-.rp-btn:hover { background: var(--bg-secondary, #F3F6FA); }
-.rp-btn.ignore  { border-color: #D5DCE6; }
-.rp-btn.ignore:hover  { background: #EEF2F7; color: #4A5568; }
-.rp-btn.warn    { border-color: #F0D9B5; color: #B4761F; }
-.rp-btn.warn:hover    { background: #FEF3E7; }
-.rp-btn.remove  { border-color: #F5C6C6; color: #C0392B; }
-.rp-btn.remove:hover  { background: #FDECEC; }
-.rp-btn.ban     { border-color: #F5C6C6; color: #C0392B; background: #FEF6F6; }
-.rp-btn.ban:hover     { background: #C0392B; color: #fff; }
-.rp-btn.resolve { border-color: #C5E9D8; color: #178A62; }
-.rp-btn.resolve:hover { background: #EAF7F1; }
-
-.rp-empty {
-    padding: 48px 20px; text-align: center;
-    color: var(--text-muted, #98A2B3); font-size: 13.5px;
-}
-
-.rp-pager { display: flex; gap: 8px; justify-content: center; margin-top: 18px; align-items: center; }
+.rp-status.pending  { background: var(--warning-light); color: var(--warning); }
+.rp-status.ignored  { background: var(--border-light); color: var(--text-secondary); }
+.rp-status.warned   { background: var(--warning-light); color: var(--warning); }
+.rp-status.removed  { background: var(--danger-light); color: var(--danger); }
+.rp-status.banned   { background: var(--danger-light); color: var(--danger); }
+.rp-status.resolved { background: var(--success-light); color: var(--success); }
+.rp-btn.ignore  { border-color: var(--border); }
+.rp-btn.ignore:hover  { background: var(--border-light); color: var(--text-secondary); }
+.rp-btn.warn    { border-color: var(--warning-light); color: var(--warning); }
+.rp-btn.warn:hover    { background: var(--warning-light); }
+.rp-btn.remove  { border-color: var(--danger-light); color: var(--danger); }
+.rp-btn.remove:hover  { background: var(--danger-light); }
+.rp-btn.ban     { border-color: var(--danger-light); color: var(--danger); background: var(--danger-light); }
+.rp-btn.ban:hover     { background: var(--danger); color: var(--card-bg); }
+.rp-btn.resolve { border-color: var(--success-light); color: var(--success); }
+.rp-btn.resolve:hover { background: var(--success-light); }
 .rp-pager button {
     padding: 6px 14px; border-radius: 8px; font-size: 13px;
-    border: 1px solid var(--border-color, #E4E9F0); background: #fff;
+    border: 1px solid var(--border-color, var(--border)); background: var(--card-bg);
     cursor: pointer; font-family: inherit;
 }
 .rp-pager button:disabled { opacity: .4; cursor: default; }
-.rp-pager span { font-size: 13px; color: var(--text-muted, #98A2B3); }
+.rp-pager span { font-size: 13px; color: var(--text-muted, var(--text-muted)); }
 
 /* 处置弹窗 */
-.rp-modal {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(15,23,42,.42);
-    display: none; align-items: center; justify-content: center; padding: 20px;
-}
 .rp-modal.show { display: flex; }
-.rp-modal-box {
-    background: #fff; border-radius: 16px; width: 100%; max-width: 440px;
-    padding: 22px 24px; box-shadow: 0 20px 60px -20px rgba(16,24,40,.4);
-}
-.rp-modal-box h3 { font-size: 16px; margin: 0 0 6px; color: #1F2733; }
-.rp-modal-hint { font-size: 12.5px; color: #98A2B3; margin-bottom: 14px; line-height: 1.7; }
+.rp-modal-box h3 { font-size: 16px; margin: 0 0 6px; color: var(--text); }
 .rp-modal-box textarea {
     width: 100%; min-height: 82px; padding: 10px 12px; font-size: 13.5px;
-    border: 1px solid #E4E9F0; border-radius: 9px; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 9px; font-family: inherit;
     resize: vertical; outline: none; line-height: 1.65;
 }
-.rp-modal-box textarea:focus { border-color: #2F5B9A; }
-.rp-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.rp-modal-box textarea:focus { border-color: var(--primary); }
 .rp-modal-actions button {
     padding: 8px 18px; border-radius: 9px; font-size: 13.5px; font-weight: 600;
-    cursor: pointer; font-family: inherit; border: 1px solid #E4E9F0; background: #fff;
+    cursor: pointer; font-family: inherit; border: 1px solid var(--border); background: var(--card-bg);
 }
-.rp-modal-actions .ok { background: #2F5B9A; color: #fff; border-color: #2F5B9A; }
+.rp-modal-actions .ok { background: var(--primary); color: var(--card-bg); border-color: var(--primary); }
 </style>
 
 <div class="section">
@@ -196,7 +112,7 @@ adminHeader('举报处理', $admin, $csrfToken);
         </div>
 
         <div class="rp-list" id="rpList">
-            <div class="rp-empty">加载中…</div>
+            <div class="adm-empty">加载中…</div>
         </div>
 
         <div class="rp-pager" id="rpPager" style="display:none;">
@@ -262,7 +178,7 @@ adminHeader('举报处理', $admin, $csrfToken);
 
     function render() {
         if (!state.items.length) {
-            listEl.innerHTML = '<div class="rp-empty">'
+            listEl.innerHTML = '<div class="adm-empty">'
                 + (state.status === 'pending' ? '没有待处理的举报 🎉' : '没有符合条件的举报')
                 + '</div>';
             pagerEl.style.display = 'none';
@@ -272,7 +188,7 @@ adminHeader('举报处理', $admin, $csrfToken);
         var html = '';
         state.items.forEach(function (r) {
             var cls = r.status === 'pending' ? 'is-pending' : 'is-handled';
-            html += '<div class="rp-item ' + cls + '">';
+            html += '<div class="adm-card ' + cls + '">';
 
             html += '<div class="rp-head">';
             html += '<span class="rp-kind ' + r.kind + '">' + esc(r.kind_label) + '</span>';
@@ -336,13 +252,13 @@ adminHeader('举报处理', $admin, $csrfToken);
     }
 
     function load() {
-        listEl.innerHTML = '<div class="rp-empty">加载中…</div>';
+        listEl.innerHTML = '<div class="adm-empty">加载中…</div>';
         var p = { action: 'list', status: state.status, page: state.page };
         if (state.keyword) p.keyword = state.keyword;
 
         api(p).then(function (d) {
             if (!d.success) {
-                listEl.innerHTML = '<div class="rp-empty">' + esc(d.message || '加载失败') + '</div>';
+                listEl.innerHTML = '<div class="adm-empty">' + esc(d.message || '加载失败') + '</div>';
                 return;
             }
             var data = d.data || {};
@@ -358,7 +274,7 @@ adminHeader('举报处理', $admin, $csrfToken);
 
             render();
         }).catch(function () {
-            listEl.innerHTML = '<div class="rp-empty">网络错误，请刷新重试</div>';
+            listEl.innerHTML = '<div class="adm-empty">网络错误，请刷新重试</div>';
         });
     }
 
