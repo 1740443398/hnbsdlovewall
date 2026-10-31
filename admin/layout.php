@@ -1735,6 +1735,65 @@ function adminFooter() {
 })();
 </script>
 <script src="<?= asset_url('/assets/js/admin_enhance.js') ?>?v=<?= asset_ver('/assets/js/admin_enhance.js') ?>" defer></script>
+<script>
+/**
+ * 后台滚动位置记忆
+ *
+ * =====================================================================
+ * 解决什么问题
+ * =====================================================================
+ * 后台很多页面用 href="?p=2" 这类相对链接翻页/切换。
+ * 点击后浏览器重新加载整个页面，滚动位置归零 —— 用户在
+ * 第 50 行点了「下一页」，跳过去又回到顶部，得重新滚下来。
+ *
+ * 这个脚本把「离开前的滚动位置」存进 sessionStorage，
+ * 新页面加载后自动恢复。对用户来说就是「点了还在原地」。
+ *
+ * 只对「同路径、仅 query 不同」的跳转生效 —— 跨页面跳转不该恢复，
+ * 那会让用户莫名其妙停在半中间。
+ * =====================================================================
+ */
+(function () {
+    var KEY = 'lw_admin_scroll_' + location.pathname;
+    var lastUrl = null;
+
+    // 记录当前滚动位置（防抖）
+    var timer = null;
+    window.addEventListener('scroll', function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            try {
+                sessionStorage.setItem(KEY, JSON.stringify({
+                    y: window.scrollY,
+                    url: location.href
+                }));
+            } catch (e) {}
+        }, 120);
+    }, { passive: true });
+
+    // 页面加载后恢复（仅当来源是同一路径）
+    try {
+        var saved = sessionStorage.getItem(KEY);
+        if (saved) {
+            var d = JSON.parse(saved);
+            var samePath = d && d.url && d.url.split('?')[0] === location.href.split('?')[0];
+            if (samePath && d.y > 80 && !location.hash) {
+                // 等布局稳定再滚
+                requestAnimationFrame(function () {
+                    setTimeout(function () {
+                        window.scrollTo({ top: d.y, behavior: 'instant' });
+                    }, 30);
+                });
+            }
+        }
+    } catch (e) {}
+
+    // 表单提交后清掉记忆（提交后应该回到顶部看结果）
+    document.addEventListener('submit', function () {
+        try { sessionStorage.removeItem(KEY); } catch (e) {}
+    }, true);
+})();
+</script>
 </body>
 </html>
 <?php

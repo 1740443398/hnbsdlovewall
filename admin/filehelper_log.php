@@ -152,7 +152,7 @@ tr:hover td{background:#FAFBFD}
             <?php if ($i === $page): ?>
                 <span class="cur"><?= $i ?></span>
             <?php else: ?>
-                <a href="?p=<?= $i ?>"><?= $i ?></a>
+                <a href="?p=<?= $i ?>#log-table"><?= $i ?></a>
             <?php endif; ?>
         <?php endfor; ?>
     </div>
