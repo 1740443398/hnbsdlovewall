@@ -270,62 +270,37 @@ adminHeader('邮件设置', $admin, $csrfToken);
 <style>
 .mail-wrap { max-width: 980px; }
 .mail-msg { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
-.mail-msg.ok  { background: #EAF7F1; color: #178A62; border: 1px solid #C5E9D8; }
-.mail-msg.err { background: #FDECEC; color: #C0392B; border: 1px solid #F5C6C6; }
-
-.mail-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
-    margin-bottom: 16px;
-}
-.mail-badge.on  { background: #EAF7F1; color: #178A62; }
-.mail-badge.off { background: #FEF3E7; color: #B4761F; }
-
-.mail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 700px) { .mail-grid { grid-template-columns: 1fr; } }
-
-.mail-field { margin-bottom: 14px; }
+.mail-msg.ok  { background: var(--success-light); color: var(--success); border: 1px solid var(--success-light); }
+.mail-msg.err { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-light); }
+.mail-badge.on  { background: var(--success-light); color: var(--success); }
+.mail-badge.off { background: var(--warning-light); color: var(--warning); }
+@media (max-width: 700px) { }
 .mail-field label {
     display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;
-    color: var(--text-primary, #1F2733);
+    color: var(--text-primary, var(--text));
 }
-.mail-field .hint { font-size: 12px; color: var(--text-muted, #98A2B3); margin-bottom: 6px; line-height: 1.6; }
-.mail-input {
-    width: 100%; padding: 9px 12px; font-size: 13.5px; font-family: inherit;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 9px;
-    background: var(--bg-input, #fff); color: var(--text-primary, #1F2733); outline: none;
-}
-.mail-input:focus { border-color: var(--primary, #2F5B9A); }
-
-.mail-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.mail-stat {
-    flex: 1 1 110px; min-width: 110px; padding: 14px 16px;
-    background: var(--bg-secondary, #F7F9FC); border-radius: 11px;
-    border: 1px solid var(--border-light, #EEF2F7);
-}
+.mail-field .hint { font-size: 12px; color: var(--text-muted, var(--text-muted)); margin-bottom: 6px; line-height: 1.6; }
 .mail-stat b { display: block; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.mail-stat span { font-size: 12px; color: var(--text-muted, #98A2B3); }
-
-.mail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mail-stat span { font-size: 12px; color: var(--text-muted, var(--text-muted)); }
 .mail-table th {
     text-align: left; padding: 9px 10px; font-size: 12px; font-weight: 600;
-    color: var(--text-muted, #98A2B3); border-bottom: 1px solid var(--border-color, #E4E9F0);
+    color: var(--text-muted, var(--text-muted)); border-bottom: 1px solid var(--border-color, var(--border));
     white-space: nowrap;
 }
 .mail-table td {
-    padding: 10px; border-bottom: 1px solid var(--border-light, #F3F6FA);
+    padding: 10px; border-bottom: 1px solid var(--border-light, var(--bg-secondary));
     vertical-align: top; word-break: break-all;
 }
-.mail-ok   { color: #178A62; font-weight: 600; }
-.mail-fail { color: #C0392B; font-weight: 600; }
-.mail-skip { color: #98A2B3; }
+.mail-ok   { color: var(--success); font-weight: 600; }
+.mail-fail { color: var(--danger); font-weight: 600; }
+.mail-skip { color: var(--text-muted); }
 
 .mail-pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; }
 .mail-pager a {
     padding: 5px 11px; border-radius: 7px; text-decoration: none;
-    background: var(--bg-secondary, #F3F6FA); color: var(--text-secondary, #5A6472);
+    background: var(--bg-secondary, var(--bg-secondary)); color: var(--text-secondary, var(--text-secondary));
 }
-.mail-pager a:hover { background: var(--primary, #2F5B9A); color: #fff; }
+.mail-pager a:hover { background: var(--primary, var(--primary)); color: var(--card-bg); }
 </style>
 
 <div class="mail-wrap">
@@ -344,25 +319,25 @@ adminHeader('邮件设置', $admin, $csrfToken);
         <div class="section-header"><h3>SMTP 连接参数</h3></div>
         <div class="section-body">
             <div class="mail-grid">
-                <div class="mail-field">
+                <div class="adm-field">
                     <label>SMTP 服务器</label>
                     <div class="hint">QQ 邮箱填 smtp.qq.com</div>
-                    <input class="mail-input" name="host" value="<?= htmlspecialchars((string)($curCfg['host'] ?? 'smtp.qq.com')) ?>">
+                    <input class="adm-input" name="host" value="<?= htmlspecialchars((string)($curCfg['host'] ?? 'smtp.qq.com')) ?>">
                 </div>
-                <div class="mail-field">
+                <div class="adm-field">
                     <label>端口</label>
                     <div class="hint">SSL 用 465，STARTTLS 用 587</div>
-                    <input class="mail-input" name="port" type="number" value="<?= (int)($curCfg['port'] ?? 465) ?>">
+                    <input class="adm-input" name="port" type="number" value="<?= (int)($curCfg['port'] ?? 465) ?>">
                 </div>
             </div>
 
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>发件邮箱</label>
                 <div class="hint">必须是邮箱完整地址，例如 123456@qq.com</div>
-                <input class="mail-input" name="user" value="<?= htmlspecialchars((string)($curCfg['user'] ?? '')) ?>">
+                <input class="adm-input" name="user" value="<?= htmlspecialchars((string)($curCfg['user'] ?? '')) ?>">
             </div>
 
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>授权码</label>
                 <div class="hint">
                     不是 QQ 密码，是「QQ 邮箱 → 设置 → 账户 → POP3/SMTP 服务」里生成的授权码。
@@ -373,21 +348,21 @@ adminHeader('邮件设置', $admin, $csrfToken);
                     </span>
                     <?php endif; ?>
                 </div>
-                <input class="mail-input" name="pass" type="password"
+                <input class="adm-input" name="pass" type="password"
                        placeholder="<?= $configured && !empty($curCfg['pass']) ? '已设置 ················（留空则不修改）' : '未设置，请填写授权码' ?>"
                        autocomplete="new-password">
             </div>
 
             <div class="mail-grid">
-                <div class="mail-field">
+                <div class="adm-field">
                     <label>发件人地址</label>
                     <div class="hint">留空则与发件邮箱相同</div>
-                    <input class="mail-input" name="from" value="<?= htmlspecialchars((string)($curCfg['from'] ?? '')) ?>">
+                    <input class="adm-input" name="from" value="<?= htmlspecialchars((string)($curCfg['from'] ?? '')) ?>">
                 </div>
-                <div class="mail-field">
+                <div class="adm-field">
                     <label>发件人显示名</label>
                     <div class="hint">收件人看到的发信人名字</div>
-                    <input class="mail-input" name="from_name" value="<?= htmlspecialchars((string)($curCfg['from_name'] ?? '')) ?>">
+                    <input class="adm-input" name="from_name" value="<?= htmlspecialchars((string)($curCfg['from_name'] ?? '')) ?>">
                 </div>
             </div>
 
@@ -406,7 +381,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 下面的发送记录里会写明具体原因（认证失败 / 连接超时 / 被拒收）。
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <input class="mail-input" name="test_to" style="flex:1 1 240px;"
+                <input class="adm-input" name="test_to" style="flex:1 1 240px;"
                        placeholder="收件邮箱，例如 1740443398@qq.com">
                 <button type="submit" class="btn btn-primary">发送测试</button>
             </div>
@@ -434,7 +409,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
 
         <div class="section-body">
             <!-- 模板选择 -->
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>选用模板</label>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <?php foreach ($templates as $k => $t): ?>
@@ -453,7 +428,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
             </div>
 
             <!-- 收件范围 + 数量（放在最上面，因为这是最关键的决策）-->
-            <div class="bs-scope-box">
+            <div class="adm-card-body">
                 <div class="bs-scope-title">发给谁</div>
                 <div class="bs-scope-grid">
                     <?php
@@ -477,46 +452,46 @@ adminHeader('邮件设置', $admin, $csrfToken);
             </div>
 
             <!-- 主题 -->
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>邮件主题</label>
-                <input class="mail-input" name="subject"
+                <input class="adm-input" name="subject"
                        value="<?= htmlspecialchars((string)$sel['subject']) ?>">
             </div>
 
             <!-- 正文标题 -->
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>正文标题</label>
-                <input class="mail-input" name="title"
+                <input class="adm-input" name="title"
                        value="<?= htmlspecialchars((string)$sel['title']) ?>">
             </div>
 
             <!-- 正文内容 -->
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>正文内容</label>
                 <div class="hint">每行一段，空行会被忽略</div>
-                <textarea class="mail-input" name="lines" rows="5"><?= htmlspecialchars((string)$sel['lines']) ?></textarea>
+                <textarea class="adm-input" name="lines" rows="5"><?= htmlspecialchars((string)$sel['lines']) ?></textarea>
             </div>
 
             <!-- 按钮 -->
             <div class="mail-grid">
-                <div class="mail-field">
+                <div class="adm-field">
                     <label>按钮链接（可留空）</label>
-                    <input class="mail-input" name="link" value="<?= htmlspecialchars((string)$sel['link']) ?>">
+                    <input class="adm-input" name="link" value="<?= htmlspecialchars((string)$sel['link']) ?>">
                 </div>
-                <div class="mail-field">
+                <div class="adm-field">
                     <label>按钮文字</label>
-                    <input class="mail-input" name="linkText" value="<?= htmlspecialchars((string)$sel['linkText']) ?>">
+                    <input class="adm-input" name="linkText" value="<?= htmlspecialchars((string)$sel['linkText']) ?>">
                 </div>
             </div>
 
             <!-- 批量大小 -->
-            <div class="mail-field">
+            <div class="adm-field">
                 <label>本批最多发送</label>
                 <div class="hint">
                     QQ 邮箱对短时间大量发信有限制。建议 30 封一批，
                     发完看下方记录，再点一次继续发下一批。
                 </div>
-                <input class="mail-input" name="limit" type="number" value="30" min="1" max="100"
+                <input class="adm-input" name="limit" type="number" value="30" min="1" max="100"
                        style="max-width:140px;">
             </div>
 
@@ -536,11 +511,11 @@ adminHeader('邮件设置', $admin, $csrfToken);
     .tpl-btn {
         padding: 6px 13px; border-radius: 8px; font-size: 12.5px; font-family: inherit;
         border: 1px solid transparent; cursor: pointer;
-        background: var(--bg-secondary, #F3F6FA); color: var(--text-secondary, #5A6472);
+        background: var(--bg-secondary, var(--bg-secondary)); color: var(--text-secondary, var(--text-secondary));
         transition: background .15s, color .15s;
     }
     .tpl-btn:hover { background: #E8EDF5; }
-    .tpl-btn.active { background: var(--primary, #2F5B9A); color: #fff; }
+    .tpl-btn.active { background: var(--primary, var(--primary)); color: var(--card-bg); }
     </style>
 
     <script>
@@ -633,52 +608,12 @@ adminHeader('邮件设置', $admin, $csrfToken);
     </script>
 
     <style>
-    .bs-scope-box {
-        padding: 14px 16px;
-        background: #F7F9FC;
-        border: 1px solid #E4E9F0;
-        border-radius: 11px;
-        margin-bottom: 16px;
-    }
-    .bs-scope-title {
-        font-size: 13px; font-weight: 600; color: #1F2733; margin-bottom: 10px;
-    }
-    .bs-scope-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;
-    }
-    .bs-scope-opt {
-        display: block; padding: 10px 12px; background: #fff;
-        border: 1.5px solid #E4E9F0; border-radius: 9px; cursor: pointer;
-        transition: border-color .15s, background .15s;
-    }
-    .bs-scope-opt:hover { border-color: rgba(47,91,154,.4); }
     .bs-scope-opt:has(input:checked) {
-        border-color: #2F5B9A; background: #F0F6FF;
+        border-color: var(--primary); background: var(--info-light);
     }
     .bs-scope-opt input { margin-right: 6px; }
-    .bs-scope-name { font-size: 13px; font-weight: 600; color: #1F2733; }
-    .bs-scope-count {
-        float: right; font-size: 12.5px; font-weight: 700; color: #2F5B9A;
-    }
-    .bs-scope-desc {
-        display: block; font-size: 11.5px; color: #98A2B3; margin-top: 4px; line-height: 1.5;
-    }
-    .bs-send-bar {
-        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-        padding: 16px 18px; margin-top: 18px;
-        background: linear-gradient(135deg, #F0F6FF, #EAF7F1);
-        border: 1px solid #D6E6FA; border-radius: 11px;
-    }
-    .bs-send-btn {
-        padding: 11px 28px; font-size: 14px; font-weight: 700; font-family: inherit;
-        color: #fff; background: #2F5B9A; border: 0; border-radius: 9px;
-        cursor: pointer; transition: background .15s, transform .1s;
-        box-shadow: 0 2px 8px -3px rgba(47,91,154,.5);
-    }
-    .bs-send-btn:hover:not(:disabled) { background: #24487C; }
+    .bs-send-btn:hover:not(:disabled) { background: var(--primary-hover); }
     .bs-send-btn:active:not(:disabled) { transform: scale(.98); }
-    .bs-send-btn:disabled { opacity: .5; cursor: not-allowed; }
-    .bs-send-hint { font-size: 13px; color: #2F5B9A; }
     .bs-send-hint b { font-size: 15px; }
     </style>
 
@@ -719,7 +654,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 </div>
             <?php else: ?>
             <div style="overflow-x:auto;">
-                <table class="mail-table">
+                <table class="adm-table">
                     <thead>
                         <tr>
                             <th>时间</th>

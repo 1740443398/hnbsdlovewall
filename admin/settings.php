@@ -30,7 +30,7 @@ adminHeader('站点设置', $adminUser, $csrfToken);
     box-shadow: var(--shadow);
     margin-bottom: 20px;
     overflow: hidden;
-    border: 1px solid #f1f5f9;
+    border: 1px solid var(--primary-light);
     transition: box-shadow var(--transition);
 }
 .setting-section:hover {
@@ -41,7 +41,7 @@ adminHeader('站点设置', $adminUser, $csrfToken);
     font-size: 15px;
     font-weight: 600;
     color: var(--text);
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--primary-light);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -125,7 +125,7 @@ adminHeader('站点设置', $adminUser, $csrfToken);
 .btn-save {
     padding: 9px 18px;
     background: var(--primary);
-    color: var(--on-solid, #fff);
+    color: var(--on-solid, var(--card-bg));
     border: none;
     border-radius: var(--radius);
     font-size: 13px;

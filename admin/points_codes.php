@@ -146,63 +146,27 @@ adminHeader('兑换码管理', $admin, $csrfToken);
 <style>
 .pc-wrap { max-width: 960px; }
 .pc-msg { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
-.pc-msg.ok  { background: #EAF7F1; color: #178A62; border: 1px solid #C5E9D8; }
-.pc-msg.err { background: #FDECEC; color: #C0392B; border: 1px solid #F5C6C6; }
-
-.pc-field { margin-bottom: 14px; }
+.pc-msg.ok  { background: var(--success-light); color: var(--success); border: 1px solid var(--success-light); }
+.pc-msg.err { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-light); }
 .pc-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.pc-field .hint { font-size: 12px; color: var(--text-muted, #98A2B3); margin-bottom: 6px; line-height: 1.6; }
-.pc-input {
-    width: 100%; padding: 9px 12px; font-size: 13.5px; font-family: inherit;
-    border: 1px solid var(--border-color, #E4E9F0); border-radius: 9px;
-    background: var(--bg-input, #fff); color: var(--text-primary, #1F2733); outline: none;
-}
-.pc-input:focus { border-color: var(--primary, #2F5B9A); }
-
-.pc-grid { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; }
-@media (max-width: 700px) { .pc-grid { grid-template-columns: 1fr; } }
-
-.pc-codes {
-    background: #1F2733; color: #A8E6B8; border-radius: 11px; padding: 16px 18px;
-    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
-    line-height: 2; max-height: 320px; overflow-y: auto; white-space: pre-wrap;
-    margin-top: 14px;
-}
-.pc-copy { margin-top: 10px; }
-
-.pc-type-box {
-    padding: 14px 16px; background: #F7F9FC;
-    border: 1px solid #E4E9F0; border-radius: 11px; margin-bottom: 16px;
-}
-.pc-type-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
-.pc-type-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
-.pc-type-opt {
-    flex: 1 1 180px; display: block; padding: 11px 13px; background: #fff;
-    border: 1.5px solid #E4E9F0; border-radius: 9px; cursor: pointer;
-    transition: border-color .15s, background .15s;
-}
-.pc-type-opt:hover { border-color: rgba(47,91,154,.4); }
-.pc-type-opt:has(input:checked) { border-color: #2F5B9A; background: #F0F6FF; }
+.pc-field .hint { font-size: 12px; color: var(--text-muted, var(--text-muted)); margin-bottom: 6px; line-height: 1.6; }
+@media (max-width: 700px) { }
+.pc-type-opt:has(input:checked) { border-color: var(--primary); background: var(--info-light); }
 .pc-type-opt span { font-size: 13px; font-weight: 600; margin-left: 6px; }
 .pc-type-opt small {
-    display: block; font-size: 11.5px; color: #98A2B3; margin-top: 4px; margin-left: 22px;
+    display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 4px; margin-left: 22px;
 }
-
-.pc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .pc-table th {
     text-align: left; padding: 9px 10px; font-size: 12px; font-weight: 600;
-    color: var(--text-muted, #98A2B3); border-bottom: 1px solid var(--border-color, #E4E9F0);
+    color: var(--text-muted, var(--text-muted)); border-bottom: 1px solid var(--border-color, var(--border));
 }
-.pc-table td { padding: 10px; border-bottom: 1px solid var(--border-light, #F3F6FA); }
+.pc-table td { padding: 10px; border-bottom: 1px solid var(--border-light, var(--bg-secondary)); }
 .pc-table code {
-    background: var(--bg-secondary, #F3F6FA); padding: 2px 7px; border-radius: 5px;
+    background: var(--bg-secondary, var(--bg-secondary)); padding: 2px 7px; border-radius: 5px;
     font-size: 12px; letter-spacing: .5px;
 }
-.pc-pill {
-    display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
-}
-.pc-pill.used { background: #EEF2F7; color: #5A6472; }
-.pc-pill.live { background: #EAF7F1; color: #178A62; }
+.pc-pill.used { background: var(--border-light); color: var(--text-secondary); }
+.pc-pill.live { background: var(--success-light); color: var(--success); }
 </style>
 
 <div class="pc-wrap">
@@ -237,7 +201,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
             </div>
 
             <!-- 码类型：积分码 / 商品码 -->
-            <div class="pc-type-box">
+            <div class="adm-card-body">
                 <div class="pc-type-title">兑换什么</div>
                 <div class="pc-type-tabs">
                     <label class="pc-type-opt">
@@ -326,7 +290,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                 </div>
             <?php else: ?>
             <div style="overflow-x:auto;">
-                <table class="pc-table">
+                <table class="adm-table">
                     <thead>
                         <tr>
                             <th>批次</th><th>积分/码</th><th>备注</th>
@@ -376,7 +340,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                 </div>
             <?php else: ?>
             <div style="overflow-x:auto;">
-                <table class="pc-table">
+                <table class="adm-table">
                     <thead>
                         <tr><th>兑换码</th><th>积分</th><th>兑换人</th><th>时间</th></tr>
                     </thead>

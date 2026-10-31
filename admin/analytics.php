@@ -27,21 +27,21 @@ adminHeader($pageTitle, $admin, $csrfToken);
 ?>
 <style>
 .an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.an-card{background:#fff;border-radius:10px;padding:16px;border-left:4px solid #2F5B9A}
-.an-card .n{font-size:1.8rem;font-weight:700;color:#1a202c;line-height:1.1}
-.an-card .l{font-size:.78rem;color:#718096;margin-top:4px}
+.an-card{background:var(--card-bg);border-radius:10px;padding:16px;border-left:4px solid var(--primary)}
+.an-card .n{font-size:1.8rem;font-weight:700;color:var(--text);line-height:1.1}
+.an-card .l{font-size:.78rem;color:var(--text-secondary);margin-top:4px}
 .an-card .d{font-size:.75rem;margin-top:6px;font-weight:600}
 .an-up{color:#38a169}
 .an-down{color:#e53e3e}
-.an-panel{background:#fff;border-radius:10px;padding:18px;margin-bottom:16px}
-.an-panel h3{margin:0 0 14px;font-size:.95rem;color:#2d3748}
+.an-panel{background:var(--card-bg);border-radius:10px;padding:18px;margin-bottom:16px}
+.an-panel h3{margin:0 0 14px;font-size:.95rem;color:var(--text)}
 .an-chart{height:200px;display:flex;align-items:flex-end;gap:3px;padding-top:10px}
-.an-bar{flex:1;background:linear-gradient(180deg,#4a7bc8,#2F5B9A);border-radius:3px 3px 0 0;min-height:2px;position:relative}
-.an-bar:hover{background:#e08a2e}
-.an-bar span{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:.6rem;color:#a0aec0;white-space:nowrap}
-.an-legend{display:flex;gap:16px;font-size:.78rem;color:#718096;margin-top:24px;flex-wrap:wrap}
+.an-bar{flex:1;background:linear-gradient(180deg,#4a7bc8,var(--primary));border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.an-bar:hover{background:var(--warning)}
+.an-bar span{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:.6rem;color:var(--text-muted);white-space:nowrap}
+.an-legend{display:flex;gap:16px;font-size:.78rem;color:var(--text-secondary);margin-top:24px;flex-wrap:wrap}
 .an-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
-.an-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f7fafc;font-size:.86rem}
+.an-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg-secondary);font-size:.86rem}
 .an-row:last-child{border:none}
 </style>
 

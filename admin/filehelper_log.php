@@ -70,32 +70,32 @@ adminHeader('文件传输记录', $admin, $csrfToken);
 /* 本页特有样式（表格 / 卡片细节）。
  * 颜色优先用 layout.php 的 CSS 变量，跟随明暗主题。 */
 *{box-sizing:border-box}
-body{margin:0;background:#F5F7FA;color:#1F2733;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.6}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.6}
 .wrap{max-width:1100px;margin:0 auto;padding:24px 18px 60px}
 h1{font-size:20px;margin:0 0 4px}
-.sub{color:#6B7684;font-size:13px;margin:0 0 22px}
+.sub{color:var(--text-secondary);font-size:13px;margin:0 0 22px}
 .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
-.stat{background:#fff;border:1px solid #E4E9F0;border-radius:12px;padding:14px 18px;min-width:140px}
-.stat .n{font-size:22px;font-weight:700;color:#2F5B9A;font-variant-numeric:tabular-nums}
-.stat .l{font-size:12px;color:#9AA4B2;margin-top:2px}
-.table-wrap{background:#fff;border:1px solid #E4E9F0;border-radius:12px;overflow:hidden}
+.stat{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 18px;min-width:140px}
+.stat .n{font-size:22px;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
+.stat .l{font-size:12px;color:var(--text-muted);margin-top:2px}
+.table-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:11px 14px;background:#F8FAFC;color:#5B667A;font-weight:600;font-size:12px;border-bottom:1px solid #E4E9F0;white-space:nowrap}
-td{padding:10px 14px;border-bottom:1px solid #F0F3F8;vertical-align:top}
+th{text-align:left;padding:11px 14px;background:var(--bg-secondary);color:var(--text-secondary);font-weight:600;font-size:12px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border-light);vertical-align:top}
 tr:last-child td{border-bottom:0}
-tr:hover td{background:#FAFBFD}
+tr:hover td{background:var(--bg-secondary)}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
 .chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
-.chip-relay{background:#E8F0FE;color:#2F5B9A}
-.chip-text{background:#EAF7F1;color:#178A62}
+.chip-relay{background:#E8F0FE;color:var(--primary)}
+.chip-text{background:var(--success-light);color:var(--success)}
 .chip-p2p{background:#FEF3E8;color:#B46211}
-.empty{text-align:center;padding:60px 20px;color:#9AA4B2}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
 .pager{display:flex;gap:8px;justify-content:center;margin-top:18px}
-.pager a,.pager span{padding:7px 14px;border-radius:8px;background:#fff;border:1px solid #E4E9F0;color:#5B667A;text-decoration:none;font-size:13px}
-.pager a:hover{background:#F0F3F8}
-.pager .cur{background:#2F5B9A;color:#fff;border-color:#2F5B9A}
-.back{display:inline-block;margin-bottom:16px;color:#5B667A;text-decoration:none;font-size:13px}
-.back:hover{color:#2F5B9A}
+.pager a,.pager span{padding:7px 14px;border-radius:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-secondary);text-decoration:none;font-size:13px}
+.pager a:hover{background:var(--border-light)}
+.pager .cur{background:var(--primary);color:var(--card-bg);border-color:var(--primary)}
+.back{display:inline-block;margin-bottom:16px;color:var(--text-secondary);text-decoration:none;font-size:13px}
+.back:hover{color:var(--primary)}
 </style>
 
 <div class="wrap">
