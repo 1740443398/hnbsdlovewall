@@ -52,6 +52,23 @@ Read it anywhere with `lwCfg('my_option')` / `lwCfgInt()` / `lwCfgBool()`. The f
 
 Only `transform` and `opacity` are animated (no layout thrashing), and everything honours `prefers-reduced-motion`.
 
+### Bilibili-style User Center *(new in v2.4.3)*
+
+`/pages/user_center.php` was rebuilt in the same visual language as the public profile:
+11rem gradient banner, avatar overlapping the edge, horizontal scrolling tab bar, and
+card-based content sections.
+
+The sidebar-plus-content layout became a banner-plus-tabs layout — the PHP structure was
+left untouched, only the presentation was flipped via a CSS overlay layer, so all existing
+tab content keeps working unchanged.
+
+**Removed tabs**
+
+| Tab | Reason |
+|---|---|
+| `backup` (数据备份) | Restoring a backup from the front end is too risky — a malformed or tampered file could corrupt the account. Data export/restore now lives only in the admin panel. |
+| `appearance` (外观特效) | Superseded by the site-wide theme system; keeping a second per-user effect panel caused confusion about which one wins. |
+
 ### Bilibili-style User Profile *(new in v2.4.2)*
 
 `/pages/u.php?id=N` — 10rem banner, avatar overlapping the edge, large numeric stats, card-based post list. Falls back to a gradient plus subtle grid texture when no cover image is set.

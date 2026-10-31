@@ -20,6 +20,14 @@ require_once __DIR__ . '/../includes/user_title.php';
 require_once __DIR__ . '/../includes/achievements.php';
 require_once __DIR__ . '/../includes/widget_render.php';
 
+/* 后台「站点信息 → 启用个人主页」关掉后，
+     * 所有 /u/ 请求重定向到个人中心 —— 保留数据，只是不再对外展示独立主页。
+     */
+if (function_exists('lwCfgBool') && !lwCfgBool('enable_profile_page', true)) {
+    header('Location: /pages/user_center.php');
+    exit;
+}
+
 $user = requireLoginOrGuest();
 if ($user) {
     $user = checkBanned($user);
@@ -420,7 +428,20 @@ $pageTitle = ($info ? $info['nickname'] : t('user.page_title')) . ' - ' . (t('us
             </div>
             <?php else: ?>
             <div class="u-card">
-                <div class="u-cover"></div>
+                <?php
+                /* 个人主页横幅。
+                 * 后台「站点信息 → 个人中心默认头图」可以配一张默认图；
+                 * 用户自己上传过头图则优先用用户的。
+                 */
+                $__cover = '';
+                if (!empty($info['cover'])) {
+                    $__cover = (string)$info['cover'];
+                } elseif (function_exists('lwCfg')) {
+                    $__cover = trim((string)lwCfg('profile_cover_default', ''));
+                }
+                ?>
+                <div class="u-cover<?= $__cover !== '' ? ' has-img' : '' ?>"
+                     <?= $__cover !== '' ? 'style="background-image:url(' . htmlspecialchars($__cover, ENT_QUOTES) . ')"' : '' ?>></div>
                 <div class="u-body">
                     <div class="u-top">
                         <?php /* 头像走全站唯一复合件：头像框 + 等级环 + 勋章，同心刚性布局 */ ?>

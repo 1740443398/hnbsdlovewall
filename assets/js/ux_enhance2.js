@@ -314,6 +314,51 @@
         });
     }
 
+
+    /* 慢请求提示：超过阈值就告诉用户「正在重试」，避免以为卡死 */
+    function slowHint() {
+        var limit = (typeof window.LW_SLOW_HINT === 'number' && window.LW_SLOW_HINT > 0)
+            ? window.LW_SLOW_HINT : 3000;
+        var timer = null;
+        var shown = null;
+
+        var origFetch = window.fetch;
+        if (!origFetch) return;
+
+        window.fetch = function (input, init) {
+            var url = typeof input === 'string' ? input : (input && input.url) || '';
+            var sameOrigin = url.indexOf('/') === 0 || url.indexOf(location.origin) === 0
+                || url.indexOf('http') !== 0;
+            if (!sameOrigin) return origFetch.apply(this, arguments);
+
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                if (shown) return;
+                shown = document.createElement('div');
+                shown.textContent = '网络较慢，正在重试…';
+                shown.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);'
+                    + 'background:rgba(30,37,48,.92);color:#fff;padding:9px 18px;border-radius:9px;'
+                    + 'font-size:12.5px;z-index:99998;box-shadow:0 6px 20px rgba(0,0,0,.22);'
+                    + 'opacity:0;transition:opacity .2s;';
+                document.body.appendChild(shown);
+                requestAnimationFrame(function () { shown.style.opacity = '1'; });
+            }, limit);
+
+            var p = origFetch.apply(this, arguments);
+            function done() {
+                clearTimeout(timer);
+                if (shown) {
+                    shown.style.opacity = '0';
+                    var el = shown;
+                    setTimeout(function () { el.remove(); }, 220);
+                    shown = null;
+                }
+            }
+            return p.then(function (r) { done(); return r; },
+                          function (e) { done(); throw e; });
+        };
+    }
+
     /* 启动 */
     function boot() {
         lazyFallback();
@@ -332,6 +377,7 @@
         pauseOnScroll();
         focusVisible();
         printFriendly();
+        slowHint();
     }
 
     if (document.readyState === 'loading') {

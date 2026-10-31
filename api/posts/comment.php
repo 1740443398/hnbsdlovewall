@@ -2,6 +2,15 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/actions/post_comment.php';
 
+/* 评论频率限制（后台「内容与发帖 → 评论频率上限」可调）。
+     * 按账号而不是按 IP —— 校园网全校共用一个出口 IP，按 IP 限会误伤别人。
+     */
+    $__commentLimit = function_exists('lwCfgInt') ? max(1, lwCfgInt('post_comment_rate_limit', 30)) : 30;
+    $__commentUser = function_exists('getCurrentUser') ? getCurrentUser() : null;
+    if ($__commentUser && !checkRateLimit('c' . (int)$__commentUser['id'], 'comment', $__commentLimit, 60)) {
+        jsonError('评论太频繁了，请稍后再试（每分钟最多 ' . $__commentLimit . ' 条）', 429);
+    }
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('请求方法不允许', 405);
 }
