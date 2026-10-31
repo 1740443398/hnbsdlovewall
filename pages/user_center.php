@@ -16,7 +16,7 @@ $csrfToken = generateCSRFToken();
 $pendingQqChange = getFS()->findOne('qq_change_requests', ['user_id' => $user['id'], 'status' => 'pending']);
 $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
 
-$validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'appearance', 'backup', 'invite'];
+$validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'invite'];
 if (!in_array($tab, $validTabs)) {
     $tab = 'profile';
 }
@@ -36,8 +36,7 @@ function ucSvgIcon($name) {
         'activity' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8E44AD"/><stop offset="100%" stop-color="#6C3483"/></linearGradient></defs><circle cx="12" cy="12" r="9" fill="url(#' . $uid . 'a)"/><path d="M12 7v5l3 2" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         'theme' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F39C12"/><stop offset="100%" stop-color="#D68910"/></linearGradient></defs><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="url(#' . $uid . 'a)"/></svg>',
         'invite' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#E2574C"/><stop offset="100%" stop-color="#B8943E"/></linearGradient></defs><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" fill="url(#' . $uid . 'a)"/><rect x="2" y="7" width="20" height="5" rx="1" fill="url(#' . $uid . 'a)"/><path d="M12 7v14" stroke="#fff" stroke-width="1.6"/><path d="M12 7S10.5 3 8.5 3 5.5 5 7 7h5zM12 7s1.5-4 3.5-4S18.5 5 17 7h-5z" fill="#fff" opacity=".85"/></svg>',
-        'appearance' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FB2FF"/><stop offset="100%" stop-color="#5B7BD5"/></linearGradient></defs><path d="M12 21c-5 0-9-3.6-9-8 0-3.6 3.6-9 9-9s9 5.4 9 9c0 1.4-1.1 2.4-2.4 2.4h-1.7c-.8 0-1.4.6-1.4 1.4 0 .3.1.6.3.9.2.3.3.6.3 1 0 1.1-1.1 2.3-3.1 2.3z" fill="url(#' . $uid . 'a)"/><circle cx="8" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="7.5" r="1.4" fill="#fff"/><circle cx="16" cy="10" r="1.4" fill="#fff"/></svg>',
-        'medals' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F3D384"/><stop offset="100%" stop-color="#C9A24E"/></linearGradient></defs><circle cx="12" cy="9" r="6" fill="url(#' . $uid . 'a)"/><path d="M8 14l-2 7 6-3 6 3-2-7" fill="url(#' . $uid . 'a)"/><path d="M10 9l1.6 1.6L14.5 7.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                'medals' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F3D384"/><stop offset="100%" stop-color="#C9A24E"/></linearGradient></defs><circle cx="12" cy="9" r="6" fill="url(#' . $uid . 'a)"/><path d="M8 14l-2 7 6-3 6 3-2-7" fill="url(#' . $uid . 'a)"/><path d="M10 9l1.6 1.6L14.5 7.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         'decor' => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="' . $uid . 'a" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#7EE8FA"/></linearGradient></defs><circle cx="12" cy="12" r="4" fill="url(#' . $uid . 'a)"/><circle cx="12" cy="12" r="8.5" stroke="url(#' . $uid . 'a)" stroke-width="2" fill="none" stroke-dasharray="4 3"/></svg>',
     ];
     return isset($icons[$name]) ? $icons[$name] : '';
@@ -56,9 +55,6 @@ $tabs = [
     'favorites' => ['name' => t('uc.tab.favorites'), 'icon' => ucSvgIcon('favorites')],
     'activity' => ['name' => t('uc.tab.activity'), 'icon' => ucSvgIcon('activity')],
     'theme' => ['name' => t('uc.tab.theme'), 'icon' => ucSvgIcon('theme')],
-    'appearance' => ['name' => '外观特效', 'icon' => ucSvgIcon('appearance')],
-    // 需求二、6：用户自助备份与恢复（只导出本人数据，恢复只写回本人名下）
-    'backup' => ['name' => '数据备份', 'icon' => ucSvgIcon('security')],
 ];
 
 // 邀请好友页签：仅当邀请功能开启时展示（后台可一键关闭）
@@ -885,17 +881,154 @@ if ($inviteEnabled && $tab === 'invite') {
         }
 
         /* 数据备份（需求二、6）：两栏卡片，手机上单列堆叠 */
-        .uc-backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.875rem; }
-        .uc-backup-card {
-            display: flex; flex-direction: column; gap: 0.625rem;
-            padding: 1rem; border-radius: var(--card-radius, 16px);
-            background: var(--surface, #fff); border: 1px solid var(--border, #eef1f6);
+        
+        /* =================================================================
+         * B 站风格用户中心（覆盖层）
+         * =================================================================
+         * 原结构是「左侧竖排导航 + 右侧内容」，功能齐全但观感偏后台。
+         * B 站个人中心是「顶部横幅 + 头像 + 横向标签 + 内容区」，
+         * 更符合用户对「个人主页」的心理预期。
+         *
+         * 这里不动 PHP 结构（风险太大），只用 CSS 把布局翻过来：
+         *   - 横幅：伪元素 + 渐变，压在 .uc-layout 顶部
+         *   - 侧边栏：变成横向滚动的标签条
+         *   - 内容区：加白卡 + 圆角 + 阴影
+         * ================================================================= */
+
+        .user-center-page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1rem 3rem;
         }
-        .uc-backup-title { font-weight: 600; color: var(--text); }
-        .uc-backup-desc { font-size: 0.8125rem; line-height: 1.6; color: var(--text-secondary); flex: 1 1 auto; }
-        .uc-backup-file { font-size: 0.75rem; color: var(--success, #2e8b57); word-break: break-all; min-height: 1em; }
-        .uc-backup-card .uc-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
-    </style>
+
+        /* ---- 顶部横幅 ---- */
+        .uc-banner {
+            position: relative;
+            height: 11rem;
+            margin: 0 -1rem 0;
+            border-radius: 0 0 18px 18px;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 18% 28%, rgba(59,111,182,.22), transparent 52%),
+                radial-gradient(circle at 82% 72%, rgba(88,168,214,.18), transparent 48%),
+                linear-gradient(125deg, #EAF1FB 0%, #F4F8FD 48%, #E7F3EF 100%);
+        }
+        .uc-banner::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,.55) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.55) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: .4;
+            pointer-events: none;
+        }
+
+        /* ---- 布局：从「左导航 + 右内容」翻成「横向标签 + 内容」---- */
+        .uc-layout {
+            display: block;
+            min-height: 0;
+            margin-top: -3.2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ---- 侧边栏 → 横向标签条 ---- */
+        .uc-sidebar {
+            width: auto;
+            display: flex;
+            gap: .35rem;
+            padding: .5rem .6rem;
+            background: rgba(255,255,255,.94);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            border: 1px solid rgba(15,23,42,.07);
+            border-radius: 14px;
+            box-shadow: 0 2px 10px -4px rgba(16,24,40,.12);
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: sticky;
+            top: 4.4rem;
+            align-self: auto;
+            scrollbar-width: none;
+            margin-bottom: 1.1rem;
+            z-index: 10;
+        }
+        .uc-sidebar::-webkit-scrollbar { display: none; }
+
+        .uc-sidebar .uc-nav-item {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .5rem .85rem;
+            border-radius: 9px;
+            font-size: .84rem;
+            font-weight: 600;
+            color: var(--text-secondary, #5A6472);
+            white-space: nowrap;
+            text-decoration: none;
+            transition: background .15s, color .15s;
+            border: 0;
+            flex: 0 0 auto;
+        }
+        .uc-sidebar .uc-nav-item:hover {
+            background: rgba(47,91,154,.07);
+            color: var(--primary, #2F5B9A);
+        }
+        .uc-sidebar .uc-nav-item.active {
+            background: var(--primary, #2F5B9A);
+            color: #fff;
+        }
+        .uc-sidebar .uc-nav-item svg {
+            width: 15px; height: 15px;
+            flex-shrink: 0;
+        }
+
+        /* ---- 内容区 ---- */
+        .uc-content {
+            width: 100%;
+            min-width: 0;
+        }
+        .uc-content > .uc-section {
+            background: var(--card-bg, #fff);
+            border: 1px solid rgba(15,23,42,.065);
+            border-radius: 16px;
+            padding: 1.35rem 1.5rem;
+            box-shadow: 0 1px 2px rgba(16,24,40,.03), 0 8px 28px -22px rgba(16,24,40,.18);
+        }
+        .uc-content > .uc-section > h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 1.1rem;
+            padding-bottom: .7rem;
+            border-bottom: 1px solid rgba(15,23,42,.06);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        /* ---- 移动端 ---- */
+        @media (max-width: 768px) {
+            .user-center-page { padding: 0 .6rem 2.5rem; }
+            .uc-banner { height: 8rem; margin: 0 -.6rem 0; border-radius: 0 0 14px 14px; }
+            .uc-layout { margin-top: -2.4rem; }
+            .uc-sidebar {
+                top: 3.9rem;
+                padding: .4rem .45rem;
+                gap: .25rem;
+                border-radius: 12px;
+            }
+            .uc-sidebar .uc-nav-item {
+                padding: .42rem .7rem;
+                font-size: .78rem;
+            }
+            .uc-content > .uc-section {
+                padding: 1.05rem 1rem;
+                border-radius: 14px;
+            }
+        }
+</style>
 </head>
 <body>
     <?php
@@ -907,6 +1040,7 @@ if ($inviteEnabled && $tab === 'invite') {
     <?php require __DIR__ . '/../includes/ai_widget.php'; ?>
 
     <div class="user-center-page">
+        <div class="uc-banner" aria-hidden="true"></div>
         <div class="uc-layout">
             <aside class="uc-sidebar">
                 <?php foreach ($tabs as $key => $t): ?>
@@ -1437,65 +1571,9 @@ if ($inviteEnabled && $tab === 'invite') {
                     </div>
                 </div>
 
-                <div class="uc-section" id="tab-appearance" <?= $tab !== 'appearance' ? 'style="display:none"' : '' ?>>
-                    <h2>外观特效 · 液态玻璃</h2>
-                    <p style="margin-bottom:1rem;color:var(--text-secondary);">开启后全站启用 Canvas 流体背景、组件玻璃材质；桌面端额外显示可拖拽 Dock 栏。关闭总开关将回退 MIUIX 主题并释放渲染资源。</p>
-                    <div class="lw-lg-panel" id="lwLgPanel">
-                        <div class="lw-lg-row">
-                            <div class="lw-lg-row-main">
-                                <div class="lw-lg-row-title">全局液态玻璃效果</div>
-                                <div class="lw-lg-row-desc">总开关，关闭后恢复原始基础界面（MIUIX 主题）</div>
-                            </div>
-                            <button type="button" class="lw-lg-switch" data-lg-key="master" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
-                        </div>
-                        <div class="lw-lg-sub" id="lwLgSub">
-                            <div class="lw-lg-row">
-                                <div class="lw-lg-row-main">
-                                    <div class="lw-lg-row-title">背景流体</div>
-                                    <div class="lw-lg-row-desc">Canvas 动态流体背景层</div>
-                                </div>
-                                <button type="button" class="lw-lg-switch" data-lg-key="bgFluid" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
-                            </div>
-                            <div class="lw-lg-row">
-                                <div class="lw-lg-row-main">
-                                    <div class="lw-lg-row-title">Dock 流体光</div>
-                                    <div class="lw-lg-row-desc">桌面 Dock 的流光与拖拽形变（移动端不显示 Dock）</div>
-                                </div>
-                                <button type="button" class="lw-lg-switch" data-lg-key="dockFluid" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
-                            </div>
-                            <div class="lw-lg-row">
-                                <div class="lw-lg-row-main">
-                                    <div class="lw-lg-row-title">组件玻璃材质</div>
-                                    <div class="lw-lg-row-desc">卡片、面板、模态的磨砂玻璃质感</div>
-                                </div>
-                                <button type="button" class="lw-lg-switch" data-lg-key="gloss" role="switch" aria-checked="true"><span class="lw-lg-switch-track"><span class="lw-lg-switch-knob"></span></span></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                
 
-                <div class="uc-section" id="tab-backup" <?= $tab !== 'backup' ? 'style="display:none"' : '' ?>>
-                    <h2>数据备份与恢复</h2>
-                    <p style="color:var(--text-secondary);line-height:1.7;margin-bottom:1rem;">
-                        备份包含你的帖子、评论、点赞与收藏、通知、私信、签到与已购装扮，以及昵称/头像/签名等展示资料。
-                        图片与附件只记录引用，不随包下载 —— 服务端文件仍在，恢复后原链接照常显示。
-                    </p>
-                    <div class="uc-backup-grid">
-                        <div class="uc-backup-card">
-                            <div class="uc-backup-title">导出我的数据</div>
-                            <div class="uc-backup-desc">生成一个 JSON 备份文件，自己保存留档，可随时恢复到本账号。</div>
-                            <button type="button" class="uc-btn uc-btn-primary" id="ubExportBtn">下载备份</button>
-                        </div>
-                        <div class="uc-backup-card">
-                            <div class="uc-backup-title">从备份恢复</div>
-                            <div class="uc-backup-desc">只能恢复<b>本账号</b>导出的备份；不会覆盖密码、角色、封禁状态与积分。</div>
-                            <input type="file" id="ubFile" accept=".json,application/json" style="display:none">
-                            <button type="button" class="uc-btn" id="ubPickBtn">选择备份文件</button>
-                            <div class="uc-backup-file" id="ubFileName"></div>
-                            <button type="button" class="uc-btn uc-btn-primary" id="ubRestoreBtn" disabled>开始恢复</button>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
         </div>
     </div>
@@ -2475,66 +2553,6 @@ if ($inviteEnabled && $tab === 'invite') {
         render();
     })();
 
-    // ── 数据备份与恢复（需求二、6）────────────────────────────────────
-    (function () {
-        var expBtn = document.getElementById('ubExportBtn');
-        var pickBtn = document.getElementById('ubPickBtn');
-        var fileEl = document.getElementById('ubFile');
-        var nameEl = document.getElementById('ubFileName');
-        var resBtn = document.getElementById('ubRestoreBtn');
-        if (!expBtn || !pickBtn) return;
-
-        expBtn.addEventListener('click', function () {
-            // 用隐藏 form 触发浏览器原生「下载」，避免 fetch 把整个 JSON 读进内存再拼 blob
-            var f = document.createElement('form');
-            f.method = 'POST';
-            f.action = SITE_URL + '/api/user_data.php?action=export';
-            var t = document.createElement('input');
-            t.type = 'hidden'; t.name = 'csrf_token'; t.value = CSRF_TOKEN;
-            f.appendChild(t);
-            document.body.appendChild(f);
-            f.submit();
-            setTimeout(function () { f.remove(); }, 500);
-        });
-
-        pickBtn.addEventListener('click', function () { fileEl.click(); });
-
-        fileEl.addEventListener('change', function () {
-            var f = fileEl.files && fileEl.files[0];
-            nameEl.textContent = f ? ('已选择：' + f.name) : '';
-            resBtn.disabled = !f;
-        });
-
-        resBtn.addEventListener('click', function () {
-            var f = fileEl.files && fileEl.files[0];
-            if (!f) { return; }
-            var ok = window.confirm('确认用该备份补齐你的数据？不会覆盖密码、角色与积分，也不会删除服务端现有内容。');
-            if (!ok) { return; }
-            var fd = new FormData();
-            fd.append('csrf_token', CSRF_TOKEN);
-            fd.append('file', f);
-            resBtn.disabled = true;
-            resBtn.textContent = '恢复中…';
-            fetch(SITE_URL + '/api/user_data.php?action=restore', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (d && d.success) {
-                        var n = 0;
-                        if (d.data && d.data.imported) {
-                            Object.keys(d.data.imported).forEach(function (k) { n += d.data.imported[k]; });
-                        }
-                        nameEl.textContent = '恢复完成，共写入 ' + n + ' 条记录';
-                    } else {
-                        nameEl.textContent = (d && d.message) || '恢复失败';
-                    }
-                })
-                .catch(function () { nameEl.textContent = '网络错误，请重试'; })
-                .finally(function () {
-                    resBtn.disabled = false;
-                    resBtn.textContent = '开始恢复';
-                });
-        });
-    })();
     </script>
     <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>

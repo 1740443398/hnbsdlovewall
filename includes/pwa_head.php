@@ -174,6 +174,10 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
             /* 文件传输的可配置项（后台「文件传输」分组） */
             echo 'window.LW_FH_P2P_TIMEOUT = ' . json_encode((int)lwCfgInt('fh_p2p_fallback_sec', 12) * 1000) . ";\n";
             echo 'window.LW_FH_ENABLED = ' . json_encode(function_exists('lwCfgBool') ? lwCfgBool('fh_enabled', true) : true) . ";\n";
+            /* 慢请求提示阈值（后台「性能与缓存 → 慢请求提示阈值」） */
+            echo 'window.LW_SLOW_HINT = ' . json_encode((int)lwCfgInt('api_timeout_hint', 3000)) . ";\n";
+            /* 个人主页开关，前端据此隐藏入口 */
+            echo 'window.LW_PROFILE_PAGE = ' . json_encode(function_exists('lwCfgBool') ? lwCfgBool('enable_profile_page', true) : true) . ";\n";
             echo 'window.LW_EGG_URL = ' . json_encode((string)lwCfg('egg_url')) . ";\n";
             echo 'window.LW_EGG_TAPS = ' . json_encode((int)lwCfgInt('egg_taps_needed', 5)) . ";\n";
             echo 'window.LW_EGG_ANIM_MS = ' . json_encode((int)lwCfgInt('egg_anim_ms', 2500)) . ";\n";
