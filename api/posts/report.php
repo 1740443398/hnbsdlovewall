@@ -59,7 +59,12 @@ logUserActivity($user['id'], 'report_post', '举报帖子 #' . $postId . ' 原�
 
 // 仪表盘数据变化提醒：有新举报待处理
 try {
-    notifyAdmins('收到新的帖子举报（帖子 #' . $postId . '），原因：' . mb_substr((string)$reason, 0, 40), 'admin');
+    notifyAdmins(
+        '收到新的帖子举报（帖子 #' . $postId . '），原因：' . mb_substr((string)$reason, 0, 40),
+        'admin',
+        '/admin/reports.php',          // 点通知直接到举报处理页
+        ['post_id' => $postId]
+    );
 } catch (\Exception $e) {
     error_log('notifyAdmins on report failed: ' . $e->getMessage());
 }

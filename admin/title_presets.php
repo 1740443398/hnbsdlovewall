@@ -62,7 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // 提示文案由白名单映射，绝不直接回显 URL 参数
 $doneMap = ['saved' => '已保存', 'deleted' => '已删除'];
 if (isset($_GET['done']) && isset($doneMap[$_GET['done']])) {
-    $ok = $doneMap[$_GET['done']];
+    // 未传 done 参数时原来会抛 Undefined array key Warning
+        $__doneKey = (string)($_GET['done'] ?? '');
+        $ok = $__doneKey !== '' && isset($doneMap[$__doneKey]) ? $doneMap[$__doneKey] : null;
 }
 
 $presets = json_decode(getSetting('title_presets', '[]'), true);

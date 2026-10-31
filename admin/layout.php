@@ -1191,7 +1191,23 @@ function adminHeader($title, $adminUser, $csrfToken) {
             align-items: center;
             gap: 10px;
         }
-    </style>
+    
+/* 后台侧边栏菜单筛选 */
+.nav-filter-wrap { padding: 0 14px 10px; }
+.nav-filter {
+    width: 100%; padding: 7px 11px; font-size: 12.5px; font-family: inherit;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+    background: rgba(255,255,255,.07); color: #D6DEE8; outline: none;
+    transition: border-color .15s, background .15s;
+}
+.nav-filter::placeholder { color: #7A879A; }
+.nav-filter:focus {
+    border-color: rgba(120,170,240,.5);
+    background: rgba(255,255,255,.11);
+}
+.sidebar-nav .nav-item-hidden { display: none !important; }
+.sidebar-nav .nav-section-empty { display: none !important; }
+</style>
     <?php // 交互式图表：必须在 </head> 之前，否则 dashboard 的初始化脚本会因 LwChart 未定义而静默失败 ?>
     <link rel="stylesheet" href="/assets/css/lw_chart.css?v=<?= @filemtime(__DIR__ . '/../assets/css/lw_chart.css') ?: 1 ?>">
     <script src="/assets/js/lw_chart.js?v=<?= @filemtime(__DIR__ . '/../assets/js/lw_chart.js') ?: 1 ?>"></script>
@@ -1207,7 +1223,12 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <div class="subtitle"><?= SITE_NAME ?></div>
         </div>
         <nav class="sidebar-nav">
-            <div class="nav-section">主菜单</div>
+        <div class="nav-filter-wrap">
+            <input type="text" class="nav-filter" id="adminNavFilter"
+                   placeholder="筛选菜单…" autocomplete="off">
+        </div>
+
+            <div class="nav-section">内容与用户</div>
             <a href="/admin/dashboard.php" class="<?= $page === 'dashboard.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span> 仪表盘
             </a>
@@ -1240,7 +1261,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 帖子投票
             </a>
             <?php endif; ?>
-            <div class="nav-section">设置</div>
+            <div class="nav-section">站点配置</div>
             <a href="/admin/settings.php" class="<?= $page === 'settings.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> 站点设置
             </a>
@@ -1287,7 +1308,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
             <a href="/admin/backup.php" class="<?= ($page === 'backup.php') ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span> 数据备份/恢复
             </a>
-            <div class="nav-section">运营与数据</div>
+            <div class="nav-section">运营工具</div>
             <a href="/admin/analytics.php" class="<?= $page === 'analytics.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> 数据看板
             </a>
@@ -1312,10 +1333,13 @@ function adminHeader($title, $adminUser, $csrfToken) {
         <a href="/admin/mail_settings.php" class="<?= $page === 'mail_settings.php' ? 'active' : '' ?>">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span> 邮件系统
         </a>
+        <a href="/admin/changelog.php" class="<?= $page === 'changelog.php' ? 'active' : '' ?>">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> 更新日志
+        </a>
             <a href="/admin/config_center.php" class="<?= $page === 'config_center.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> 全站配置
             </a>
-            <div class="nav-section">日志与安全</div>
+            <div class="nav-section">安全与日志</div>
             <a href="/admin/filehelper_log.php" class="<?= $page === 'filehelper_log.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> 文件传输记录
             </a>
@@ -1363,7 +1387,7 @@ function adminHeader($title, $adminUser, $csrfToken) {
             </a>
             <?php endif; ?>
             <?php if (checkPermission($adminUser, 'view_app_devices') || checkPermission($adminUser, 'manage_app_push')): ?>
-            <div class="nav-section">移动端（App）</div>
+            <div class="nav-section">安卓客户端</div>
             <?php if (checkPermission($adminUser, 'view_app_devices')): ?>
             <a href="/admin/app_users.php" class="<?= $page === 'app_users.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> App 装机台账
@@ -1437,6 +1461,280 @@ function adminFooter() {
         }
     });
     </script>
+
+<script>
+/* 后台侧边栏菜单筛选
+ *
+ * 后台有 42 个页面，靠分组已经能收窄，但「我记得有个页面叫 xx」
+ * 还是要一组一组翻。加个输入框，打字就过滤 —— 三秒找到。
+ */
+(function () {
+    var box = document.getElementById('adminNavFilter');
+    if (!box) return;
+    var nav = box.closest('.sidebar-nav') || document.querySelector('.sidebar-nav');
+    if (!nav) return;
+    var items = Array.prototype.slice.call(nav.querySelectorAll('a[href^="/admin/"]'));
+    var sections = Array.prototype.slice.call(nav.querySelectorAll('.nav-section'));
+
+    function apply() {
+        var q = box.value.trim().toLowerCase();
+        if (!q) {
+            items.forEach(function (a) { a.classList.remove('nav-item-hidden'); });
+            sections.forEach(function (sec) { sec.classList.remove('nav-section-empty'); });
+            return;
+        }
+        items.forEach(function (a) {
+            var txt = (a.textContent || '').toLowerCase();
+            var href = (a.getAttribute('href') || '').toLowerCase();
+            var hit = txt.indexOf(q) !== -1 || href.indexOf(q) !== -1;
+            a.classList.toggle('nav-item-hidden', !hit);
+        });
+        // 分组标题：下面一个可见项都没有就隐藏
+        sections.forEach(function (sec) {
+            var next = sec.nextElementSibling;
+            var any = false;
+            while (next && !next.classList.contains('nav-section')) {
+                if (next.tagName === 'A' && !next.classList.contains('nav-item-hidden')) {
+                    any = true;
+                    break;
+                }
+                next = next.nextElementSibling;
+            }
+            sec.classList.toggle('nav-section-empty', !any);
+        });
+    }
+
+    box.addEventListener('input', apply);
+    box.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { box.value = ''; apply(); box.blur(); }
+    });
+})();
+</script>
+<script>
+/**
+ * 后台通用增强（细节改进包）
+ *
+ * 这里的每一项都是「用过一次就回不去」的小东西。
+ * 全部是渐进增强：不支持的浏览器上不影响任何功能。
+ */
+(function () {
+    'use strict';
+
+    if (window.__lwAdminEnhanced) return;
+    window.__lwAdminEnhanced = true;
+
+    /* ── 1. 键盘快捷键 ──────────────────────────────────────── */
+    document.addEventListener('keydown', function (e) {
+        var tag = (e.target.tagName || '').toUpperCase();
+        var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable;
+
+        // "/" 聚焦搜索框
+        if (e.key === '/' && !typing) {
+            var s = document.getElementById('adminNavFilter')
+                 || document.querySelector('.nav-filter')
+                 || document.querySelector('input[type="search"]')
+                 || document.querySelector('input[type="text"]');
+            if (s) { e.preventDefault(); s.focus(); s.select && s.select(); }
+        }
+
+        // Ctrl/Cmd + S：提交当前表单（防丢草稿）
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+            var form = e.target.closest && e.target.closest('form');
+            if (!form) form = document.querySelector('form.main-form, .section-body form');
+            if (form) {
+                e.preventDefault();
+                if (form.requestSubmit) form.requestSubmit();
+                else form.submit();
+            }
+        }
+
+        // Esc：关闭任何可见弹窗
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.show, .rp-modal.show, .lw-modal.show')
+                .forEach(function (m) { m.classList.remove('show'); });
+        }
+
+        // Alt + 数字：跳到第 N 个分组（快速定位）
+        if (e.altKey && /^[1-9]$/.test(e.key)) {
+            var secs = document.querySelectorAll('.sidebar-nav .nav-section');
+            var idx = parseInt(e.key, 10) - 1;
+            if (secs[idx]) {
+                e.preventDefault();
+                secs[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+    });
+
+    /* ── 2. 表格行高亮与点击整行 ────────────────────────────── */
+    document.querySelectorAll('table tbody tr').forEach(function (tr) {
+        if (tr.querySelectorAll('td').length < 2) return;
+        tr.style.cursor = 'default';
+        tr.addEventListener('mouseenter', function () {
+            this.style.transition = 'background .12s';
+        });
+        // 点击行内空白处：如果行里有「详情」按钮就触发它
+        tr.addEventListener('dblclick', function (e) {
+            if (e.target.closest('button, a, input, select')) return;
+            var btn = this.querySelector('button[onclick*="how"], button[onclick*="etail"], a[href*="id="]');
+            if (btn) btn.click();
+        });
+    });
+
+    /* ── 3. 长表格自动加「回到顶部」 ─────────────────────────── */
+    if (document.body.scrollHeight > window.innerHeight * 2.2) {
+        var top = document.createElement('button');
+        top.type = 'button';
+        top.innerHTML = '↑';
+        top.setAttribute('aria-label', '回到顶部');
+        top.style.cssText = [
+            'position:fixed', 'right:24px', 'bottom:24px', 'width:42px', 'height:42px',
+            'border-radius:50%', 'border:1px solid rgba(15,23,42,.1)',
+            'background:rgba(255,255,255,.92)', 'backdrop-filter:blur(8px)',
+            'color:#2F5B9A', 'font-size:18px', 'cursor:pointer', 'z-index:9000',
+            'box-shadow:0 4px 16px -6px rgba(16,24,40,.25)',
+            'opacity:0', 'pointer-events:none', 'transition:opacity .2s'
+        ].join(';');
+        document.body.appendChild(top);
+
+        var ticking = false;
+        window.addEventListener('scroll', function () {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(function () {
+                var show = window.scrollY > 400;
+                top.style.opacity = show ? '1' : '0';
+                top.style.pointerEvents = show ? 'auto' : 'none';
+                ticking = false;
+            });
+        }, { passive: true });
+
+        top.addEventListener('click', function () {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
+    /* ── 4. 表单离开提醒（防丢改动）─────────────────────────── */
+    var dirtyForms = new WeakSet();
+    document.querySelectorAll('form').forEach(function (f) {
+        var hasSubmit = f.querySelector('[type="submit"], button:not([type="button"])');
+        if (!hasSubmit) return;
+        f.addEventListener('input', function () { dirtyForms.add(f); });
+        f.addEventListener('submit', function () { dirtyForms.delete(f); });
+    });
+    window.addEventListener('beforeunload', function (e) {
+        var dirty = false;
+        document.querySelectorAll('form').forEach(function (f) {
+            if (dirtyForms.has(f)) dirty = true;
+        });
+        if (dirty) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+
+    /* ── 5. 数字输入框：滚轮不再误改值 ──────────────────────── */
+    document.querySelectorAll('input[type="number"]').forEach(function (inp) {
+        inp.addEventListener('wheel', function (e) {
+            // 只有聚焦时才允许滚轮改值
+            if (document.activeElement !== inp) return;
+            e.preventDefault();
+            var d = e.deltaY < 0 ? 1 : -1;
+            var v = parseFloat(inp.value) || 0;
+            var step = parseFloat(inp.step) || 1;
+            var min = inp.min !== '' ? parseFloat(inp.min) : -Infinity;
+            var max = inp.max !== '' ? parseFloat(inp.max) : Infinity;
+            var nv = Math.min(max, Math.max(min, v + d * step));
+            inp.value = nv;
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }, { passive: false });
+    });
+
+    /* ── 6. 复制按钮：任意 code / pre 可一键复制 ────────────── */
+    document.querySelectorAll('pre, code.pc-code, .copyable').forEach(function (el) {
+        if (el.closest('.no-copy')) return;
+        el.style.position = 'relative';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '复制';
+        btn.style.cssText = [
+            'position:absolute', 'top:6px', 'right:6px', 'padding:3px 9px',
+            'font-size:11px', 'border-radius:6px', 'cursor:pointer',
+            'border:1px solid rgba(15,23,42,.14)', 'background:#fff',
+            'color:#5A6472', 'opacity:0', 'transition:opacity .15s', 'z-index:2'
+        ].join(';');
+        el.appendChild(btn);
+        el.addEventListener('mouseenter', function () { btn.style.opacity = '1'; });
+        el.addEventListener('mouseleave', function () { btn.style.opacity = '0'; });
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var txt = el.textContent.replace('复制', '').trim();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(txt).then(function () {
+                    btn.textContent = '已复制';
+                    setTimeout(function () { btn.textContent = '复制'; }, 1200);
+                });
+            }
+        });
+    });
+
+    /* ── 7. 时间显示：悬停显示完整时间 ──────────────────────── */
+    document.querySelectorAll('td, .meta, .rp-time, .mail-table td').forEach(function (el) {
+        var t = (el.textContent || '').trim();
+        // 匹配 MM-DD HH:MM 或 YYYY-MM-DD
+        if (/^\d{2}-\d{2} \d{2}:\d{2}$/.test(t) || /^\d{4}-\d{2}-\d{2}$/.test(t)) {
+            el.title = '完整时间：' + t;
+        }
+    });
+
+    /* ── 8. 表格排序（点击表头）─────────────────────────────── */
+    document.querySelectorAll('table').forEach(function (table) {
+        var thead = table.querySelector('thead');
+        var tbody = table.querySelector('tbody');
+        if (!thead || !tbody) return;
+        var ths = thead.querySelectorAll('th');
+        if (ths.length < 2 || tbody.rows.length < 3) return;
+
+        ths.forEach(function (th, col) {
+            // 跳过「操作」列
+            if (/操作|action/i.test(th.textContent)) return;
+            th.style.cursor = 'pointer';
+            th.title = '点击排序';
+            var asc = true;
+            th.addEventListener('click', function () {
+                var rows = Array.prototype.slice.call(tbody.rows);
+                rows.sort(function (a, b) {
+                    var av = (a.cells[col] ? a.cells[col].textContent : '').trim();
+                    var bv = (b.cells[col] ? b.cells[col].textContent : '').trim();
+                    var an = parseFloat(av.replace(/[^\d.-]/g, ''));
+                    var bn = parseFloat(bv.replace(/[^\d.-]/g, ''));
+                    var cmp;
+                    if (!isNaN(an) && !isNaN(bn) && /^[\d.,\s-]+$/.test(av) && /^[\d.,\s-]+$/.test(bv)) {
+                        cmp = an - bn;
+                    } else {
+                        cmp = av.localeCompare(bv, 'zh-CN');
+                    }
+                    return asc ? cmp : -cmp;
+                });
+                asc = !asc;
+                rows.forEach(function (r) { tbody.appendChild(r); });
+                ths.forEach(function (x) { x.textContent = x.textContent.replace(/\s*[▲▼]$/, ''); });
+                th.textContent = th.textContent + (asc ? ' ▲' : ' ▼');
+            });
+        });
+    });
+
+    /* ── 9. 侧边栏折叠状态记忆 ──────────────────────────────── */
+    var SB_KEY = 'lw_admin_sidebar_collapsed';
+    var sb = document.querySelector('.sidebar');
+    if (sb) {
+        try {
+            if (localStorage.getItem(SB_KEY) === '1') document.body.classList.add('sidebar-collapsed');
+        } catch (e) {}
+    }
+})();
+</script>
+<script src="<?= asset_url('/assets/js/admin_enhance.js') ?>?v=<?= asset_ver('/assets/js/admin_enhance.js') ?>" defer></script>
 </body>
 </html>
 <?php

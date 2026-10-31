@@ -96,7 +96,7 @@ if ($firstSub === '' && empty($secondSub)) {
 //   · 想改 / 想设新头衔：必须有至少 1 个有效槽位，否则直接拒绝并提示去商城；
 //   · 内容只做两件事：长度上限 + 违规词拦截（checkSensitiveWords 是唯一词库入口）。
 if (isset($_POST['title_text'])) {
-    $titleText = trim(sanitizeInput($_POST['title_text']));
+    $titleText = trim(sanitizeInput($_POST['title_text'] ?? ''));
     $currentTitle = (string)($user['title_text'] ?? '');
 
     if ($titleText !== $currentTitle) {

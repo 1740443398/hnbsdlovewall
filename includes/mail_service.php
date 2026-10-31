@@ -197,7 +197,14 @@ if (!defined('LW_MAIL_SERVICE_LOADED')) {
             . $body . $btn
             . '</div><div style="padding:16px 24px;border-top:1px solid #EEF2F7;background:#FAFBFD;font-size:12px;color:#98A2B3;line-height:1.7;">'
             . '这封邮件由系统自动发出，请勿直接回复。<br>'
-            . '不想再收到这类通知？到「个人中心 → 通知设置」里关掉即可。</div></div></body></html>';
+            . '不想再收到这类通知？到「个人中心 → 通知设置」里关掉即可。'
+            . '<br><br>'
+            . '<span style="color:#B6BFCB;">发送时间：' . date('Y-m-d H:i:s')
+            . ' · 类型：' . $e(lwMailTypes()[$type] ?? $type)
+            . ' · 收件人：' . $e((string)($user['nickname'] ?? ''))
+            . '(' . $e(lwMailAddressOf($user)) . ')'
+            . '</span>'
+            . '</div></div></body></html>';
     }
 
     /**

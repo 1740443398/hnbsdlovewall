@@ -91,4 +91,18 @@ $fs->insert('pm_reports', [
 ]);
 
 logUserActivity($user['id'], 'report_pm', '举报私信用户 ' . $targetQq . ' 原因: ' . $reason);
+
+// 通知管理员（原来私信举报完全不通知后台，只能自己去翻）
+try {
+    if (function_exists('notifyAdmins')) {
+        notifyAdmins(
+            '收到新的私信举报（' . ($targetNickname ?: $targetQq) . '），原因：' . mb_substr((string)$reason, 0, 40),
+            'admin',
+            '/admin/reports.php',
+            ['target_qq' => $targetQq]
+        );
+    }
+} catch (Throwable $e) {
+    error_log('notifyAdmins on pm_report failed: ' . $e->getMessage());
+}
 jsonSuccess([], '举报已提交，管理员将尽快处理');

@@ -249,8 +249,18 @@ body.lw-keyboard-open .mobile-bottom-nav {
 }
 
 .user-dropdown {
-    /* 高度基准：视口减去顶栏(64px)、底部留白(16px) 与保险(8px) */
-    max-height: calc(100vh - 64px - 24px);
+    /* 高度基准：视口 - 菜单上沿距视口的距离 - 底部留白。
+     *
+     * 【为什么不用「100vh - 固定值」】
+     * 菜单是 top: calc(100% + 0.5rem) 挂在顶栏按钮下方，它的上沿位置会随
+     * 顶栏高度、公告条、封禁横幅变化。写死「减 88px」在 1366×768 的笔记本上
+     * 算出来是 680px，菜单底边正好落在 738 —— 距屏幕底只剩 30px，
+     * 最后两项几乎贴着屏幕底部，滚轮也很难滚到最底。
+     *
+     * 现在改成按「上沿实际位置」算：锚点高度 = var(--header-height)。
+     * 顶栏 64px + 4px 顶边距 + 8px 间隙 ≈ 上层偏移，再留 24px 底部安全区。
+     * 只要顶栏高度变，这里自动跟着变。 */
+    max-height: calc(100vh - var(--header-height, 64px) - 8px - 24px - 8px);
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
@@ -266,15 +276,18 @@ body.lw-keyboard-open .mobile-bottom-nav {
 /* 移动端：菜单变成全宽抽屉，用 dvh 避开地址栏的伸缩 */
 @media (max-width: 768px) {
     .user-dropdown {
-        max-height: calc(100dvh - 120px);
+        /* 手机上菜单是「底部弹层」（见 style.css 的 bottom-sheet 区块），
+           必须让开底部胶囊导航：原来只算到视口底部，最后一行会被导航压住。
+           5.25rem = 56px 胶囊 + 12px 下边距 + 呼吸间隙。 */
+        max-height: calc(100dvh - 120px - 5.25rem);
         min-height: 0;
     }
 }
 
-/* 矮屏（笔记本 1366×768 这类）再收一点，保证底部按钮可见 */
+/* 矮屏（笔记本 1366×768 这类）底部再留足一点，保证「退出登录」完整可见且能滚到 */
 @media (max-height: 700px) and (min-width: 769px) {
-    .user-dropdown {
-        max-height: calc(100vh - 80px);
+    .user-dropdown.show {
+        max-height: calc(100vh - var(--header-height, 64px) - 32px);
     }
 }
 
@@ -292,10 +305,11 @@ body.lw-keyboard-open .mobile-bottom-nav {
     background: rgba(47, 91, 154, 0.42);
 }
 
-/* 移动端抽屉里的菜单也允许滚动（抽屉本身已经有 overflow，这里防双滚动打架） */
+/* 移动端抽屉里的菜单也允许滚动（抽屉本身已经有 overflow，这里防双滚动打架）
+   高度口径必须与 style.css 的底部弹层一致：让开底部胶囊导航的 5.25rem。 */
 @media (max-width: 768px) {
     .user-dropdown {
-        max-height: calc(100dvh - 120px);
+        max-height: calc(100dvh - 120px - 5.25rem);
     }
 }
 

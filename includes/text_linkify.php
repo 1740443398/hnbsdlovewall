@@ -90,7 +90,35 @@ if (!defined('LW_RICH_TEXT_LOADED')) {
      */
     function lwRichText(?string $raw, bool $mentions = true): string
     {
-        return nl2br(lwLinkifyEscaped(htmlspecialchars((string)$raw), $mentions));
+        /* 升级为 Markdown + 白名单 HTML 渲染。
+         *
+         * 【为什么要改这里而不是每个调用点】
+         * 全站有 5 处调 lwRichText（帖子详情、评论、个人简介、
+         * 帖子摘要、话题页）。如果各改各的，迟早出现
+         * 「详情页支持 Markdown 但评论不支持」这种不一致。
+         * 改在源头，所有地方自动一致。
+         *
+         * 【安全性】
+         * 渲染逻辑在 includes/richtext.php，采用「先转义再还原白名单」
+         * 的策略 —— 不是过滤黑名单。任何不在白名单里的标签、
+         * 属性、协议都保持实体状态，无法执行。
+         *
+         * 【降级】
+         * 如果 richtext.php 因为某种原因没加载（比如某个脚本只
+         * require 了 text_linkify），退回原来的纯文本渲染，
+         * 不会白屏也不会报错。
+         */
+        $raw = (string)$raw;
+        if ($raw === '') {
+            return '';
+        }
+
+        if (function_exists('lwRichRender')) {
+            return lwRichRender($raw, $mentions, true);
+        }
+
+        // 兜底：原来的行为
+        return nl2br(lwLinkifyEscaped(htmlspecialchars($raw), $mentions));
     }
 
     /**

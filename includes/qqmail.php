@@ -80,6 +80,147 @@ class QQMailer {
     }
 
     /**
+     * 探测 SMTP 连通性（不发信）。
+     *
+     * =====================================================================
+     * 为什么需要这个
+     * =====================================================================
+     * 站长填完 SMTP 配置后，唯一能验证的办法是「发一封测试邮件」——
+     * 但发信失败时原因可能是：端口不通、SSL 握手失败、账号密码错、
+     * 发件人被拒、收件箱不存在…… 全混在一个 false 里。
+     *
+     * 这个函数把链路拆成四步分别报告，每步单独给结论：
+     *   1. DNS 解析（域名能不能变成 IP）
+     *   2. TCP 连接（端口通不通）
+     *   3. TLS/SSL 握手（证书是否被接受）
+     *   4. SMTP 握手 + 登录（账号密码对不对）
+     *
+     * 每一步都有独立耗时，卡在哪一步一目了然。
+     * =====================================================================
+     *
+     * @return array{ok:bool, steps:array, message:string}
+     */
+    public static function testConnection(): array
+    {
+        $cfg = self::cfg();
+        if (!$cfg) {
+            return ['ok' => false, 'steps' => [], 'message' => 'SMTP 配置缺失'];
+        }
+
+        $host = (string)($cfg['host'] ?? '');
+        $port = (int)($cfg['port'] ?? 465);
+        $user = (string)($cfg['user'] ?? '');
+        $pass = (string)($cfg['pass'] ?? '');
+
+        $steps = [];
+
+        // ── 1. DNS ──
+        $t0 = microtime(true);
+        $ips = @gethostbynamel($host);
+        $dnsMs = (microtime(true) - $t0) * 1000;
+        if (!$ips) {
+            $steps[] = ['name' => 'DNS 解析', 'ok' => false, 'ms' => round($dnsMs), 'detail' => '域名无法解析'];
+            return ['ok' => false, 'steps' => $steps, 'message' => '域名 ' . $host . ' 解析失败'];
+        }
+        $steps[] = ['name' => 'DNS 解析', 'ok' => true, 'ms' => round($dnsMs), 'detail' => implode(', ', array_slice($ips, 0, 2))];
+
+        // ── 2. TCP ──
+        $t0 = microtime(true);
+        $sock = @fsockopen($host, $port, $errno, $errstr, 8);
+        $tcpMs = (microtime(true) - $t0) * 1000;
+        if (!$sock) {
+            $steps[] = ['name' => 'TCP 连接', 'ok' => false, 'ms' => round($tcpMs),
+                        'detail' => $errstr !== '' ? $errstr : ('错误码 ' . $errno)];
+            return ['ok' => false, 'steps' => $steps, 'message' => '端口 ' . $port . ' 无法连接'];
+        }
+        @fclose($sock);
+        $steps[] = ['name' => 'TCP 连接', 'ok' => true, 'ms' => round($tcpMs), 'detail' => $host . ':' . $port];
+
+        // ── 3. TLS 握手（只有 465 这类 SSL 直连端口才测）──
+        if ($port == 465) {
+            $t0 = microtime(true);
+            $ssl = @stream_socket_client('ssl://' . $host . ':' . $port, $errno, $errstr, 10);
+            $tlsMs = (microtime(true) - $t0) * 1000;
+            if (!$ssl) {
+                $steps[] = ['name' => 'TLS 握手', 'ok' => false, 'ms' => round($tlsMs),
+                            'detail' => $errstr !== '' ? $errstr : 'SSL 连接失败'];
+                return ['ok' => false, 'steps' => $steps, 'message' => 'SSL 握手失败，检查 openssl 扩展或端口是否正确'];
+            }
+            @fclose($ssl);
+            $steps[] = ['name' => 'TLS 握手', 'ok' => true, 'ms' => round($tlsMs), 'detail' => 'ssl:// 连接正常'];
+        }
+
+        // ── 4. SMTP 登录 ──
+        $t0 = microtime(true);
+        $fp = @stream_socket_client('ssl://' . $host . ':' . $port, $errno, $errstr, 10);
+        $loginOk = false;
+        $loginDetail = '';
+
+        if ($fp) {
+            stream_set_timeout($fp, 10);
+            $read = function () use ($fp) {
+                $out = '';
+                while (!feof($fp)) {
+                    $line = fgets($fp, 515);
+                    if ($line === false) break;
+                    $out .= $line;
+                    if (strlen($line) >= 4 && $line[3] === ' ') break;
+                }
+                return $out;
+            };
+
+            $ok250 = function ($resp) {
+                return preg_match('/^250/m', $resp) === 1;
+            };
+
+            $banner = $read();
+            if (!$ok250($banner) && strpos($banner, '220') !== 0) {
+                $loginDetail = '欢迎信息异常：' . substr(trim($banner), 0, 80);
+            } else {
+                fwrite($fp, "EHLO " . gethostname() . "\r\n");
+                $ehlo = $read();
+
+                fwrite($fp, "AUTH LOGIN\r\n");
+                $a1 = $read();
+
+                fwrite($fp, base64_encode($user) . "\r\n");
+                $a2 = $read();
+
+                fwrite($fp, base64_encode($pass) . "\r\n");
+                $a3 = $read();
+
+                if (strpos($a3, '235') === 0) {
+                    $loginOk = true;
+                    $loginDetail = '认证成功';
+                    fwrite($fp, "QUIT\r\n");
+                } else {
+                    if (strpos($a1, '334') !== 0) {
+                        $loginDetail = '服务器不支持 AUTH LOGIN';
+                    } elseif (strpos($a2, '334') !== 0) {
+                        $loginDetail = '用户名被拒：' . substr(trim($a2), 0, 60);
+                    } else {
+                        $loginDetail = '授权码错误或已过期（' . substr(trim($a3), 0, 60) . '）';
+                    }
+                }
+            }
+            @fclose($fp);
+        } else {
+            $loginDetail = $errstr !== '' ? $errstr : '无法建立连接';
+        }
+
+        $loginMs = (microtime(true) - $t0) * 1000;
+        $steps[] = ['name' => 'SMTP 登录', 'ok' => $loginOk, 'ms' => round($loginMs), 'detail' => $loginDetail];
+
+        return [
+            'ok' => $loginOk,
+            'steps' => $steps,
+            'message' => $loginOk
+                ? '全部检查通过，SMTP 可以正常发信'
+                : '登录失败：' . $loginDetail,
+        ];
+    }
+
+    /**
      * 发送一封 HTML 邮件。
      * @param string $to      收件人邮箱
      * @param string $subject 主题（可含中文）

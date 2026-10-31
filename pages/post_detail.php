@@ -163,6 +163,23 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             border: 1px solid var(--border-glass, rgba(16,24,40,.08));
             box-shadow: 0 6px 24px rgba(16,24,40,.06);
         }
+
+        /* ---- 页面居中（修「整页左偏」） ----
+         * 规则本体在 style.css 的 `body > .main-content`（全站单栏页面共用），
+         * 这里不重复定义，避免两处漂移。
+         */
+
+        /* ---- 页脚别被底部胶囊导航压住 ----
+         * 胶囊导航是 position:fixed，脱离文档流。style.css 只给 body 加了
+         * padding-bottom，但页脚内部的段落间距会把最后几行顶回导航图标下面
+         * （线上截图能看到「更新日志」那行和导航重叠）。
+         * 给页脚自己再垫一层，无论 body 的内边距有没有生效都不会压字。
+         */
+        @media (max-width: 768px) {
+            .site-footer {
+                padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+            }
+        }
         .post-detail-header {
             display: flex;
             flex-direction: column;
@@ -291,81 +308,57 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         }
 
 
-        /* ---- 评论区：桌面端布局修正（2026-10-24） ----
+        /* ---- 评论区输入区：用 grid 钉死「头像列 + 输入列」 ----
          *
-         * 问题：桌面端发布评论那一行，左边有一大块空白。
+         * 现象：桌面端发布评论那一行，头像贴在最左，输入框却被推到很右边，
+         * 中间空出一大块（线上截图实测约 280px 的空白）。
          *
-         * 原因：.comment-input-area 是 flex 容器，里面第一个子是头像复合件
-         * <span class="lw-av has-ring">。lw-av 的尺寸靠 --lw-av 内联变量控制，
-         * 但它是 span（display:inline），在 flex 容器里会作为 flex item 被拉伸，
-         * 加上 has-ring 的 box-shadow/伪元素环，实际占位比 32px 宽很多；
-         * 而 .comment-input-wrap 是 flex:1 1 auto，于是输入框被推到右边，
-         * 左边就空出一块。
+         * 之前试过用 flex + 一堆 !important 式的宽度修补，但这条路本身就是错的：
+         * 只要 .lw-av 被任何一条外部规则（widgets.css / style.css / 响应式媒体查询）
+         * 影响到 flex-basis 或 min-width，第一列就会「按内容撑开」，把第二列挤走。
+         * 改哪条规则都只是「修掉当前这一种情况」，换一个页面或换一个断点又塌。
          *
-         * 修法：给头像一个明确的 flex 基线（flex: 0 0 auto + 固定宽高），
-         * 不允许它参与拉伸；同时把环形阴影改成不影响布局的 outline 式。
+         * 正确做法是换布局模型：grid 的 `auto minmax(0,1fr)` 里，
+         * 第一列宽度**就是头像的实际宽度**，第二列永远是「剩下的全部」，
+         * 两者之间只有 gap —— 中间不可能凭空出现空白。
+         * 这条规则与被继承的 flex 属性完全无关，所以是确定性的，不会随断点漂移。
          */
-        .comment-input-area > .lw-av,
-        .comment-input-area > .lw-av.has-ring,
-        .comment-input-area > .lw-av.has-frame {
-            flex: 0 0 auto;
-            width: var(--lw-av, 32px);
-            height: var(--lw-av, 32px);
-            min-width: var(--lw-av, 32px);
-            max-width: var(--lw-av, 32px);
-            align-self: flex-start;
-            margin-top: .25rem;
-        }
-
-        /* 输入区本身占满剩余宽度，不参与收缩到 0 */
-        /* 输入区占满剩余宽度。flex-basis 用 0 而不是 auto，
-         * 否则 textarea 的 cols 默认值（20）会参与计算，把宽度算小。 */
-        .comment-input-area > .comment-input-wrap {
-            flex: 1 1 0%;
-            min-width: 0;
-            width: auto;
-        }
-
-        /* 双保险：万一 .lw-av 的基础样式没加载（缓存/合并问题），
-         * 这里再钉一次尺寸。内联的 --lw-av 已经在 <span> 上写好了。 */
-        .comment-input-area > span.lw-av {
-            display: inline-block;
-            position: relative;
-            flex: 0 0 auto;
-            width: var(--lw-av, 32px);
-            height: var(--lw-av, 32px);
-            border-radius: 50%;
-            overflow: visible;
-        }
-
-        /* 提交按钮靠右，但不撑出一整行 */
-        .comment-input-wrap > .btn {
-            align-self: flex-end;
-            flex: 0 0 auto;
-            width: auto;
-        }
-
-        /* 窄屏：头像缩到 28px，输入区贴边 */
-        @media (max-width: 640px) {
-            .comment-input-area { gap: .5rem; padding: .75rem; }
-            .comment-input-area > .lw-av,
-            .comment-input-area > .lw-av.has-ring,
-            .comment-input-area > .lw-av.has-frame {
-                width: 28px;
-                height: 28px;
-                min-width: 28px;
-                max-width: 28px;
-            }
-        }
-
-        /* 评论输入区：整体一块浅底，头像与输入框对齐 */
         .comment-input-area {
-            display: flex; align-items: flex-start; gap: .625rem;
-            margin-top: 1.125rem; padding: .875rem;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
+            gap: .75rem;
+            margin-top: 1.125rem;
+            padding: .875rem;
             background: var(--bg-secondary, #F5F8FB);
             border-radius: .875rem;
         }
-        .comment-input-wrap { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: .5rem; }
+        /* 头像列：只占自己那点宽度，不参与任何拉伸/收缩 */
+        .comment-input-area > .lw-av {
+            grid-column: 1;
+            align-self: start;
+            margin-top: .125rem;
+        }
+        /* 输入列：铺满第二列 */
+        .comment-input-area > .comment-input-wrap {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: .5rem;
+            min-width: 0;
+            width: auto;
+        }
+        /* 提交按钮靠右，但不撑出一整行 */
+        .comment-input-wrap > .btn {
+            align-self: flex-end;
+            width: auto;
+        }
+
+        /* 窄屏：内边距与间距收紧，头像由 lwAvatarComposite 自己按 sm 尺寸渲染 */
+        @media (max-width: 640px) {
+            .comment-input-area { gap: .5rem; padding: .75rem; }
+        }
         .comment-input-fields textarea {
             width: 100%; box-sizing: border-box; min-height: 3.25rem; resize: vertical;
             padding: .625rem .75rem; border-radius: .625rem;
