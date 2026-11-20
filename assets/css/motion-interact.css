@@ -137,3 +137,68 @@
         box-shadow: none !important;
     }
 }
+
+/* ==========================================================================
+ * 六、点赞 / 收藏：点击瞬间的反馈
+ * ==========================================================================
+ *
+ * 【为什么单独做这一项】
+ *
+ * 点赞是全站最高频的交互。但原来点完之后：
+ *   · 图标只是从空心变实心 + 换个颜色，没有任何「动」的反馈
+ *   · 而且要等 API 返回（这台主机约 2 秒）才变
+ * 两点加起来，用户的第一反应是「我点到了吗」—— 于是反复点。
+ *
+ * 后半段（2 秒延迟）已经在 main.js 改成乐观更新：点击瞬间就变。
+ * 这里补前半段：图标弹一下，让「点到了」这件事被看见。
+ *
+ * 【弹跳曲线的用意】
+ *   30% 时放大到 1.35（“啊，被点到了”）
+ *   55% 时压回 0.92（回弹的下压）
+ *   75% 时到 1.06（轻微过冲）
+ *   100% 归位
+ * 这个「过冲-回压-再归位」的节奏就是 ColorOS 里图标反馈的手感。
+ * ========================================================================== */
+
+@keyframes mp-act-pop {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.35); }
+    55%  { transform: scale(0.92); }
+    75%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .action-btn.is-pop .action-icon,
+    html.js-motion .action-btn.is-pop svg {
+        animation: mp-act-pop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        transform-origin: center;
+    }
+}
+
+/* ---- 已点赞 / 已收藏：加一层浅底色 ---- */
+/* 原来只有字色变化，在浅色卡片上不够「选中」；补底色让状态一眼可见。
+ * 用 low-alpha 的语义色，暗色模式下也成立（不依赖具体底色）。 */
+.post-card-actions .action-btn.liked {
+    background-color: rgba(224, 106, 100, 0.10);
+}
+
+.post-card-actions .action-btn.favorited {
+    background-color: rgba(201, 169, 110, 0.16);
+}
+
+html.dark-theme .post-card-actions .action-btn.liked {
+    background-color: rgba(224, 106, 100, 0.16);
+}
+
+html.dark-theme .post-card-actions .action-btn.favorited {
+    background-color: rgba(201, 169, 110, 0.18);
+}
+
+/* 减动效：不弹，但底色保留（状态标识不是动画） */
+@media (prefers-reduced-motion: reduce) {
+    html.js-motion .action-btn.is-pop .action-icon,
+    html.js-motion .action-btn.is-pop svg {
+        animation: none !important;
+    }
+}

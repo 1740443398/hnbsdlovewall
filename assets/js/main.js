@@ -1900,10 +1900,38 @@
             }, 1000);
             return;
           }
+          /* 【乐观更新】先改界面，再发请求。
+           *
+           * 这台主机每个请求固定约 2 秒。原来的写法是
+           *   await fetchAPI(...) → 成功后才 classList.add('liked')
+           * 点完要盯着屏幕等 2 秒才看到图标变红，中途会以为没点着、反复点。
+           *
+           * 现在点击瞬间就变色/变数字/弹一下，请求在后台跑；失败再回滚。
+           * 这才是原生 App 的反馈节奏。
+           */
+          const icon = likeBtn.querySelector('.action-icon');
+          const count = likeBtn.querySelector('.action-count');
+          const wasLiked = likeBtn.classList.contains('liked');
+          const oldCount = parseInt(count ? count.textContent : '0', 10) || 0;
+
+          if (wasLiked) {
+            likeBtn.classList.remove('liked');
+            if (icon) icon.innerHTML = svgIcon('heartOutline', 16);
+            if (count) count.textContent = Math.max(0, oldCount - 1);
+          } else {
+            likeBtn.classList.add('liked');
+            if (icon) icon.innerHTML = svgIcon('heart', 16);
+            if (count) count.textContent = oldCount + 1;
+            /* 一次性弹跳：先移除再强制重排，保证连点也能重播 */
+            likeBtn.classList.remove('is-pop');
+            void likeBtn.offsetWidth;
+            likeBtn.classList.add('is-pop');
+            setTimeout(() => likeBtn.classList.remove('is-pop'), 480);
+          }
+
           try {
             const data = await fetchAPI('/api/posts/like.php', { method: 'POST', body: 'post_id=' + post.id });
-            const icon = likeBtn.querySelector('.action-icon');
-            const count = likeBtn.querySelector('.action-count');
+            /* 用服务端真实值校准（期间可能有别人点赞） */
             if (data.data.is_liked) {
               likeBtn.classList.add('liked');
               if (icon) icon.innerHTML = svgIcon('heart', 16);
@@ -1911,8 +1939,17 @@
               likeBtn.classList.remove('liked');
               if (icon) icon.innerHTML = svgIcon('heartOutline', 16);
             }
-            if (count) count.textContent = data.data.like_count;
+            if (count && data.data.like_count !== undefined) count.textContent = data.data.like_count;
           } catch (err) {
+            /* 回滚到点击前的状态 */
+            if (wasLiked) {
+              likeBtn.classList.add('liked');
+              if (icon) icon.innerHTML = svgIcon('heart', 16);
+            } else {
+              likeBtn.classList.remove('liked');
+              if (icon) icon.innerHTML = svgIcon('heartOutline', 16);
+            }
+            if (count) count.textContent = oldCount;
             showToast(err.message || '点赞失败，请重试', 'error');
           }
         });
@@ -1929,19 +1966,41 @@
             }, 1000);
             return;
           }
+          /* 与点赞同样用乐观更新 —— 收藏也是高频操作，不能等 2 秒 */
+          const icon = favBtn.querySelector('.action-icon');
+          const wasFav = favBtn.classList.contains('favorited');
+
+          if (wasFav) {
+            favBtn.classList.remove('favorited');
+            if (icon) icon.innerHTML = svgIcon('starOutline', 16);
+          } else {
+            favBtn.classList.add('favorited');
+            if (icon) icon.innerHTML = svgIcon('star', 16);
+            favBtn.classList.remove('is-pop');
+            void favBtn.offsetWidth;
+            favBtn.classList.add('is-pop');
+            setTimeout(() => favBtn.classList.remove('is-pop'), 480);
+          }
+          showToast(wasFav ? '已取消收藏' : '已收藏', wasFav ? 'info' : 'success');
+
           try {
             const data = await fetchAPI('/api/posts/favorite.php', { method: 'POST', body: 'post_id=' + post.id });
-            const icon = favBtn.querySelector('.action-icon');
             if (data.data.is_favorited) {
               favBtn.classList.add('favorited');
               if (icon) icon.innerHTML = svgIcon('star', 16);
-              showToast('已收藏', 'success');
             } else {
               favBtn.classList.remove('favorited');
               if (icon) icon.innerHTML = svgIcon('starOutline', 16);
-              showToast('已取消收藏', 'info');
             }
           } catch (err) {
+            /* 回滚 */
+            if (wasFav) {
+              favBtn.classList.add('favorited');
+              if (icon) icon.innerHTML = svgIcon('star', 16);
+            } else {
+              favBtn.classList.remove('favorited');
+              if (icon) icon.innerHTML = svgIcon('starOutline', 16);
+            }
             showToast(err.message || '收藏操作失败，请重试', 'error');
           }
         });

@@ -226,6 +226,35 @@ def count_vars(path):
     return len(set(re.findall(r"--([a-z0-9-]+)\s*:", text)))
 
 
+
+
+def check_stale():
+    """找出「源码比 .min 新」的文件。
+
+    【为什么必须检查】
+    pick() 优先用 .min —— 如果改了 main.js 却没重建 main.min.js，
+    打包进去的是**旧的 min**，改动等于消失。
+    这个坑踩过：改完点赞逻辑跑构建，产出的 sha 和上一轮一模一样。
+
+    用 mtime 判断在本地开发是可靠的（编辑即更新）。
+    FTP 上传会重置 mtime，但那发生在服务器上，不影响这里。
+    """
+    stale = []
+    for sub, ext in (("js", ".js"), ("css", ".css")):
+        d = os.path.join(SRC, "assets", sub)
+        if not os.path.isdir(d):
+            continue
+        for fn in os.listdir(d):
+            if not fn.endswith(ext) or fn.endswith(".min" + ext):
+                continue
+            minf = fn[:-len(ext)] + ".min" + ext
+            srcp = os.path.join(d, fn)
+            minp = os.path.join(d, minf)
+            if os.path.isfile(minp) and os.path.getmtime(srcp) > os.path.getmtime(minp) + 1:
+                stale.append(sub + "/" + fn)
+    return stale
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="只检查，不写文件")
@@ -233,6 +262,16 @@ def main():
     args = ap.parse_args()
 
     ok = True
+
+    # 先查「改了源码但没重建 .min」—— 这种情况打包会用旧 min，改动静默丢失
+    stale = check_stale()
+    if stale:
+        print("[STALE] ✗ 这些源文件比对应的 .min 新，bundle 会打进旧代码：")
+        for f in stale:
+            print("        " + f)
+        print("        先重建它们的 .min，或直接删掉对应 .min 让它回退到源码。")
+        ok = False
+
     jobs = [
         ("css", CSS_ORDER, "assets/css/bundle.css"),
         ("js", JS_ORDER, "assets/js/bundle.js"),
