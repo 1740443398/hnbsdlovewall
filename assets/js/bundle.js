@@ -593,7 +593,16 @@
         ".uc-card",
         ".disc-card",
         ".sr-item",
-        ".faq-item"
+        ".faq-item",
+        /* 详情页分段：标题区 / 正文 / 图片 / 操作栏 / 评论区 依次入场。
+         * 这是「点进详情」最能体现 App 感的地方 —— 整页不是一次性糊上来，
+         * 而是从上到下逐段落位。首屏可见的元素会由观察器立刻触发，
+         * 所以不需要额外处理「首屏」这种情况。 */
+        ".post-detail-header",
+        ".post-detail-content",
+        ".post-images",
+        ".post-detail-actions",
+        ".post-detail-poll"
     ].join(",");
 
     /* 如果是后台页面（body 有 admin 标记或路径含 /admin/），直接跳过所有入场动画 */
