@@ -1,0 +1,207 @@
+/* ==========================================================================
+ * ColorOS 式丝滑动效层  motion-plus.css
+ * ==========================================================================
+ *
+ * 【解决「很生硬」】
+ *
+ * 站内原本只有零散的 hover / :active 反馈，没有「进入」的过渡：
+ *   打开页面 → 内容「啪」地全部出现
+ *   往下滚   → 新内容直接在最底下冒出来
+ *   图片加载 → 从空白直接跳到满图
+ *
+ * 这三种「瞬变」是大厂 ROM（ColorOS / HyperOS / iOS）都不会有的手感。
+ * 它们全部用「起步快、末端慢下来」的曲线，让变化「落」在屏幕上而不是「砸」上去。
+ *
+ * --------------------------------------------------------------------------
+ * 【只做四件事，不堆效果】
+ * --------------------------------------------------------------------------
+ *
+ * 1. 页面进入：主体淡入 + 轻微上浮（340ms）
+ * 2. 列表错峰：同屏多张卡片依次入场（每张 +45ms，最多错开 8 张）
+ * 3. 滚动渐显：进入视口的区块才显形（IntersectionObserver）
+ * 4. 图片淡入：load 完成后 320ms 淡入，不「啪」地闪出来
+ *
+ * 刻意**不做**的东西（做了反而更像「演示页」而不是产品）：
+ *   · 全站每个 div 都淡入 —— 会有「加载很慢」的错觉
+ *   · 视差滚动 —— 手机上都容易掉帧
+ *   · 涟漪动画 —— 与已有的 :active 缩放重复，两种反馈会打架
+ *   · 无限循环的呼吸灯 —— 静态页面里持续动的东西最干扰阅读
+ *
+ * --------------------------------------------------------------------------
+ * 【性能与可访问性】
+ * --------------------------------------------------------------------------
+ *
+ * · 只动 transform 和 opacity（合成层，不触发重排）
+ * · 上限 340ms，不再长（超过 400ms 用户会觉得「卡」）
+ * · prefers-reduced-motion 时全部关闭
+ * · 低端机（<= 4 核）自动缩短时长并取消错峰
+ * · 渐进增强：JavaScript 不可用时内容**默认可见**，不会白屏
+ * ========================================================================== */
+
+/* ==========================================================================
+ * 一、缓动与时长令牌
+ * ==========================================================================
+ * 与 apple-design.css 同一套语义，但这里专门服务「元素入场」：
+ *   --mp-ease-out:  起步快、末端缓慢收住（ColorOS 的默认手感）
+ *   --mp-ease-back: 末端轻微过冲，用于「落下」的元素
+ * ========================================================================== */
+:root {
+    --mp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --mp-ease-back: cubic-bezier(0.34, 1.4, 0.64, 1);
+    --mp-dur-enter: 340ms;
+    --mp-dur-image: 320ms;
+    --mp-stagger: 45ms;
+}
+
+/* ==========================================================================
+ * 二、页面进入
+ * ==========================================================================
+ * 只作用于「主体内容容器」，不碰顶栏底栏（它们应该立刻稳定，否则像在晃）
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .mp-page {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    html.js-motion .mp-page.mp-page-in {
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity var(--mp-dur-enter) var(--mp-ease-out),
+                    transform var(--mp-dur-enter) var(--mp-ease-out);
+    }
+}
+
+/* ==========================================================================
+ * 三、滚动渐显 + 错峰
+ * ==========================================================================
+ * 默认状态必须可见（JS 没跑或用户开了减动效时，内容不能消失）。
+ * .mp-reveal 只在 html.js-motion 存在时才隐藏。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .mp-reveal {
+        opacity: 0;
+        transform: translateY(14px);
+        transition: opacity 420ms var(--mp-ease-out),
+                    transform 420ms var(--mp-ease-out);
+    }
+    html.js-motion .mp-reveal.mp-in {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    /* 已经在首屏的元素不等待滚动，直接入场（避免首屏一片空白） */
+    html.js-motion .mp-reveal.mp-now {
+        transition-delay: 60ms;
+    }
+}
+
+/* ==========================================================================
+ * 四、图片淡入
+ * ==========================================================================
+ * 只对「本来就没有过渡」的 img 生效；头像等已经在别处处理过的不重复。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion img.mp-img {
+        opacity: 0;
+        transition: opacity var(--mp-dur-image) var(--mp-ease-out);
+    }
+    html.js-motion img.mp-img.mp-in {
+        opacity: 1;
+    }
+}
+
+/* ==========================================================================
+ * 五、更强的按压回弹（ColorOS 手感）
+ * ==========================================================================
+ * 与 apple-design.css 的 :active 规则配合：
+ *   按下：70ms 内缩到 0.96（快，像真的被压下去）
+ *   松开：260ms 弹回（spring 曲线，末端有过冲）
+ *
+ * 关键：transition 要分开写「按下」和「松开」——
+ *   按下用 --mp-ease-out（快），松开用 --mp-ease-back（弹）。
+ *   如果只用一条 transition，按下和松开手感一样，就没有「回弹」了。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .mp-press {
+        transition: transform 260ms var(--mp-ease-back),
+                    filter 260ms var(--mp-ease-back);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    html.js-motion .mp-press:active {
+        transform: scale(0.955);
+        filter: brightness(0.95);
+        transition: transform 70ms var(--mp-ease-out),
+                    filter 70ms var(--mp-ease-out);
+    }
+    /* 大块卡片缩放要保守，否则边缘会露出底色 */
+    html.js-motion .mp-press-lg:active {
+        transform: scale(0.988);
+    }
+}
+
+/* ==========================================================================
+ * 六、View Transitions（Chrome / Edge 原生页面转场）
+ * ==========================================================================
+ * 这是「系统级丝滑」最省力的办法：浏览器接管同源跳转，做交叉淡入。
+ * 不支持 View Transitions 的浏览器直接忽略这几行，不影响任何功能。
+ * ========================================================================== */
+
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root) {
+    animation: mp-vt-out 180ms cubic-bezier(0.4, 0, 1, 1);
+}
+::view-transition-new(root) {
+    animation: mp-vt-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes mp-vt-out {
+    to { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes mp-vt-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+ * 七、低端机降级
+ * ==========================================================================
+ * 4 核以下或内存很小的设备，动画缩短、取消错峰。
+ * 宁可少一点仪式感，也不能卡。
+ * ========================================================================== */
+
+html.mp-lite .mp-reveal,
+html.mp-lite .mp-page {
+    transition-duration: 200ms !important;
+    transition-delay: 0ms !important;
+}
+
+/* ==========================================================================
+ * 八、减动效偏好（系统设置里关掉了动画）
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    html.js-motion .mp-page,
+    html.js-motion .mp-reveal,
+    html.js-motion img.mp-img {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    html.js-motion .mp-press,
+    html.js-motion .mp-press:active {
+        transform: none !important;
+        filter: none !important;
+        transition: none !important;
+    }
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
+    }
+}
