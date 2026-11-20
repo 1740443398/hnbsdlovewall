@@ -2274,6 +2274,7 @@ html.dark-theme * {
     .mobile-bottom-nav { display: none !important; }
     body { padding-bottom: 0 !important; }
 }
+
 /* ==== dark-patch.css ==== */
 /* ==========================================================================
  * 暗色模式补丁层  dark-patch.css
@@ -2369,3 +2370,4 @@ html.dark-theme .post-card-images img:hover,
 html.dark-theme .post-content img:hover {
     filter: brightness(1);
 }
+
