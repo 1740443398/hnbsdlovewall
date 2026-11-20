@@ -110,6 +110,7 @@ JS_ORDER = [
     'assets/js/motion-interact.js',
     'assets/js/motion-sheet.js',
     'assets/js/motion-lightbox.js',
+    'assets/js/motion-pullrefresh.js',
 ]
 
 
