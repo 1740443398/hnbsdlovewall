@@ -205,3 +205,57 @@ html.mp-lite .mp-page {
         animation: none !important;
     }
 }
+
+/* ==========================================================================
+ * 九、首屏卡片入场（纯 CSS，无 JS 依赖）
+ * ==========================================================================
+ *
+ * 【为什么改成纯 CSS】
+ *
+ * 原来首屏入场是 JS 驱动的：脚本 boot 时给 .site-main 加 mp-page（隐藏），
+ * 两帧后再加 mp-page-in（显示）。问题在于——
+ * 那时页面**已经绘制出来了**，用户会看到「内容出现 → 消失 → 淡入」的一闪。
+ *
+ * CSS 驱动的入场没有这个问题：bundle.css 在 <head> 里，是阻塞渲染的资源。
+ * 浏览器在 CSS 到达前根本不绘制，所以 CSS 一到、首帧绘制时动画已经在进行中。
+ *
+ * 【为什么用 .ssr-card 而不是 .post-card】
+ * SSR 输出的卡片带 ssr-card 类，是「打开页面就有」的那几张。
+ * 后续 AJAX 加载的卡片由 IntersectionObserver 负责（见 motion-plus.js）。
+ * 两者分工，不会重复动画。
+ * ========================================================================== */
+
+@keyframes mp-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .posts-container > .ssr-card,
+    .post-list > .post-card,
+    .feed-list > .post-item {
+        animation: mp-card-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    /* 错峰：最多 6 张（6 × 55ms = 275ms，加上 400ms 动画刚好 675ms 结束） */
+    .posts-container > .ssr-card:nth-child(2) { animation-delay: 55ms; }
+    .posts-container > .ssr-card:nth-child(3) { animation-delay: 110ms; }
+    .posts-container > .ssr-card:nth-child(4) { animation-delay: 165ms; }
+    .posts-container > .ssr-card:nth-child(5) { animation-delay: 215ms; }
+    .posts-container > .ssr-card:nth-child(6) { animation-delay: 260ms; }
+}
+
+/* 减动效：不播 */
+@media (prefers-reduced-motion: reduce) {
+    .posts-container > .ssr-card,
+    .post-list > .post-card,
+    .feed-list > .post-item {
+        animation: none !important;
+    }
+}

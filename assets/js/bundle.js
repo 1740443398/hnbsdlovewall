@@ -564,15 +564,15 @@
      * ====================================================================== */
 
     function pageEnter() {
-        var main = document.querySelector(".site-main, .page-content, main, .content-wrap");
-        if (!main) { return; }
-        main.classList.add("mp-page");
-        /* 两帧之后再加入场类：保证浏览器先应用「隐藏」的初始状态 */
-        requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-                main.classList.add("mp-page-in");
-            });
-        });
+        /* 【已停用】整页淡入改由 CSS 负责（见 motion-plus.css 第九节）。
+         *
+         * 原来这里给 .site-main 加 mp-page（opacity:0），两帧后再显示。
+         * 但脚本是在页面**已绘制**之后才跑的 ——
+         * 用户会看到「内容出现 → 消失 → 淡入」的一闪，比没有动画更糟。
+         *
+         * 现在首屏卡片由 CSS animation 负责（CSS 阻塞渲染，不会闪），
+         * 视口外的元素由下面的 IntersectionObserver 负责。
+         */
     }
 
     /* ======================================================================
@@ -657,14 +657,27 @@
         observeAll(document);
     }
 
+    function inViewport(el) {
+        var r = el.getBoundingClientRect();
+        var vh = window.innerHeight || 800;
+        /* 视口内（含下方一点点提前量）的元素不做渐显 ——
+         * 给已绘制的元素加隐藏类必然闪一下。
+         * 它们要么由 CSS 直接入场（.ssr-card），要么本来就该立刻可见。 */
+        return r.top < vh * 1.08 && r.bottom > -40;
+    }
+
     function observeAll(root) {
         if (!io) { return; }
         var list = root.querySelectorAll(REVEAL_SEL);
         for (var i = 0; i < list.length; i++) {
             var el = list[i];
             if (el.classList.contains("mp-reveal") || el.classList.contains("mp-page")) { continue; }
-            /* 顶栏/底栏里的东西不动 */
+            /* 首屏 SSR 卡片已由 CSS animation 负责，再加 mp-reveal 会打架 */
+            if (el.classList.contains("ssr-card")) { continue; }
+            /* 顶栏/底栏/浮窗里的东西不动 */
             if (el.closest && el.closest(".site-header, .mobile-bottom-nav, .lw-ai, .toast-container")) { continue; }
+            /* 视口内的不动（避免闪烁） */
+            if (inViewport(el)) { continue; }
             el.classList.add("mp-reveal");
             io.observe(el);
         }
@@ -770,6 +783,16 @@
         initPress(document);
         initImages(document);
         initDynamicWatch();
+
+        /* 兜底：万一 IntersectionObserver 失效（或元素在奇怪的位置），
+         * 3 秒后把所有还没显示的渐显元素强制显示出来。
+         * 宁可少一次动画，也不能让内容永远透明。 */
+        setTimeout(function () {
+            var stuck = document.querySelectorAll(".mp-reveal:not(.mp-in)");
+            for (var i = 0; i < stuck.length; i++) {
+                stuck[i].classList.add("mp-in");
+            }
+        }, 3000);
     }
 
     if (document.readyState === "loading") {
