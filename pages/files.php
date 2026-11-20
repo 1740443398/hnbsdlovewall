@@ -65,9 +65,9 @@ $pageTitle = '文件共享 - ' . SITE_NAME;
         .fs-meta{font-size:.72rem;color:var(--text-secondary);margin-top:.125rem;display:flex;gap:.625rem;flex-wrap:wrap;}
         .fs-empty{padding:2rem;text-align:center;color:var(--text-secondary);font-size:.85rem;border:1px dashed var(--border-light,#E4E9F0);border-radius:.875rem;}
         .fs-btn{padding:.375rem .75rem;border-radius:.5rem;font-size:.75rem;font-weight:600;text-decoration:none;border:1px solid var(--primary);color:var(--primary);background:transparent;cursor:pointer;font-family:inherit;transition:all .18s;}
-        .fs-btn:hover{background:var(--primary);color:#fff;}
-        .fs-btn.danger{border-color:#cb2431;color:#cb2431;}
-        .fs-btn.danger:hover{background:#cb2431;color:#fff;}
+        .fs-btn:hover{background:var(--primary);color: var(--card-bg, #fff);}
+        .fs-btn.danger{border-color: var(--danger, #cb2431);color: var(--danger, #cb2431);}
+        .fs-btn.danger:hover{background: var(--danger, #cb2431);color: var(--card-bg, #fff);}
     </style>
 </head>
 <body>

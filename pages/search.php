@@ -35,21 +35,21 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     </script>
     <style>
     .sr-box{display:flex;gap:10px;margin:20px 0}
-    .sr-box input{flex:1;padding:12px 16px;border:2px solid #dfe4ea;border-radius:10px;font-size:1rem;outline:none;transition:border-color .15s}
-    .sr-box input:focus{border-color:#2F5B9A}
-    .sr-box button{padding:12px 24px;background:#2F5B9A;color:#fff;border:none;border-radius:10px;font-size:.95rem;cursor:pointer}
+    .sr-box input{flex:1;padding:12px 16px;border: 2px solid var(--border, #dfe4ea);border-radius:10px;font-size:1rem;outline:none;transition:border-color .15s}
+    .sr-box input:focus{border-color: var(--primary, #2F5B9A)}
+    .sr-box button{padding:12px 24px;background: var(--primary, #2F5B9A);color: var(--card-bg, #fff);border:none;border-radius:10px;font-size:.95rem;cursor:pointer}
     .sr-tabs{display:flex;gap:8px;margin-bottom:16px}
-    .sr-tab{padding:6px 14px;border-radius:999px;border:1px solid #dfe4ea;background:#fff;font-size:.84rem;color:#4a5568;cursor:pointer;text-decoration:none}
-    .sr-tab.on{background:#2F5B9A;color:#fff;border-color:#2F5B9A}
-    .sr-item{background:#fff;border-radius:10px;padding:16px;margin-bottom:10px;border:1px solid #edf1f5}
+    .sr-tab{padding:6px 14px;border-radius:999px;border: 1px solid var(--border, #dfe4ea);background: var(--card-bg, #fff);font-size:.84rem;color: var(--text-secondary, #4a5568);cursor:pointer;text-decoration:none}
+    .sr-tab.on{background: var(--primary, #2F5B9A);color: var(--card-bg, #fff);border-color: var(--primary, #2F5B9A)}
+    .sr-item{background: var(--card-bg, #fff);border-radius:10px;padding:16px;margin-bottom:10px;border: 1px solid var(--border-light, #edf1f5)}
     .sr-item h3{margin:0 0 6px;font-size:1.02rem}
-    .sr-item h3 a{color:#1a202c;text-decoration:none}
-    .sr-item h3 a:hover{color:#2F5B9A}
-    .sr-item .sn{font-size:.88rem;color:#4a5568;line-height:1.7;margin-bottom:8px}
+    .sr-item h3 a{color: var(--text, #1a202c);text-decoration:none}
+    .sr-item h3 a:hover{color: var(--primary, #2F5B9A)}
+    .sr-item .sn{font-size:.88rem;color: var(--text-secondary, #4a5568);line-height:1.7;margin-bottom:8px}
     .sr-item mark{background:#fff3bf;padding:0 2px;border-radius:2px}
-    .sr-item .mt{font-size:.76rem;color:#a0aec0;display:flex;gap:14px;flex-wrap:wrap}
-    .sr-item .fd{font-size:.7rem;background:#eef3fa;color:#2F5B9A;padding:1px 6px;border-radius:4px;margin-left:6px}
-    .sr-empty{text-align:center;padding:60px 20px;color:#a0aec0}
+    .sr-item .mt{font-size:.76rem;color: var(--text-muted, #a0aec0);display:flex;gap:14px;flex-wrap:wrap}
+    .sr-item .fd{font-size:.7rem;background: var(--primary-light, #eef3fa);color: var(--primary, #2F5B9A);padding:1px 6px;border-radius:4px;margin-left:6px}
+    .sr-empty{text-align:center;padding:60px 20px;color: var(--text-muted, #a0aec0)}
     </style>
 </head>
 <body>

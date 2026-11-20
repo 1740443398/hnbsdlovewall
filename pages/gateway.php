@@ -230,6 +230,26 @@ a:hover { text-decoration: underline; }
 @media (max-width: 480px) {
   .brand-txt { display: none; }
 }
+
+    /* ---- 暗色模式变量覆盖（全站令牌，2026-11-20）---- */
+    html.dark-theme {
+        --primary: #5B8CC9;
+        --primary-dark: #3E6698;
+        --primary-hover: #4E7FBF;
+        --primary-light: #1F2E44;
+        --accent: #C9A96E;
+        --accent-light: #2A2416;
+        --bg: #0F1520;
+        --bg-secondary: #171E2B;
+        --card-bg: #1B2434;
+        --text: #E4E9F0;
+        --text-secondary: #9AA7B8;
+        --text-muted: #6C7A8C;
+        --border: #2A3748;
+        --border-light: #222E3E;
+        --success: #4CAF7D;
+        --success-light: #173026;
+    }
 </style>
 </head>
 <body>

@@ -34,6 +34,195 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
     <?php endif; ?>
     <link rel="alternate" type="application/rss+xml" title="RSS" href="/api/rss.php">
+    <style>
+    /* ==========================================================================
+     * 发现页样式
+     * ==========================================================================
+     * 【2026-11-20 重写】
+     *
+     * 原实现有三个问题：
+     *   1. <style> 写在 <body> 里 —— 部分浏览器会推迟到解析到该处才应用，
+     *      首屏可能闪一下无样式内容
+     *   2. 全部硬编码颜色（#2F5B9A / #fff / #dfe4ea / #1a202c）——
+     *      暗色模式下整页还是白的，与全站主题完全脱节
+     *   3. 0 处 var(--) 引用 —— 后台改主题色对它毫无影响
+     *
+     * 现在全部改用全站 CSS 变量，与 style.css 同一套令牌。
+     * ========================================================================== */
+
+    .disc-tabs {
+        display: flex;
+        gap: 8px;
+        margin: 16px 0;
+        flex-wrap: wrap;
+    }
+
+    .disc-tab {
+        padding: 7px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--border, #dfe4ea);
+        background: var(--card-bg, #fff);
+        font-size: 0.86rem;
+        color: var(--text-secondary, #4a5568);
+        text-decoration: none;
+        transition: border-color 0.15s var(--ease-sharp, ease),
+                    color 0.15s var(--ease-sharp, ease),
+                    background-color 0.15s var(--ease-sharp, ease),
+                    transform 0.08s var(--ease-sharp, ease);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .disc-tab:hover {
+        border-color: var(--primary, #2F5B9A);
+        color: var(--primary, #2F5B9A);
+    }
+
+    .disc-tab:active {
+        transform: scale(0.97);
+    }
+
+    .disc-tab.on {
+        background: var(--primary, #2F5B9A);
+        color: var(--on-solid, #fff);
+        border-color: var(--primary, #2F5B9A);
+        font-weight: 600;
+    }
+
+    .disc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+    }
+
+    .disc-card {
+        background: var(--card-bg, #fff);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid var(--border-light, #edf1f5);
+        transition: box-shadow 0.18s var(--ease-sharp, ease),
+                    transform 0.18s var(--ease-sharp, ease);
+    }
+
+    .disc-card:hover {
+        box-shadow: var(--elev-2, 0 4px 16px rgba(47, 91, 154, 0.10));
+        transform: translateY(-2px);
+    }
+
+    .disc-card h3 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+        line-height: 1.45;
+    }
+
+    .disc-card h3 a {
+        color: var(--text, #1a202c);
+        text-decoration: none;
+    }
+
+    .disc-card h3 a:hover {
+        color: var(--primary, #2F5B9A);
+    }
+
+    .disc-card .ex {
+        font-size: 0.86rem;
+        color: var(--text-secondary, #4a5568);
+        line-height: 1.65;
+        margin-bottom: 10px;
+    }
+
+    .disc-card .mt {
+        font-size: 0.76rem;
+        color: var(--text-muted, #a0aec0);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .tag-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .tag-item {
+        padding: 6px 13px;
+        border-radius: 999px;
+        background: var(--primary-light, #eef3fa);
+        color: var(--primary, #2F5B9A);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: background-color 0.15s var(--ease-sharp, ease),
+                    color 0.15s var(--ease-sharp, ease);
+    }
+
+    .tag-item:hover {
+        background: var(--primary, #2F5B9A);
+        color: var(--on-solid, #fff);
+    }
+
+    .tag-item .c {
+        opacity: 0.65;
+        font-size: 0.75rem;
+        margin-left: 4px;
+    }
+
+    .series-card {
+        background: var(--card-bg, #fff);
+        border-radius: 12px;
+        padding: 16px;
+        border-left: 4px solid var(--primary, #2F5B9A);
+        border-top: 1px solid var(--border-light, #edf1f5);
+        border-right: 1px solid var(--border-light, #edf1f5);
+        border-bottom: 1px solid var(--border-light, #edf1f5);
+    }
+
+    .series-card h3 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+        color: var(--text, #1a202c);
+    }
+
+    .series-card .d {
+        font-size: 0.84rem;
+        color: var(--text-secondary, #4a5568);
+        line-height: 1.6;
+        margin-bottom: 8px;
+    }
+
+    .empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted, #a0aec0);
+    }
+
+    /* ---- 手机端：单列 + 收紧间距 ---- */
+    @media (max-width: 768px) {
+        .disc-tabs {
+            margin: 12px 0;
+            gap: 6px;
+        }
+        .disc-tab {
+            padding: 6px 13px;
+            font-size: 0.8rem;
+        }
+        /* 单列：手机屏放两列每列只有 160px，标题会挤成两行 */
+        .disc-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        .disc-card {
+            padding: 13px;
+            border-radius: 10px;
+        }
+        /* 手机端去掉 hover 位移（触屏没有 hover，位移只会造成抖动） */
+        .disc-card:hover {
+            transform: none;
+        }
+        .empty {
+            padding: 44px 16px;
+        }
+    }
+    </style>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
@@ -43,29 +232,6 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
 </head>
 <body>
 <?php require __DIR__ . '/../includes/site_header.php'; ?>
-
-<style>
-.disc-tabs{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}
-.disc-tab{padding:8px 18px;border-radius:999px;border:1px solid #dfe4ea;background:#fff;font-size:.88rem;color:#4a5568;text-decoration:none;transition:all .15s}
-.disc-tab:hover{border-color:#2F5B9A;color:#2F5B9A}
-.disc-tab.on{background:#2F5B9A;color:#fff;border-color:#2F5B9A}
-.disc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-.disc-card{background:#fff;border-radius:12px;padding:16px;border:1px solid #edf1f5;transition:box-shadow .15s}
-.disc-card:hover{box-shadow:0 4px 16px rgba(47,91,154,.10)}
-.disc-card h3{margin:0 0 8px;font-size:1rem;line-height:1.45}
-.disc-card h3 a{color:#1a202c;text-decoration:none}
-.disc-card h3 a:hover{color:#2F5B9A}
-.disc-card .ex{font-size:.86rem;color:#4a5568;line-height:1.65;margin-bottom:10px}
-.disc-card .mt{font-size:.76rem;color:#a0aec0;display:flex;gap:12px;flex-wrap:wrap}
-.tag-cloud{display:flex;flex-wrap:wrap;gap:10px}
-.tag-item{padding:6px 14px;border-radius:999px;background:#eef3fa;color:#2F5B9A;text-decoration:none;font-size:.85rem}
-.tag-item:hover{background:#2F5B9A;color:#fff}
-.tag-item .c{opacity:.65;font-size:.75rem;margin-left:4px}
-.series-card{background:#fff;border-radius:12px;padding:16px;border-left:4px solid #2F5B9A}
-.series-card h3{margin:0 0 6px;font-size:1rem}
-.series-card .d{font-size:.84rem;color:#4a5568;line-height:1.6;margin-bottom:8px}
-.empty{text-align:center;padding:60px 20px;color:#a0aec0}
-</style>
 
 <main class="site-main">
 <div class="container" style="max-width:1100px;margin:0 auto;padding:0 16px">

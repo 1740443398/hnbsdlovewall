@@ -33,22 +33,22 @@ $updated = "2026-10-24";
     <style>
     .tos-wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
     .tos-wrap h1 { font-size: 1.5rem; margin: 0 0 4px; }
-    .tos-updated { color: #a0aec0; font-size: .8rem; margin: 0 0 24px; }
+    .tos-updated { color: var(--text-muted, #a0aec0); font-size: .8rem; margin: 0 0 24px; }
     .tos-wrap h2 {
-        font-size: 1.05rem; margin: 28px 0 10px; color: #1a202c;
-        padding-left: 10px; border-left: 3px solid #2F5B9A;
+        font-size: 1.05rem; margin: 28px 0 10px; color: var(--text, #1a202c);
+        padding-left: 10px; border-left: 3px solid var(--primary, #2F5B9A);
     }
     .tos-wrap p, .tos-wrap li {
-        font-size: .9rem; line-height: 1.9; color: #4a5568;
+        font-size: .9rem; line-height: 1.9; color: var(--text-secondary, #4a5568);
     }
     .tos-wrap ul { padding-left: 22px; margin: 8px 0; }
     .tos-wrap li { margin-bottom: 4px; }
     .tos-note {
-        background: #fff8e6; border-left: 3px solid #e08a2e;
+        background: var(--warning-light, #fff8e6); border-left: 3px solid var(--warning, #e08a2e);
         padding: 12px 16px; border-radius: 6px; margin: 16px 0;
         font-size: .86rem; line-height: 1.8; color: #744210;
     }
-    .tos-wrap a { color: #2F5B9A; }
+    .tos-wrap a { color: var(--primary, #2F5B9A); }
     </style>
 </head>
 <body>

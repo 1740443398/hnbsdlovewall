@@ -44,27 +44,27 @@ $faqs = [
     <style>
     .faq-wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
     .faq-title { font-size: 1.5rem; margin: 0 0 6px; }
-    .faq-sub { color: #718096; font-size: .9rem; margin: 0 0 24px; }
+    .faq-sub { color: var(--text-secondary, #718096); font-size: .9rem; margin: 0 0 24px; }
     .faq-item {
-        background: #fff; border-radius: 12px; margin-bottom: 10px;
-        border: 1px solid #edf1f5; overflow: hidden;
+        background: var(--card-bg, #fff); border-radius: 12px; margin-bottom: 10px;
+        border: 1px solid var(--border-light, #edf1f5); overflow: hidden;
     }
     .faq-q {
         padding: 16px 18px; font-size: .95rem; font-weight: 600;
-        color: #1a202c; cursor: pointer; display: flex;
+        color: var(--text, #1a202c); cursor: pointer; display: flex;
         justify-content: space-between; align-items: center; gap: 12px;
     }
-    .faq-q:hover { background: #fafbfc; }
-    .faq-q .arrow { color: #a0aec0; transition: transform .18s; flex-shrink: 0; }
+    .faq-q:hover { background: var(--bg-secondary, #fafbfc); }
+    .faq-q .arrow { color: var(--text-muted, #a0aec0); transition: transform .18s; flex-shrink: 0; }
     .faq-item.open .faq-q .arrow { transform: rotate(90deg); }
     .faq-a {
         max-height: 0; overflow: hidden; transition: max-height .22s ease;
-        padding: 0 18px; font-size: .88rem; line-height: 1.85; color: #4a5568;
+        padding: 0 18px; font-size: .88rem; line-height: 1.85; color: var(--text-secondary, #4a5568);
     }
     .faq-item.open .faq-a { max-height: 500px; padding-bottom: 16px; }
     .faq-contact {
-        margin-top: 28px; padding: 18px; background: #eef3fa;
-        border-radius: 12px; font-size: .88rem; color: #4a5568; line-height: 1.8;
+        margin-top: 28px; padding: 18px; background: var(--primary-light, #eef3fa);
+        border-radius: 12px; font-size: .88rem; color: var(--text-secondary, #4a5568); line-height: 1.8;
     }
     </style>
 </head>

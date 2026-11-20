@@ -66,11 +66,31 @@ body {
 .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-ghost:hover { color: var(--primary); background: var(--primary-light); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.inp { width: 100%; padding: 13px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; color: var(--text); background: #fff; outline: none; font-family: inherit; text-align: center; letter-spacing: 8px; }
+.inp { width: 100%; padding: 13px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; color: var(--text); background: var(--card-bg, #fff); outline: none; font-family: inherit; text-align: center; letter-spacing: 8px; }
 .inp:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(47,91,154,0.12); }
 .label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin: 0 0 8px; }
 .back { display:inline-block; margin-top: 16px; text-align:center; width:100%; font-size: 13px; color: var(--text-muted); text-decoration: none; }
 .back:hover { color: var(--primary); }
+
+    /* ---- 暗色模式变量覆盖（全站令牌，2026-11-20）---- */
+    html.dark-theme {
+        --primary: #5B8CC9;
+        --primary-dark: #3E6698;
+        --primary-hover: #4E7FBF;
+        --primary-light: #1F2E44;
+        --accent: #C9A96E;
+        --bg: #0F1520;
+        --card-bg: #1B2434;
+        --text: #E4E9F0;
+        --text-secondary: #9AA7B8;
+        --text-muted: #6C7A8C;
+        --border: #2A3748;
+        --border-light: #222E3E;
+        --success: #4CAF7D;
+        --success-light: #173026;
+        --danger: #E06A64;
+        --danger-light: #331C1B;
+    }
 </style>
 </head>
 <body>

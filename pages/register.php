@@ -42,7 +42,7 @@ markDeviceKnown();
 $registerEnabled = getSetting('register_enabled', '1') == '1';
 if (!$registerEnabled) {
     http_response_code(403);
-    die('<!DOCTYPE html><html lang="' . htmlspecialchars($LANG_CODE) . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' . t('register.closed') . '</title><style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F8F9FA;color:#1B2A3A;font-family:sans-serif;text-align:center;font-size:1.2rem;}</style></head><body><div><h1>' . t('register.closed') . '</h1><p>' . t('register.closed_desc') . '</p></div></body></html>');
+    die('<!DOCTYPE html><html lang="' . htmlspecialchars($LANG_CODE) . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' . t('register.closed') . '</title><style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg,#F8F9FA);color:var(--text,#1B2A3A);font-family:sans-serif;text-align:center;font-size:1.2rem;}</style></head><body><div><h1>' . t('register.closed') . '</h1><p>' . t('register.closed_desc') . '</p></div></body></html>');
     exit();
 }
 

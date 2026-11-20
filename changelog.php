@@ -26,10 +26,12 @@ $logs = is_array($logs) ? $logs : [];
 
 // 标签配色与图标
 $typeStyle = [
-    '新增' => ['bg' => '#EAF7F1', 'fg' => '#178A62', 'ring' => '#C5E9D8', 'icon' => '＋'],
-    '优化' => ['bg' => '#EAF1FB', 'fg' => '#3B6FB6', 'ring' => '#C9DCF5', 'icon' => '↑'],
-    '修复' => ['bg' => '#FEF6E7', 'fg' => '#B06A16', 'ring' => '#F5E0BC', 'icon' => '✓'],
-    '安全' => ['bg' => '#FDECEC', 'fg' => '#C0392B', 'ring' => '#F5C6C6', 'icon' => '⛨'],
+    /* 颜色走 CSS 变量（--tag-*-bg / -fg / -ring），暗色覆盖在 <style> 里。
+     * 原来这里写死浅色值，深色模式下标签是白底 + 深色文字，整块刺眼。 */
+    '新增' => ['bg' => 'var(--tag-add-bg)', 'fg' => 'var(--tag-add-fg)', 'ring' => 'var(--tag-add-ring)', 'icon' => '＋'],
+    '优化' => ['bg' => 'var(--tag-imp-bg)', 'fg' => 'var(--tag-imp-fg)', 'ring' => 'var(--tag-imp-ring)', 'icon' => '↑'],
+    '修复' => ['bg' => 'var(--tag-fix-bg)', 'fg' => 'var(--tag-fix-fg)', 'ring' => 'var(--tag-fix-ring)', 'icon' => '✓'],
+    '安全' => ['bg' => 'var(--tag-sec-bg)', 'fg' => 'var(--tag-sec-fg)', 'ring' => 'var(--tag-sec-ring)', 'icon' => '⛨'],
 ];
 
 $channelLabel = [
@@ -47,12 +49,14 @@ $pageTitle = '更新日志';
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>更新日志 · <?= htmlspecialchars(SITE_NAME) ?></title>
 <meta name="description" content="LoveWall 每次发布带来的新功能、体验优化与问题修复，写清原来哪里不好、这次改了什么。">
+<?php /* 主题引导：与全站同一套深浅色判定，避免深色用户进本页闪白 */ ?>
+<?php require_once __DIR__ . '/includes/theme_boot.php'; ?>
 <style>
 *,*::before,*::after{box-sizing:border-box}
 body{
   margin:0;
-  background:linear-gradient(180deg,#F7F9FC 0%,#EFF3F9 100%);
-  color:#1A1D23;
+  background:linear-gradient(180deg,var(--cl-bg1,#F7F9FC) 0%,var(--cl-bg2,#EFF3F9) 100%);
+  color: var(--cl-text, #1A1D23);
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
   font-size:15px;
   line-height:1.7;
@@ -61,29 +65,29 @@ body{
 .wrap{max-width:820px;margin:0 auto;padding:36px 20px 80px}
 .top-nav{
   display:flex;align-items:center;gap:12px;margin-bottom:28px;
-  font-size:13px;color:#5A6472;
+  font-size:13px;color: var(--cl-text-2, #5A6472);
 }
-.top-nav a{color:#3B6FB6;text-decoration:none;font-weight:500}
+.top-nav a{color: var(--cl-accent, #3B6FB6);text-decoration:none;font-weight:500}
 .top-nav a:hover{text-decoration:underline}
-.top-nav .sep{color:#C5CDD8}
+.top-nav .sep{color: var(--cl-sep, #C5CDD8)}
 
 h1{font-size:26px;font-weight:700;margin:0 0 8px;letter-spacing:-.3px}
-.sub{color:#5A6472;font-size:14px;margin:0 0 30px;line-height:1.75}
+.sub{color: var(--cl-text-2, #5A6472);font-size:14px;margin:0 0 30px;line-height:1.75}
 
 /* ---- 时间线 ---- */
 .timeline{position:relative;margin:0;padding:0;list-style:none}
 .timeline::before{
   content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;
-  background:linear-gradient(180deg,#DDE4EE 0%,#E9EEF6 100%);border-radius:2px;
+  background:linear-gradient(180deg,var(--cl-line1,#DDE4EE) 0%,var(--cl-line2,#E9EEF6) 100%);border-radius:2px;
 }
 .entry{position:relative;margin-bottom:22px;padding-left:34px}
 .dot{
   position:absolute;left:0;top:22px;
   width:14px;height:14px;border-radius:50%;
-  background:#3B6FB6;
-  box-shadow:0 0 0 4px #F7F9FC,0 0 0 5px rgba(59,111,182,.18);
+  background: var(--cl-accent, #3B6FB6);
+  box-shadow:0 0 0 4px var(--cl-bg1,#F7F9FC),0 0 0 5px rgba(59,111,182,.18);
 }
-.entry:first-child .dot{background:#3B6FB6;box-shadow:0 0 0 4px #F7F9FC,0 0 0 5px rgba(59,111,182,.32)}
+.entry:first-child .dot{background: var(--cl-accent, #3B6FB6);box-shadow:0 0 0 4px var(--cl-bg1,#F7F9FC),0 0 0 5px rgba(59,111,182,.32)}
 
 /* ---- 卡片（毛玻璃）---- */
 .card{
@@ -97,10 +101,10 @@ h1{font-size:26px;font-weight:700;margin:0 0 8px;letter-spacing:-.3px}
 }
 .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .ver{font-size:18px;font-weight:700;letter-spacing:-.2px}
-.date{font-size:13px;color:#8A94A6}
+.date{font-size:13px;color: var(--cl-muted, #8A94A6)}
 .chan{
   font-size:11px;padding:2px 9px;border-radius:99px;
-  background:#F0F3F8;color:#5A6472;font-weight:600;
+  background: var(--cl-chip-bg, #F0F3F8);color: var(--cl-text-2, #5A6472);font-weight:600;
 }
 
 /* ---- 条目 ---- */
@@ -111,17 +115,17 @@ ul.items li{display:flex;align-items:flex-start;gap:10px}
   font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;
   margin-top:2px;white-space:nowrap;letter-spacing:.2px;
 }
-.txt{min-width:0;flex:1;color:#2B313B;font-size:14.5px;line-height:1.75}
+.txt{min-width:0;flex:1;color: var(--cl-strong, #2B313B);font-size:14.5px;line-height:1.75}
 .link{
   display:inline-flex;align-items:center;gap:3px;
-  font-size:13px;color:#3B6FB6;text-decoration:none;margin-top:5px;
+  font-size:13px;color: var(--cl-accent, #3B6FB6);text-decoration:none;margin-top:5px;
 }
 .link:hover{text-decoration:underline}
 .link::before{content:"↗";font-size:12px;opacity:.75}
 
 /* ---- 底部 ---- */
-.foot{margin-top:44px;text-align:center;color:#98A2B3;font-size:12.5px;line-height:1.9}
-.foot a{color:#3B6FB6;text-decoration:none}
+.foot{margin-top:44px;text-align:center;color: var(--cl-muted2, #98A2B3);font-size:12.5px;line-height:1.9}
+.foot a{color: var(--cl-accent, #3B6FB6);text-decoration:none}
 
 @media (max-width:600px){
   .wrap{padding:24px 14px 60px}
@@ -131,6 +135,42 @@ ul.items li{display:flex;align-items:flex-start;gap:10px}
   .timeline::before{left:5px}
   .dot{width:12px;height:12px;top:20px}
   .txt{font-size:14px}
+}
+
+/* ---- 暗色模式：本页全部令牌切到全站暗色值 ---- */
+html.dark-theme {
+    --cl-text: #E4E9F0;
+    --cl-text-2: #9AA7B8;
+    --cl-accent: #5B8CC9;
+    --cl-sep: #3A4658;
+    --cl-muted: #6C7A8C;
+    --cl-chip-bg: #171E2B;
+    --cl-strong: #E4E9F0;
+    --cl-muted2: #6C7A8C;
+    --cl-bg1: #0F1520;
+    --cl-bg2: #131B28;
+    --cl-line1: #2A3748;
+    --cl-line2: #1E2836;
+
+    /* 标签四色：暗底 + 提亮前景（AA 对比度） */
+    --tag-add-bg: #17301F;
+    --tag-add-fg: #4CAF7D;
+    --tag-add-ring: #234A32;
+    --tag-imp-bg: #1F2E44;
+    --tag-imp-fg: #5B8CC9;
+    --tag-imp-ring: #2B4160;
+    --tag-fix-bg: #2E2617;
+    --tag-fix-fg: #D0A24C;
+    --tag-fix-ring: #4A3D1F;
+    --tag-sec-bg: #331C1B;
+    --tag-sec-fg: #E06A64;
+    --tag-sec-ring: #4D2A28;
+}
+
+/* 卡片毛玻璃在暗色下的底色 */
+html.dark-theme .card {
+    background: rgba(27, 36, 52, 0.82);
+    border-color: rgba(255, 255, 255, 0.07);
 }
 </style>
 </head>
@@ -151,7 +191,7 @@ ul.items li{display:flex;align-items:flex-start;gap:10px}
     </p>
 
     <?php if (!$logs): ?>
-        <div class="card"><p style="margin:0;color:#8A94A6">还没有更新记录。</p></div>
+        <div class="card"><p style="margin:0;color:var(--cl-text-2,#5A6472)">还没有更新记录。</p></div>
     <?php else: ?>
     <ol class="timeline">
         <?php foreach ($logs as $entry):

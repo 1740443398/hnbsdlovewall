@@ -53,7 +53,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-meta{display:flex;gap:.75rem;flex-wrap:wrap;font-size:.74rem;color:var(--text-secondary);}
         .lb-badge{padding:.15rem .5rem;border-radius:9999px;background:var(--bg-secondary,#F4F7FA);border:1px solid var(--border-light,#E4E9F0);}
         .lb-badge.online{color:#2E8B57;border-color:rgba(46,139,87,.25);background:rgba(46,139,87,.08);}
-        .lb-badge.offline{color:#cb2431;border-color:rgba(203,36,49,.25);background:rgba(203,36,49,.08);}
+        .lb-badge.offline{color: var(--danger, #cb2431);border-color:rgba(203,36,49,.25);background:rgba(203,36,49,.08);}
 
         .lb-panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;background:var(--surface,#fff);border:1px solid var(--border-light,#E4E9F0);border-radius:1rem;box-shadow:var(--shadow-sm);overflow:hidden;}
         .lb-msgs{flex:1 1 auto;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem;overscroll-behavior:contain;}
@@ -65,7 +65,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-msg.mine .lb-who{justify-content:flex-end;}
         .lb-role{font-size:.62rem;padding:.05rem .3rem;border-radius:.25rem;background:var(--primary-light,#E7EEF7);color:var(--primary);font-weight:600;}
         .lb-bubble{display:inline-block;padding:.5rem .75rem;border-radius:.75rem;background:var(--bg-secondary,#F4F7FA);color:var(--text);font-size:.875rem;line-height:1.6;word-break:break-word;white-space:pre-wrap;}
-        .lb-msg.mine .lb-bubble{background:var(--primary);color:#fff;}
+        .lb-msg.mine .lb-bubble{background:var(--primary);color: var(--card-bg, #fff);}
         .lb-bubble img{display:block;max-width:min(260px,60vw);max-height:260px;border-radius:.5rem;cursor:zoom-in;}
         .lb-time{font-size:.66rem;color:var(--text-tertiary,#8E9AA8);margin-top:.1875rem;}
         .lb-msg.mine .lb-time{text-align:right;}
@@ -77,13 +77,13 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-icon-btn{flex:0 0 auto;width:2.5rem;height:2.5rem;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border,#E3E7EC);border-radius:.75rem;background:var(--bg,#fff);color:var(--text-secondary);cursor:pointer;transition:all .18s;}
         .lb-icon-btn:hover{color:var(--primary);border-color:var(--primary);}
         .lb-icon-btn:disabled{opacity:.45;cursor:not-allowed;}
-        .lb-send{flex:0 0 auto;height:2.5rem;padding:0 1.125rem;border:none;border-radius:.75rem;background:var(--primary);color:#fff;font-weight:600;font-size:.875rem;cursor:pointer;transition:all .18s;}
+        .lb-send{flex:0 0 auto;height:2.5rem;padding:0 1.125rem;border:none;border-radius:.75rem;background:var(--primary);color: var(--card-bg, #fff);font-weight:600;font-size:.875rem;cursor:pointer;transition:all .18s;}
         .lb-send:hover{filter:brightness(1.06);}
         .lb-send:disabled{opacity:.5;cursor:not-allowed;}
 
         .lb-guest-note{padding:.75rem 1rem;border-top:1px solid var(--border-light,#E4E9F0);font-size:.8rem;color:var(--text-secondary);text-align:center;background:var(--warning-light,#FFF8E6);}
         .lb-guest-note a{color:var(--primary);font-weight:600;}
-        .lb-new{position:sticky;bottom:.5rem;align-self:center;padding:.3rem .75rem;border-radius:9999px;background:var(--primary);color:#fff;font-size:.74rem;border:none;cursor:pointer;box-shadow:var(--shadow-md);}
+        .lb-new{position:sticky;bottom:.5rem;align-self:center;padding:.3rem .75rem;border-radius:9999px;background:var(--primary);color: var(--card-bg, #fff);font-size:.74rem;border:none;cursor:pointer;box-shadow:var(--shadow-md);}
         .lb-lightbox{position:fixed;inset:0;z-index:9999;background:rgba(8,12,20,.86);display:none;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out;}
         .lb-lightbox.show{display:flex;}
         .lb-lightbox img{max-width:96vw;max-height:92vh;border-radius:.5rem;object-fit:contain;}

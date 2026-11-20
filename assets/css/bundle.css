@@ -2274,4 +2274,98 @@ html.dark-theme * {
     .mobile-bottom-nav { display: none !important; }
     body { padding-bottom: 0 !important; }
 }
+/* ==== dark-patch.css ==== */
+/* ==========================================================================
+ * 暗色模式补丁层  dark-patch.css
+ * ==========================================================================
+ *
+ * 全站 17 个页面在 style 里写死了颜色。浅色下正常，暗色下会：
+ *   白卡片仍是白的（刺眼）、主色与暗色主色割裂、浅灰文字看不清。
+ *
+ * 【写法说明】
+ * 全部用平铺的 html.dark-theme .xxx 后代选择器，不用嵌套块 ——
+ * clean-css 对嵌套规则解析有缺陷（会把嵌套块连同外层一起丢弃，
+ * 实测 WARNING: Invalid property name）。平铺写法任何压缩器都兼容。
+ *
+ * 只在 html.dark-theme 下生效，浅色模式完全不受影响。
+ * ========================================================================== */
 
+/* ---- 独立入口页（登录 / 注册 / 网关）的卡片 ---- */
+html.dark-theme .auth-card,
+html.dark-theme .gw-card,
+html.dark-theme .gw-hero,
+html.dark-theme .login-card,
+html.dark-theme .register-card,
+html.dark-theme .dl-card,
+html.dark-theme .rc-card,
+html.dark-theme .card-solid {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+
+/* ---- 整页背景 ---- */
+html.dark-theme .auth-container,
+html.dark-theme .gw-wrap,
+html.dark-theme .auth-page,
+html.dark-theme .login-wrap,
+html.dark-theme .register-wrap {
+    background: linear-gradient(160deg, #0F1520 0%, #131B28 50%, #0F1520 100%) !important;
+}
+
+/* ---- 表单控件 ---- */
+html.dark-theme input,
+html.dark-theme textarea,
+html.dark-theme select {
+    background-color: var(--input-bg) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+
+html.dark-theme input::placeholder,
+html.dark-theme textarea::placeholder {
+    color: var(--text-muted) !important;
+}
+
+html.dark-theme input:focus,
+html.dark-theme textarea:focus,
+html.dark-theme select:focus {
+    background-color: var(--input-focus) !important;
+    border-color: var(--primary) !important;
+}
+
+/* ---- 表格 ---- */
+html.dark-theme table th {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border) !important;
+}
+
+html.dark-theme table td,
+html.dark-theme hr {
+    border-color: var(--border) !important;
+}
+
+/* ---- 代码块与引用 ---- */
+html.dark-theme pre,
+html.dark-theme code {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text) !important;
+}
+
+html.dark-theme blockquote {
+    border-left-color: var(--primary) !important;
+    background-color: var(--bg-secondary) !important;
+}
+
+/* ---- 图片在深底上略压暗 ---- */
+html.dark-theme .post-card-images img,
+html.dark-theme .post-content img,
+html.dark-theme .comment-content img {
+    filter: brightness(0.92);
+}
+
+html.dark-theme .post-card-images img:hover,
+html.dark-theme .post-content img:hover {
+    filter: brightness(1);
+}

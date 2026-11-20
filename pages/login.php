@@ -561,7 +561,7 @@ header('Expires: 0');
             width: 18px;
             height: 18px;
             border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: #fff;
+            border-top-color: var(--card-bg, #fff);
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
         }
@@ -577,7 +577,7 @@ header('Expires: 0');
             transform: translateX(-50%);
             padding: 12px 24px;
             border-radius: var(--radius-sm);
-            color: #fff;
+            color: var(--card-bg, #fff);
             font-size: 14px;
             z-index: 2000;
             animation: toastIn 0.3s ease;
@@ -704,7 +704,31 @@ header('Expires: 0');
                 font-size: 20px;
             }
         }
-    </style>
+    
+    /* ---- 暗色模式变量覆盖（全站令牌，2026-11-20）---- */
+    html.dark-theme {
+        --primary: #5B8CC9;
+        --primary-hover: #4E7FBF;
+        --primary-dark: #3E6698;
+        --primary-light: #1F2E44;
+        --accent: #C9A96E;
+        --accent-light: #2A2416;
+        --danger: #E06A64;
+        --danger-light: #331C1B;
+        --success: #4CAF7D;
+        --success-light: #173026;
+        --warning: #D0A24C;
+        --warning-light: #2E2617;
+        --bg: #0F1520;
+        --bg-secondary: #171E2B;
+        --card-bg: #1B2434;
+        --text: #E4E9F0;
+        --text-secondary: #9AA7B8;
+        --text-muted: #6C7A8C;
+        --border: #2A3748;
+        --border-light: #222E3E;
+    }
+</style>
 </head>
 <body>
     <?php require __DIR__ . '/../includes/ai_widget.php'; ?>
