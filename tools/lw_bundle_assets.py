@@ -73,6 +73,7 @@ CSS_ORDER = [
     'assets/css/motion-plus.css',
     'assets/css/motion-interact.css',
     'assets/css/mobile-app.css',
+    'assets/css/motion-sheet.css',
     'assets/css/dark-patch.css',
 ]
 
@@ -107,6 +108,7 @@ JS_ORDER = [
     'assets/js/mobile-app.js',
     'assets/js/motion-plus.js',
     'assets/js/motion-interact.js',
+    'assets/js/motion-sheet.js',
 ]
 
 

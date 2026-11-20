@@ -1,0 +1,129 @@
+/* ==========================================================================
+ * 抽屉手势层  motion-sheet.css
+ * ==========================================================================
+ *
+ * 【为什么加这个】
+ *
+ * 手机端的弹窗已经是「底部抽屉」形态（mobile-app.css 里把 modal-box 等
+ * 改成 bottom:0 + 上圆角）。但它是「只能点关闭按钮 / 点遮罩」的抽屉 ——
+ * 而 ColorOS / iOS 的抽屉最标志性的动作是：**按住往下拖，跟手，松手收起**。
+ *
+ * 少了这个，抽屉就还是「网页里的浮层」，不是「系统里的面板」。
+ *
+ * --------------------------------------------------------------------------
+ * 【跟手是丝滑的核心】
+ * --------------------------------------------------------------------------
+ * 前面几层动效都是「预设时长自动播放」。跟手不一样：
+ *   手指往下移 100px，抽屉就跟着下移 100px —— 位移完全由手指决定。
+ * 这种「界面在听你的」的感觉，比任何曲线都更像原生。
+ *
+ * 跟手时必须临时关掉 transition，否则会有「追不上手指」的延迟感。
+ * 松手后再恢复 transition（用 spring 弹回或滑出）。
+ * ========================================================================== */
+
+/* ==========================================================================
+ * 一、拖拽手柄
+ * ==========================================================================
+ * 抽屉顶部那条小横杠。它不只是装饰 ——
+ * 它告诉用户「这里可以往下拖」，是最省事的可发现性提示。
+ * ========================================================================== */
+
+@media (max-width: 768px) {
+    .modal-box, 
+    .modal-content,
+    .site-modal-box,
+    .pm-modal,
+    .pmr-modal,
+    .sponsor-modal {
+        /* 给手柄留出空间，避免盖住标题 */
+        padding-top: 18px !important;
+        /* 拖拽时不希望选中文字 */
+        -webkit-user-select: none;
+        user-select: none;
+        /* 松手回弹用 spring；关闭滑出用 ease-in */
+        transition: transform 320ms cubic-bezier(0.34, 1.4, 0.64, 1),
+                    opacity 220ms ease-out;
+        will-change: transform;
+    }
+
+    /* 手柄本体：绝对定位在顶部中央 */
+    .modal-box::before,
+    .modal-content::before,
+    .site-modal-box::before,
+    .pm-modal::before,
+    .pmr-modal::before,
+    .sponsor-modal::before {
+        content: "";
+        position: absolute;
+        top: 7px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 38px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.22);
+        pointer-events: none;
+    }
+
+    html.dark-theme .modal-box::before,
+    html.dark-theme .modal-content::before,
+    html.dark-theme .site-modal-box::before,
+    html.dark-theme .pm-modal::before,
+    html.dark-theme .pmr-modal::before,
+    html.dark-theme .sponsor-modal::before {
+        background: rgba(255, 255, 255, 0.20);
+    }
+
+    /* 拖拽进行中：遮罩同步变淡（由 JS 设 inline opacity） */
+    .modal-overlay.lw-dragging {
+        transition: none !important;
+    }
+
+    /* 关闭中的滑出动画 */
+    .modal-box.lw-sheet-closing,
+    .modal-content.lw-sheet-closing,
+    .site-modal-box.lw-sheet-closing,
+    .pm-modal.lw-sheet-closing,
+    .pmr-modal.lw-sheet-closing,
+    .sponsor-modal.lw-sheet-closing {
+        transform: translateY(102%) !important;
+        opacity: 0;
+        transition: transform 260ms cubic-bezier(0.4, 0, 1, 1),
+                    opacity 200ms ease-in !important;
+    }
+}
+
+/* ==========================================================================
+ * 二、桌面端不受影响
+ * ==========================================================================
+ * 桌面端弹窗是居中的，不该有拖拽手柄。
+ * ========================================================================== */
+
+@media (min-width: 769px) {
+    .modal-box::before,
+    .site-modal-box::before {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+ * 三、减动效偏好
+ * ==========================================================================
+ * 关闭动画关掉，但**拖拽本身保留** ——
+ * 拖拽是交互手段，不是装饰动画，关掉会让用户拖了没反应。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-box,
+    .modal-content,
+    .site-modal-box,
+    .pm-modal,
+    .pmr-modal,
+    .sponsor-modal {
+        transition: none !important;
+    }
+    .modal-box.lw-sheet-closing,
+    .site-modal-box.lw-sheet-closing {
+        transition: none !important;
+    }
+}
