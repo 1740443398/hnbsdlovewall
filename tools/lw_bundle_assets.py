@@ -71,6 +71,7 @@ CSS_ORDER = [
     'assets/css/mobile-pro.css',
     'assets/css/apple-design.css',
     'assets/css/motion-plus.css',
+    'assets/css/motion-interact.css',
     'assets/css/mobile-app.css',
     'assets/css/dark-patch.css',
 ]
@@ -105,6 +106,7 @@ JS_ORDER = [
     'assets/js/enhancements.js',
     'assets/js/mobile-app.js',
     'assets/js/motion-plus.js',
+    'assets/js/motion-interact.js',
 ]
 
 

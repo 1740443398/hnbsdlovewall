@@ -1,0 +1,139 @@
+/* ==========================================================================
+ * 交互细节层  motion-interact.css
+ * ==========================================================================
+ *
+ * motion-plus.css 解决的是「元素怎么出现」（入场）。
+ * 这一层解决「操作之后界面怎么响应」—— 用户点了一下，界面要有"接住了"的感觉。
+ *
+ * 三件事：
+ *   1. 浮层从触发点生长（不是凭空出现）
+ *   2. 切分类 / 切 Tab 时，内容区淡入（不是瞬间替换）
+ *   3. 骨架屏到内容淡出（不是硬切）
+ *
+ * --------------------------------------------------------------------------
+ * 【为什么浮层要用 animation 而不是 transition】
+ * --------------------------------------------------------------------------
+ * 站内的浮层是「display: none → block」切换（.user-dropdown.show / .notification-panel.show）。
+ * display 是不可过渡属性，transition 对它无效。
+ * 但 CSS animation 在 display 从 none 变 block 时会**重新播放** ——
+ * 这是让「凭空出现」变成「从一点长出来」最省事、且不会引入布局计算的办法。
+ * ========================================================================== */
+
+/* ==========================================================================
+ * 一、浮层从触发点生长
+ * ==========================================================================
+ * --mp-origin 由 JS 在打开前设到触发按钮的相对位置：
+ *   顶栏右下角的用户菜单 → top right
+ *   铃铛（在右上）        → top right
+ *   搜索框下方            → top center
+ * 这样弹层看起来是「从按钮那边展开」，而不是在屏幕中间凭空浮现。
+ * ========================================================================== */
+
+@keyframes mp-pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.93) translateY(-7px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .user-dropdown.show,
+    html.js-motion .notification-panel.show,
+    html.js-motion .search-suggestions.show,
+    html.js-motion .search-history-dropdown.show {
+        animation: mp-pop-in 220ms var(--mp-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+        transform-origin: var(--mp-origin, top right);
+        /* will-change 只在打开那一瞬有用，动画结束由浏览器自动回收 */
+        will-change: transform, opacity;
+    }
+}
+
+/* ==========================================================================
+ * 二、内容区切换淡入
+ * ==========================================================================
+ * 用户点「全部 / 校园公告 / 学习求助」这种分类时，帖子列表是整块替换的。
+ * 原来替换是「瞬间刷掉 → 瞬间出现」，观感很硬。
+ *
+ * 这里给容器挂一个短促的淡入（260ms），让眼睛有个「换页」的过渡。
+ * 时长必须在 200~300ms 之间：再长会显得卡，再短察觉不到。
+ * ========================================================================== */
+
+@keyframes mp-tab-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .mp-tab-in {
+        animation: mp-tab-in 260ms var(--mp-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+    }
+}
+
+/* ==========================================================================
+ * 三、骨架屏淡出
+ * ==========================================================================
+ * 骨架（SkeletonLoader）→ 真实内容会「啪」地换掉。
+ * 给骨架一个短淡出，两段之间就不会突然跳。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .mp-skeleton-out {
+        animation: mp-skel-out 180ms ease-out both;
+    }
+}
+
+@keyframes mp-skel-out {
+    to {
+        opacity: 0;
+        transform: scale(0.995);
+    }
+}
+
+/* ==========================================================================
+ * 四、可点元素按下时轻微"抬起底色"
+ * ==========================================================================
+ * ColorOS 里按钮按下除了缩小，还会有一层浅浅的底色。
+ * 这里用 inset box-shadow 模拟（不改变布局，避免重排）。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .mp-press {
+        transition: transform 260ms var(--mp-ease-back, cubic-bezier(0.34, 1.4, 0.64, 1)),
+                    filter 260ms var(--mp-ease-back),
+                    box-shadow 220ms var(--mp-ease-out);
+    }
+    html.js-motion .mp-press:active {
+        box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.045);
+    }
+    html.dark-theme.js-motion .mp-press:active {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.055);
+    }
+}
+
+/* ==========================================================================
+ * 五、减动效偏好
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    html.js-motion .user-dropdown.show,
+    html.js-motion .notification-panel.show,
+    html.js-motion .search-suggestions.show,
+    html.js-motion .mp-tab-in,
+    html.js-motion .mp-skeleton-out {
+        animation: none !important;
+    }
+    html.js-motion .mp-press,
+    html.js-motion .mp-press:active {
+        box-shadow: none !important;
+    }
+}
