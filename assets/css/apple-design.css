@@ -1,0 +1,485 @@
+/* ==========================================================================
+ * Apple 设计语言统一层  apple-design.css
+ * ==========================================================================
+ *
+ * 【这一层解决什么问题】
+ *
+ * 审计发现三处严重不统一：
+ *
+ *   1) 毛玻璃材质 —— 22 种写法 / 55 处
+ *      blur(2px) / blur(3px) / blur(6px) / blur(12px) / var(--glass-blur)
+ *      saturate 在 150% / 160% / 180% 之间随机跳；
+ *      书写顺序有的 blur 在前、有的 saturate 在前。
+ *      结果：顶栏、下拉、弹窗、底栏的"厚薄"全不一样，
+ *      拼在一起像三个不同产品。
+ *
+ *   2) 动效曲线 —— 10 种写法 / 19 处
+ *      同一条弹簧曲线写成 cubic-bezier(.34,1.56,.64,1)、
+ *      cubic-bezier(0.34, 1.56, 0.64, 1)、cubic-bezier(.34, 1.56, .64, 1) 三个版本。
+ *      还有 .4,0,.2,1 / .22,1,.36,1 / .2,0,0,1 / .3,0,.2,1 四种入门曲线混用。
+ *
+ *   3) 时长 —— 5 个量级散落
+ *      20 处 <100ms、28 处 100-200ms、59 处 200-350ms、
+ *      18 处 350-600ms、28 处 600ms+。
+ *      没有节奏，用户感觉不到"快慢有别"。
+ *
+ * --------------------------------------------------------------------------
+ * 【为什么单独一层，不改 style.css】
+ * --------------------------------------------------------------------------
+ * style.css 有 175 KB、435 个组件类，直接改风险极高
+ * （历史上改移动端规则把桌面端弄坏过两次）。
+ *
+ * 这一层只做两件事：
+ *   A. 定义完整的 Apple 设计令牌（材质 / 动效 / 层级）
+ *   B. 用「低特异度 + 后置」的方式统一覆盖散乱写法
+ *
+ * 要回退只需删掉引用，零残留。
+ *
+ * --------------------------------------------------------------------------
+ * 【Apple 设计语言的三条核心原则】
+ * --------------------------------------------------------------------------
+ * 1. 材质分层（Material Layering）
+ *    Apple 的界面不是"平面 + 阴影"，而是"几层真实材料叠在一起"。
+ *    每一层有固定的厚度与半透明度：
+ *      thin     薄材质，贴在内容上（列表行、标签）
+ *      regular  常规材质，浮起一层（顶栏、底栏、下拉）
+ *      thick    厚材质，明显遮盖（弹窗、抽屉）
+ *    层级越高的材料越不透明、模糊越强 —— 这是物理直觉。
+ *
+ * 2. 动效有物理感（Physics-based Motion）
+ *    Apple 从不用 linear 或 ease-in-out 做界面转场。
+ *    他们用弹簧：起步快、末端轻微过冲、然后稳定。
+ *    本文件定义四条曲线，覆盖全部场景：
+ *      spring      可交互元素的反馈（按钮、卡片）
+ *      smooth      层级进出（弹窗、抽屉）
+ *      gentle      大块内容变化（页面切换）
+ *      sharp       小元素微调（图标、角标）
+ *
+ * 3. 触感反馈（Tactile Feedback）
+ *    所有可点元素按下时都要有"被压下去"的感觉：
+ *      轻微缩小（scale 0.97）+ 变暗 + 极短过渡（80ms）
+ *    这三者缺一不可 —— 只做缩放没有变暗，手机会觉得"没点着"。
+ * ==========================================================================
+
+/* ==========================================================================
+ * 一、设计令牌
+ * ==========================================================================
+ */
+
+:root {
+    /* ---- 材质层级：三层，对应三种模糊强度与透明度 ---- */
+    /* 薄材质：贴在内容上，几乎不遮挡 */
+    --material-thin-bg: rgba(255, 255, 255, 0.62);
+    --material-thin-blur: 8px;
+    --material-thin-saturate: 165%;
+
+    /* 常规材质：顶栏 / 底栏 / 下拉菜单 */
+    --material-regular-bg: rgba(255, 255, 255, 0.78);
+    --material-regular-blur: 20px;
+    --material-regular-saturate: 180%;
+
+    /* 厚材质：弹窗 / 抽屉，遮盖力最强 */
+    --material-thick-bg: rgba(255, 255, 255, 0.92);
+    --material-thick-blur: 32px;
+    --material-thick-saturate: 190%;
+
+    /* 材质边缘：一条极细的高光，模拟玻璃的厚度 */
+    --material-edge: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    --material-edge-dark: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+
+    /* ---- 动效曲线：四条曲线覆盖全部场景 ---- */
+    /* 可交互反馈：起步快、末端轻过冲 —— 按下去有"弹性" */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* 层级进出：平顺，无过冲 —— 弹窗不能"弹"出来 */
+    --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
+    /* 大块内容：更缓的起步，用于页面级转场 */
+    --ease-gentle: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* 小元素：干脆利落，无拖泥带水 */
+    --ease-sharp: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ---- 动效时长：四档节奏 ---- */
+    --dur-instant: 80ms;    /* 按下反馈，快到几乎察觉不到延迟 */
+    --dur-fast: 160ms;      /* 小元素状态切换 */
+    --dur-base: 260ms;      /* 标准转场 */
+    --dur-slow: 420ms;      /* 弹层进出 */
+
+    /* ---- 层级阴影：与材质层级配对 ---- */
+    --elev-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px -2px rgba(16, 24, 40, 0.06);
+    --elev-2: 0 2px 4px rgba(16, 24, 40, 0.04), 0 8px 24px -6px rgba(16, 24, 40, 0.10);
+    --elev-3: 0 4px 8px rgba(16, 24, 40, 0.05), 0 16px 40px -10px rgba(16, 24, 40, 0.14);
+    --elev-4: 0 8px 16px rgba(16, 24, 40, 0.06), 0 28px 64px -16px rgba(16, 24, 40, 0.18);
+
+    /* ---- 触摸目标：Apple HIG 要求最小 44×44 ---- */
+    --touch-min: 44px;
+}
+
+/* ==========================================================================
+ * 二、暗色模式令牌
+ * ==========================================================================
+ * 暗色不是「把白色换成黑色」。
+ * Apple 的做法是：材质在暗色下"变薄、变冷"，因为深底上白色半透明
+ * 会显得脏灰。所以暗色材质的 alpha 更低、带一点蓝调。
+ */
+html.dark-theme {
+    --material-thin-bg: rgba(28, 34, 46, 0.58);
+    --material-thin-saturate: 150%;
+
+    --material-regular-bg: rgba(24, 30, 41, 0.76);
+    --material-regular-blur: 22px;
+    --material-regular-saturate: 155%;
+
+    --material-thick-bg: rgba(20, 26, 36, 0.94);
+    --material-thick-blur: 34px;
+    --material-thick-saturate: 140%;
+
+    --material-edge: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+
+    /* 暗色阴影要更重更黑，否则完全看不出层级 */
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 2px 8px -2px rgba(0, 0, 0, 0.24);
+    --elev-2: 0 2px 4px rgba(0, 0, 0, 0.34), 0 8px 24px -6px rgba(0, 0, 0, 0.38);
+    --elev-3: 0 4px 8px rgba(0, 0, 0, 0.38), 0 16px 40px -10px rgba(0, 0, 0, 0.46);
+    --elev-4: 0 8px 16px rgba(0, 0, 0, 0.42), 0 28px 64px -16px rgba(0, 0, 0, 0.54);
+}
+
+/* ==========================================================================
+ * 三、材质工具类
+ * ==========================================================================
+ * 供新组件直接用；老组件在下面被统一覆盖。
+ */
+.mat-thin, .mat-regular, .mat-thick {
+    -webkit-backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-sat));
+    backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-sat));
+    background-color: var(--mat-bg);
+    box-shadow: var(--material-edge);
+}
+.mat-thin {
+    --mat-bg: var(--material-thin-bg);
+    --mat-blur: var(--material-thin-blur);
+    --mat-sat: var(--material-thin-saturate);
+}
+.mat-regular {
+    --mat-bg: var(--material-regular-bg);
+    --mat-blur: var(--material-regular-blur);
+    --mat-sat: var(--material-regular-saturate);
+}
+.mat-thick {
+    --mat-bg: var(--material-thick-bg);
+    --mat-blur: var(--material-thick-blur);
+    --mat-sat: var(--material-thick-saturate);
+}
+
+/* 不支持 backdrop-filter 时的降级：用不透明度更高的纯色，避免"透成一片糊" */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .mat-thin, .mat-regular, .mat-thick {
+        background-color: var(--card-bg, #fff);
+    }
+    html.dark-theme .mat-thin,
+    html.dark-theme .mat-regular,
+    html.dark-theme .mat-thick {
+        background-color: #1B2434;
+    }
+}
+/* ==========================================================================
+ * 四、统一覆盖：把散乱的材质收归三层
+ * ==========================================================================
+ * 原则：**按元素在界面里的"高度"分配材质**
+ *   贴内容（列表、标签、输入框）  → thin
+ *   浮起一层（顶栏、底栏、下拉）  → regular
+ *   遮盖内容（弹窗、抽屉）        → thick
+ *
+ * 这样即使具体数值变了，同一高度的东西永远是同一个厚度。
+ */
+
+/* ---- 顶栏：regular ---- */
+.site-header {
+    -webkit-backdrop-filter: blur(var(--material-regular-blur)) saturate(var(--material-regular-saturate));
+    backdrop-filter: blur(var(--material-regular-blur)) saturate(var(--material-regular-saturate));
+    background-color: var(--material-regular-bg);
+    box-shadow: none;
+    border-bottom: 0.5px solid var(--border-glass, rgba(15, 23, 42, 0.07));
+}
+.site-header.is-scrolled {
+    box-shadow: var(--elev-1), var(--material-edge);
+}
+
+/* ---- 底栏：regular ---- */
+.mobile-bottom-nav {
+    -webkit-backdrop-filter: blur(var(--material-regular-blur)) saturate(var(--material-regular-saturate));
+    backdrop-filter: blur(var(--material-regular-blur)) saturate(var(--material-regular-saturate));
+    background-color: var(--material-regular-bg);
+    border-top: 0.5px solid var(--border-glass, rgba(15, 23, 42, 0.08));
+    box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+html.dark-theme .mobile-bottom-nav {
+    box-shadow: none;
+}
+
+/* ---- 下拉菜单：regular ---- */
+.user-dropdown {
+    -webkit-backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-regular-saturate));
+    backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-regular-saturate));
+    background-color: var(--material-thick-bg);
+    box-shadow: var(--elev-3), var(--material-edge);
+    border: 0.5px solid var(--border-glass, rgba(15, 23, 42, 0.08));
+    border-radius: var(--radius-lg, 1.5rem);
+}
+
+/* ---- 通知面板 / 搜索建议：regular ---- */
+.notification-panel,
+.search-history-dropdown,
+.search-suggestions {
+    -webkit-backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-regular-saturate));
+    backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-regular-saturate));
+    background-color: var(--material-thick-bg);
+    box-shadow: var(--elev-3), var(--material-edge);
+    border: 0.5px solid var(--border-glass, rgba(15, 23, 42, 0.08));
+}
+
+/* ---- 弹窗：thick ---- */
+.modal-box, .modal-content, .site-modal-box, .pm-modal, .pmr-modal, .sponsor-modal {
+    -webkit-backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-thick-saturate));
+    backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-thick-saturate));
+    background-color: var(--material-thick-bg);
+    box-shadow: var(--elev-4), var(--material-edge);
+    border: 0.5px solid var(--border-glass, rgba(15, 23, 42, 0.08));
+    border-radius: var(--radius-lg, 1.5rem);
+}
+
+/* ---- 卡片：不用毛玻璃，用纯色 + 极淡阴影 ----
+ *
+ * 理由：卡片是内容容器，数量多（一屏十几张）。
+ * 每张都做 backdrop-filter，中低端机滑动会明显掉帧。
+ * Apple 自己的列表也是纯色 + 分隔线，不是玻璃。
+ */
+.post-card {
+    background-color: var(--card-bg, #fff);
+    box-shadow: none;
+    border: 0.5px solid var(--border-light, rgba(15, 23, 42, 0.06));
+    transition: box-shadow var(--dur-fast) var(--ease-sharp),
+                transform var(--dur-fast) var(--ease-sharp);
+}
+@media (hover: hover) {
+    .post-card:hover {
+        box-shadow: var(--elev-2);
+        border-color: var(--border, rgba(15, 23, 42, 0.10));
+    }
+}
+
+/* ---- 浮起卡片（工具卡 / 统计卡）：elev-1 ---- */
+.tool-card, .stat-card, .chart-card {
+    background-color: var(--card-bg, #fff);
+    border: 0.5px solid var(--border-light, rgba(15, 23, 42, 0.06));
+    box-shadow: var(--elev-1);
+    border-radius: var(--radius-card, 1.5rem);
+    transition: box-shadow var(--dur-base) var(--ease-spring),
+                transform var(--dur-base) var(--ease-spring);
+}
+@media (hover: hover) {
+    .tool-card:hover, .stat-card:hover {
+        box-shadow: var(--elev-3);
+        transform: translateY(-3px);
+    }
+}
+
+/* ==========================================================================
+ * 五、统一覆盖：触感反馈
+ * ==========================================================================
+ * Apple HIG 的「按下反馈」三要素：缩放 + 变暗 + 80ms 过渡。
+ * 缺任何一项，手机用户都会觉得「点了没反应」。
+ * 用 :active 而不是 JS，因为 CSS 的响应比任何脚本都快。
+ */
+
+.btn,
+button.btn,
+.t-btn,
+.pm-btn,
+.uc-btn,
+.fv-submit-btn,
+.badge,
+.nav-icon,
+.btn-icon {
+    transition: transform var(--dur-instant) var(--ease-sharp),
+                background-color var(--dur-fast) var(--ease-sharp),
+                box-shadow var(--dur-fast) var(--ease-sharp),
+                opacity var(--dur-fast) var(--ease-sharp);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+.btn:active,
+button.btn:active,
+.t-btn:active,
+.pm-btn:active,
+.uc-btn:active,
+.fv-submit-btn:active,
+.btn-icon:active,
+.nav-icon:active {
+    transform: scale(0.96);
+    filter: brightness(0.94);
+    transition-duration: var(--dur-instant);
+}
+
+/* 卡片与列表行：更轻的按压（面积大，缩放要保守） */
+.post-card:active,
+.list-item:active,
+.uc-section:active,
+.comment-item:active {
+    transform: scale(0.994);
+    filter: brightness(0.985);
+    transition: transform var(--dur-instant) var(--ease-sharp),
+                filter var(--dur-instant) var(--ease-sharp);
+}
+
+/* 触控设备的触摸目标下限：44×44（Apple HIG） */
+@media (pointer: coarse) {
+    .nav-icon,
+    .btn-icon,
+    .icon-btn,
+    .lw-icon-btn,
+    .post-card-actions button,
+    .post-card-actions a {
+        min-width: var(--touch-min);
+        min-height: var(--touch-min);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* ==========================================================================
+ * 六、统一覆盖：图标动效收敛
+ * ==========================================================================
+ * 原 icon-motion.css 里每个图标都有自己的动画（旋转/跳动/抖动/脉冲）。
+ * 全站同时出现 6 种动画会显得"很吵"。
+ * Apple 的克制做法：只给「确实需要强调状态变化」的动作加动画。
+ */
+
+/* 刷新类：旋转（有明确语义，保留） */
+.btn-icon[aria-label*="刷新"]:hover svg,
+.refresh-btn:hover svg,
+[data-action="refresh"]:hover svg {
+    animation: lw-apple-spin 620ms var(--ease-smooth);
+}
+@keyframes lw-apple-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* 点赞：只做一次轻微弹跳，不再循环 */
+.act-like:hover svg,
+.like-btn:hover svg,
+[data-action="like"]:hover svg {
+    animation: lw-apple-beat 460ms var(--ease-spring);
+}
+@keyframes lw-apple-beat {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.22); }
+    100% { transform: scale(1); }
+}
+
+/* 其余通用图标：只做 1.08 缩放，不再旋转/抖动/脉冲 */
+svg:not([class*="lw-icon-"]):not(.no-motion) {
+    transition: transform var(--dur-fast) var(--ease-spring);
+    transform-origin: center;
+}
+.btn:hover svg:not([class*="lw-icon-"]):not(.no-motion),
+a:hover > svg:not([class*="lw-icon-"]):not(.no-motion),
+button:hover > svg:not([class*="lw-icon-"]):not(.no-motion) {
+    transform: scale(1.08);
+}
+/* 覆盖掉原来那些"旋转 -5deg / 抖动 / 无限脉冲"的花哨动画 */
+.btn:hover svg:not([class*="lw-icon-"]),
+a:hover > svg:not([class*="lw-icon-"]),
+button:hover > svg:not([class*="lw-icon-"]) {
+    animation: none;
+}
+
+/* ==========================================================================
+ * 七、统一覆盖：焦点环
+ * ==========================================================================
+ * 键盘用户必须看得见焦点在哪。但鼠标点击时不该出现焦点环。
+ * 用 :focus-visible 正好满足两者。
+ */
+
+:focus-visible {
+    outline: 2px solid var(--primary, #2F5B9A);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ==========================================================================
+ * 八、滚动与溢出
+ * ==========================================================================
+ * iOS 的滚动有两个细节决定了"高级感"：
+ *   1. 惯性滚动（-webkit-overflow-scrolling: touch）
+ *   2. 滚动到边界时的橡皮筋效果（overscroll-behavior: contain 防止带动整页）
+ */
+
+.comment-list,
+.notification-panel-list,
+.user-dropdown,
+.table-wrap,
+.posts-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* 细滚动条：只在支持的平台显示，且默认半透明 */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.42) transparent;
+}
+html.dark-theme * {
+    scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+/* ==========================================================================
+ * 九、降低动效偏好
+ * ==========================================================================
+ * 系统开了「减少动态效果」的用户（前庭功能障碍、晕动症）
+ * 需要看到零动画。这不是"可选优化"，是无障碍要求。
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .post-card:active,
+    .btn:active,
+    button:active {
+        transform: none !important;
+        filter: none !important;
+    }
+}
+
+/* ==========================================================================
+ * 十、打印
+ * ==========================================================================
+ */
+@media print {
+    .site-header,
+    .mobile-bottom-nav,
+    .user-dropdown,
+    .toast-container,
+    .lw-fab,
+    .guest-bar,
+    .announcement-bar {
+        display: none !important;
+    }
+    .post-card,
+    .tool-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        break-inside: avoid;
+    }
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+}

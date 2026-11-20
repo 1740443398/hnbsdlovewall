@@ -212,6 +212,16 @@ $dirChecks = [
 $jsonTableCount = count($jsonTables);
 $phpVersion = PHP_VERSION;
 
+/* ---- 今日访问数据（服务端直出，不用等 AJAX）----
+ * 仪表盘首屏就要看到「今天来了多少人」，
+ * 走 AJAX 会多等一个 ~950ms 的请求，体验很差。 */
+$__vis = function_exists('lwVisitToday') ? lwVisitToday() : [
+    'total' => 0, 'members' => 0, 'guests' => 0, 'new_users' => 0, 'visits' => 0, 'users' => [],
+];
+$__visTrend = function_exists('lwVisitTrend') ? lwVisitTrend(7) : [];
+$__visMax = 1;
+foreach ($__visTrend as $__t) { $__visMax = max($__visMax, (int)$__t['total']); }
+
 adminHeader('数据看板', $adminUser, $csrfToken);
 ?>
 
@@ -277,6 +287,95 @@ adminHeader('数据看板', $adminUser, $csrfToken);
         </div>
         <div class="stat-change positive">备份提醒：定期留档 ></div>
     </a>
+</div>
+
+<!-- ==================================================================
+     今日访问用户
+     ==================================================================
+     放在统计卡片正下方 —— 「今天来了多少人」是站长每天最重要的
+     一个数字，位置必须一眼能看到，不能藏到下面的图表区里。
+     ================================================================== -->
+<div class="visit-card">
+    <div class="visit-head">
+        <div>
+            <div class="visit-title">今日访问</div>
+            <div class="visit-date"><?= date('Y 年 n 月 j 日') ?></div>
+        </div>
+        <div class="visit-trend">
+            <?php foreach ($__visTrend as $t): ?>
+                <?php
+                $h = (int)$t['total'] > 0
+                    ? max(6, (int)round((int)$t['total'] / $__visMax * 32))
+                    : 3;
+                $isToday = ($t['date'] === date('Y-m-d'));
+                ?>
+                <div class="vt-bar-wrap" title="<?= htmlspecialchars($t['date']) ?>：<?= (int)$t['total'] ?> 人">
+                    <div class="vt-bar <?= $isToday ? 'is-today' : '' ?>"
+                         style="height:<?= $h ?>px;"></div>
+                    <div class="vt-label"><?= htmlspecialchars(substr($t['label'], 3)) ?></div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <div class="visit-nums">
+        <div class="vn-item vn-main">
+            <div class="vn-value"><?= (int)$__vis['total'] ?></div>
+            <div class="vn-label">总访客</div>
+        </div>
+        <div class="vn-sep"></div>
+        <div class="vn-item">
+            <div class="vn-value"><?= (int)$__vis['members'] ?></div>
+            <div class="vn-label">登录用户</div>
+        </div>
+        <div class="vn-sep"></div>
+        <div class="vn-item">
+            <div class="vn-value"><?= (int)$__vis['guests'] ?></div>
+            <div class="vn-label">游客</div>
+        </div>
+        <div class="vn-sep"></div>
+        <div class="vn-item">
+            <div class="vn-value vn-new"><?= (int)$__vis['new_users'] ?></div>
+            <div class="vn-label">首次来访</div>
+        </div>
+        <div class="vn-sep"></div>
+        <div class="vn-item">
+            <div class="vn-value"><?= (int)$__vis['visits'] ?></div>
+            <div class="vn-label">访问次数</div>
+        </div>
+    </div>
+
+    <?php if (!empty($__vis['users'])): ?>
+    <div class="visit-users">
+        <div class="vu-head">
+            今日来访的登录用户
+            <span class="vu-count"><?= count($__vis['users']) ?> 人</span>
+        </div>
+        <div class="vu-list">
+            <?php foreach (array_slice($__vis['users'], 0, 40) as $vu): ?>
+                <div class="vu-item">
+                    <span class="vu-name"><?= htmlspecialchars($vu['nickname']) ?></span>
+                    <?php if (!empty($vu['is_new'])): ?>
+                        <span class="vu-tag">新</span>
+                    <?php endif; ?>
+                    <span class="vu-meta">
+                        <?= (int)$vu['visits'] ?> 次 ·
+                        <?= date('H:i', (int)$vu['last_at']) ?>
+                    </span>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php if (count($__vis['users']) > 40): ?>
+            <div class="vu-more">
+                还有 <?= count($__vis['users']) - 40 ?> 人未显示
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php else: ?>
+    <div class="visit-empty">
+        今天还没有登录用户来访。分享链接到班级群试试？
+    </div>
+    <?php endif; ?>
 </div>
 
 <div class="dashboard-grid">
@@ -580,7 +679,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 .donut-legend em { font-style: normal; color: var(--text-secondary); width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
 /* 活跃时段热力：24 格两行，深浅由 --v 控制 */
 .heat { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
-.heat-cell { aspect-ratio: 1 / 1; border-radius: 4px; background: var(--primary); opacity: var(--v, .1); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: var(--on-solid, var(--card-bg)); }
+.heat-cell { aspect-ratio: 1 / 1; border-radius: 4px; background: var(--primary); opacity: var(--v, .1); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: var(--on-solid, #fff); }
 .dash-hint { font-size: 11px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
 .dash-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 13px; }
 /* 待办中心 */
@@ -589,7 +688,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 .todo-list a { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px; text-decoration: none; color: var(--text); font-size: 13px; }
 .todo-list a:hover { color: var(--primary); }
 .todo-list b { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
-.todo-list b.hot { color: var(--on-solid, var(--card-bg)); background: var(--danger); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.todo-list b.hot { color: var(--on-solid, #fff); background: var(--danger); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
 
 .dashboard-grid {
     display: grid;
@@ -657,7 +756,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
     height: 7px;
     margin-right: 5px;
     border-radius: 50%;
-    background: var(--success, var(--success));
+    background: var(--success, #2E8B57);
     vertical-align: middle;
     box-shadow: 0 0 0 0 rgba(46, 139, 87, .55);
     animation: onlinePulse 2s ease-out infinite;
@@ -672,26 +771,201 @@ adminHeader('数据看板', $adminUser, $csrfToken);
 }
 
 /* ===== 资源占用卡片 ===== */
-.res-card{background:var(--card-bg);border-radius:14px;padding:18px 20px;margin-top:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+.res-card{background:#fff;border-radius:14px;padding:18px 20px;margin-top:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
 .res-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.res-head h3{margin:0;font-size:15px;font-weight:600;color:var(--text)}
-.res-head .res-refresh{border:0;background:var(--border-light);color:var(--text-secondary);font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer}
+.res-head h3{margin:0;font-size:15px;font-weight:600;color:#1F2733}
+.res-head .res-refresh{border:0;background:#F0F3F8;color:#4A5568;font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer}
 .res-head .res-refresh:hover{background:#E4E9F1}
 .res-total{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
-.res-total .num{font-size:28px;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
-.res-total .of{font-size:13px;color:var(--text-muted)}
-.res-bar{height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:6px}
-.res-bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--info),#22B07D);transition:width .4s ease}
-.res-pct{font-size:12px;color:var(--text-muted);margin-bottom:16px}
+.res-total .num{font-size:28px;font-weight:700;color:#2F5B9A;font-variant-numeric:tabular-nums}
+.res-total .of{font-size:13px;color:#9AA4B2}
+.res-bar{height:8px;background:#EEF1F6;border-radius:4px;overflow:hidden;margin-bottom:6px}
+.res-bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4F7FE0,#22B07D);transition:width .4s ease}
+.res-pct{font-size:12px;color:#9AA4B2;margin-bottom:16px}
 .res-rows{display:flex;flex-direction:column;gap:9px}
 .res-row{display:flex;align-items:center;gap:10px;font-size:13px}
 .res-row .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.res-row .name{flex:1 1 auto;color:var(--text-secondary)}
-.res-row .cnt{color:var(--text-muted);font-size:11px}
-.res-row .val{font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;min-width:62px;text-align:right}
-.res-mem{margin-top:14px;padding-top:12px;border-top:1px solid var(--bg-secondary);font-size:12px;color:var(--text-secondary);display:flex;gap:18px;flex-wrap:wrap}
-.res-mem b{color:var(--text);font-variant-numeric:tabular-nums}
+.res-row .name{flex:1 1 auto;color:#4A5568}
+.res-row .cnt{color:#9AA4B2;font-size:11px}
+.res-row .val{font-variant-numeric:tabular-nums;color:#1F2733;font-weight:600;min-width:62px;text-align:right}
+.res-mem{margin-top:14px;padding-top:12px;border-top:1px solid #EEF1F6;font-size:12px;color:#6B7684;display:flex;gap:18px;flex-wrap:wrap}
+.res-mem b{color:#1F2733;font-variant-numeric:tabular-nums}
 
+
+        /* ==================================================================
+         * 今日访问卡片
+         * ==================================================================
+         * 视觉优先级：
+         *   总访客（最大最重）> 分类数字 > 用户列表（最小最淡）
+         * 因为站长一眼只想看「今天来了多少人」，其余是补充信息。
+         * ================================================================== */
+        .visit-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+        .visit-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .visit-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .visit-date {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ---- 7 天迷你柱状图 ---- */
+        .visit-trend {
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            height: 46px;
+        }
+        .vt-bar-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            min-width: 16px;
+        }
+        .vt-bar {
+            width: 8px;
+            border-radius: 3px;
+            background: var(--border);
+            transition: height .3s ease;
+        }
+        .vt-bar.is-today {
+            background: var(--primary);
+        }
+        .vt-label {
+            font-size: 9.5px;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        /* ---- 数字行 ---- */
+        .visit-nums {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 14px 0;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: wrap;
+        }
+        .vn-item {
+            flex: 1 1 auto;
+            min-width: 72px;
+            text-align: center;
+            padding: 0 6px;
+        }
+        .vn-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+        }
+        .vn-main .vn-value {
+            font-size: 28px;
+            color: var(--primary);
+        }
+        .vn-new { color: var(--success); }
+        .vn-label {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+        .vn-sep {
+            width: 1px;
+            height: 26px;
+            background: var(--border-light);
+            flex: 0 0 auto;
+        }
+
+        /* ---- 用户列表 ---- */
+        .visit-users { margin-top: 13px; }
+        .vu-head {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .vu-count {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: var(--bg-secondary);
+            padding: 1px 7px;
+            border-radius: 999px;
+        }
+        .vu-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .vu-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 9px;
+            background: var(--bg-secondary);
+            border-radius: 999px;
+            font-size: 12px;
+            max-width: 100%;
+        }
+        .vu-name {
+            font-weight: 600;
+            color: var(--text);
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .vu-tag {
+            font-size: 9px;
+            font-weight: 700;
+            color: #fff;
+            background: var(--success);
+            padding: 0 4px;
+            border-radius: 3px;
+            line-height: 1.5;
+        }
+        .vu-meta {
+            font-size: 10.5px;
+            color: var(--text-muted);
+        }
+        .vu-more, .visit-empty {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 9px;
+            padding: 9px 12px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+        }
+
+        @media (max-width: 640px) {
+            .visit-card { padding: 13px 14px; }
+            .vn-main .vn-value { font-size: 24px; }
+            .vn-value { font-size: 17px; }
+            .visit-trend { display: none; }
+            .vn-sep { display: none; }
+            .vn-item { min-width: 60px; }
+        }
 </style>
 
 <script>

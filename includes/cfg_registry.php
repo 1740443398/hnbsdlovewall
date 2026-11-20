@@ -106,9 +106,9 @@ if (!defined('LW_CFG_REGISTRY_LOADED')) {
                         'hint'  => '关闭后邀请码不再免验证、也不再发奖励。',
                     ],
                     'guest_visible_posts' => [
-                        'label' => '游客可见帖子数', 'type' => 'number', 'default' => '5',
+                        'label' => '游客可见帖子数', 'type' => 'number', 'default' => '20',
                         'min'   => 0, 'max' => 50,
-                        'hint'  => '未注册访客在首页能看到的条数。设 0 则完全要求登录。',
+                        'hint'  => '未注册访客在首页能看到的条数（默认 20，与每页条数一致）。设 0 则完全要求登录。',
                     ],
                     'maintenance_mode' => [
                         'label' => '维护模式', 'type' => 'switch', 'default' => '0',
@@ -219,15 +219,26 @@ if (!defined('LW_CFG_REGISTRY_LOADED')) {
                 'icon'  => 'smartphone',
                 'items' => [
                     'app_latest_version_code' => [
-                        'label' => '最新版本号 (数字)', 'type' => 'number', 'default' => '20402',
+                        /* 默认值刻意留空 —— 让 config/app_config.php 里的值生效。
+   *
+   * 【2026-10-31 修复：发版后 App 收不到更新提示】
+   * 这里原来写死 '20402'。lwCfg() 在后台没配置时会返回这个默认值，
+   * 于是 app_config.php 里改好的 20500 被它覆盖成 20402 ——
+   * App 拿到的「最新版」永远是 2.4.2，更新提示永远不出现。
+   *
+   * 留空后 lwCfg 返回 ''，app_config.php 的 version_code 就生效了。
+   * 站长想在后台改，填上值即可覆盖。 */
+                    'label' => '最新版本号 (数字)', 'type' => 'number', 'default' => '',
                         'min'   => 1, 'max' => 999999,
                         'hint'  => '必须比旧版本大，App 靠它判断要不要提示更新。',
                     ],
                     'app_latest_version_name' => [
-                        'label' => '最新版本名', 'type' => 'text', 'default' => '2.4.2',
+                        // 留空 → 用 app_config.php 的值（原因同上）
+                        'label' => '最新版本名', 'type' => 'text', 'default' => '',
                     ],
                     'app_apk_file' => [
-                        'label' => 'APK 文件名', 'type' => 'text', 'default' => 'lovewall-v2.4.2.apk',
+                        // 留空 → 用 app_config.php 的值（原因同上）
+                        'label' => 'APK 文件名', 'type' => 'text', 'default' => '',
                         'hint'  => '放在 /download/ 目录下的文件名。',
                     ],
                     'app_update_notes' => [

@@ -255,8 +255,27 @@ unset($__sessDir);
 // 表现为登录/注册等提交时 CSRF_token 永远不匹配（403「CSRF验证失败」）。
 // httpOnly/SameSite/secure 等主要防护仍保留。
 ini_set('session.use_strict_mode', 0);
-// PHP 8.4 起 session.sid_length 已弃用且不可再修改，交由 PHP 自行管理，故不再设置。
-ini_set('session.sid_bits_per_character', 6);
+/* =====================================================================
+ * session ID 字符集 —— 这里也踩过坑
+ * =====================================================================
+ * sid_bits_per_character = 6 时，PHP 用 64 个字符编码：
+ *   0-9 a-z A-Z , -
+ * 注意里面有**逗号和连字符**。
+ *
+ * 实测服务器上 159 个 session 文件，36% 的文件名含逗号、
+ * 35% 含连字符，其中 41 个文件只有 37 字节（空会话）——
+ * 说明不少会话创建后没能正常读回。
+ *
+ * 逗号在 shell、日志、某些文件系统工具里是分隔符，
+ * 虽然 PHP 自己写文件没问题，但一旦链路上有任何工具处理过
+ * 文件名（备份脚本、CDN、日志分析），会话就会丢。
+ *
+ * 改成 5：字符集变为 0-9 a-z（32 个），纯字母数字，
+ * 文件名干净、URL 里安全、不会被任何工具误伤。
+ * 代价是同样长度的 ID 熵略低，但 PHP 默认 sid_length 是 26，
+ * 32^26 仍然远超暴力破解可行范围。
+ * ===================================================================== */
+ini_set('session.sid_bits_per_character', 5);
 error_reporting($__errPrev);
 
 // 关掉 PHP 会话自带的缓存头（默认 nocache 会发 no-store, must-revalidate）。
@@ -421,6 +440,7 @@ spl_autoload_register(function($class) {
 
 require_once __DIR__ . '/../includes/filestorage.php';
 require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/visit_stats.php';
 /* 自恢复守护：熔断 / 数据自愈 / 磁盘保护 / 保护模式。
  * 放在 security 之后、WAF 之前 —— 这样后面的每个请求都能用上，
  * 同时它本身不依赖 WAF（主机挂的时候 WAF 也可能挂）。 */
@@ -430,6 +450,19 @@ require_once __DIR__ . '/../includes/mail_service.php';
 // 富文本渲染（Markdown + 白名单 HTML）
 require_once __DIR__ . '/../includes/text_linkify.php';
 require_once __DIR__ . '/../includes/richtext.php';
+/* App 推送与设备台账 —— api/admin/app_push.php、api/app_report.php 依赖它。
+ *
+ * 【2026-10-31 修复：之前没加载，导致后台「App 推送」页 502】
+ * 该文件定义了 LW_APP_PUSH_MAX / LW_APP_DEVICE_MAX 两个常量，
+ * 以及 lwAppStats / lwAppPushList / lwCollectAppPushes 三个函数。
+ * api/admin/app_push.php 里直接调用它们，但 config.php 从未 require，
+ * 于是 PHP 抛 "Call to undefined function lwAppStats()" → 500/502。
+ *
+ * 为什么之前没发现：这个页面只有装了 App 才会用，
+ * 而且报错发生在 AJAX 请求里，页面上只显示「加载失败」。 */
+if (is_file(__DIR__ . '/../includes/app_push.php')) {
+    require_once __DIR__ . '/../includes/app_push.php';
+}
 
 /* =====================================================================
  * 全站维护模式拦截

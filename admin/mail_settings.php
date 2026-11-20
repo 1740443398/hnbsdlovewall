@@ -18,6 +18,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/mail_service.php';
+require_once __DIR__ . '/../includes/mail_task.php';
 require_once __DIR__ . '/layout.php';
 
 $admin = requireAdmin();
@@ -138,7 +139,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
         $link     = trim((string)($_POST['link'] ?? ''));
         $linkText = trim((string)($_POST['linkText'] ?? ''));
         $scope    = (string)($_POST['scope'] ?? 'all');
-        $limit    = max(1, min(100, (int)($_POST['limit'] ?? 30)));
+        $limit    = max(1, min(50, (int)($_POST['limit'] ?? 10)));
 
         if ($subject === '' || $title === '') {
             $msg = '主题和标题不能为空';
@@ -186,26 +187,100 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
                 }
             }
 
-            $r = lwMailBroadcast($ids, $subject, [
-                'title'    => $title,
-                'lines'    => $lines,
-                'link'     => $link,
-                'linkText' => $linkText !== '' ? $linkText : '打开网站',
-            ], $limit);
+            /* 分批续发：offset 表示从第几个收件人开始。
+             *
+             * 主机单次请求约 60 秒上限，一次发 115 封会超时被掐断，
+             * 超时前发的信还没记录。所以改成前端自动连续请求：
+             * 每批 30 封，发完立刻请求下一批，直到 remaining = 0。
+             */
+            /* =====================================================================
+             * 【必须释放 session 锁，否则整站卡死】
+             * =====================================================================
+             * PHP 的 session 是文件锁独占的：一个请求 session_start() 之后，
+             * 同一个 PHPSESSID 的其他请求会全部阻塞等待，直到这个请求结束。
+             *
+             * 群发一批要 13.5 秒（10 封 × 1.35 秒）。在这 13.5 秒里，
+             * 站长自己在别的标签页点任何链接、任何 AJAX 都会卡住 ——
+             * 因为它们在等同一把 session 锁。表现就是「网站被卡死」。
+             *
+             * session_write_close() 把 session 数据写回磁盘并立即释放锁。
+             * 之后这个请求不再持有锁，其他请求就能正常跑。
+             * 群发逻辑本身不需要再改 session（只读管理员身份，已读过了）。
+             * ===================================================================== */
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
 
-            $msg = sprintf(
-                '群发完成：成功 %d 封，失败 %d 封，跳过 %d 个（共 %d 个候选）',
-                $r['sent'], $r['failed'], $r['skipped'], count($ids)
-            );
-            $msgType = ($r['sent'] > 0 || $r['failed'] === 0) ? 'ok' : 'err';
+            // 长任务：解除执行时间限制（能解就解，共享主机可能不让）
+            @set_time_limit(0);
+            @ignore_user_abort(true);
 
-            if ($r['failed'] > 0) {
-                $firstErr = '';
-                foreach ($r['results'] as $rr) {
-                    if (empty($rr['ok']) && $rr['err'] !== '') { $firstErr = $rr['err']; break; }
+            /* ==================================================================
+             * 任务化群发
+             * ==================================================================
+             * 点一次「开始群发」→ 服务端创建任务 → 前端反复调 run 接口，
+             * 直到 remaining = 0。
+             *
+             * 关键：进度存在服务端（mail_tasks 表），不是浏览器内存。
+             * 所以页面关了、网断了、手机关机了，任务都还在，
+             * 重新打开后台能看到「未完成的任务」，点一下继续。
+             *
+             * 原来 offset 存在前端，一旦中断就永久丢失剩余收件人 ——
+             * 这正是「选全部用户但只发了一部分」的原因。
+             * ================================================================== */
+            $ajax = (($_POST['ajax'] ?? '') === '1');
+            $batchSize = max(1, min(20, (int)($_POST['limit'] ?? 10)));
+
+            // ---- 分支 A：继续已有任务 ----
+            $taskId = (int)($_POST['task_id'] ?? 0);
+            if ($taskId > 0) {
+                $run = lwMailTaskRun($taskId, $batchSize);
+
+                if ($ajax) {
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode(array_merge(['success' => $run['ok']], $run), JSON_UNESCAPED_UNICODE);
+                    exit;
                 }
-                if ($firstErr !== '') {
-                    $msg .= '（首个失败原因：' . $firstErr . '）';
+                $msg = sprintf(
+                    '任务 #%d：已发 %d / %d（失败 %d，跳过 %d）',
+                    $taskId, (int)$run['sent'], (int)$run['total'],
+                    (int)$run['failed'], (int)$run['skipped']
+                );
+                $msgType = empty($run['abort']) ? 'ok' : 'err';
+            } else {
+                // ---- 分支 B：创建新任务并跑第一批 ----
+                $created = lwMailTaskCreate($ids, $subject, [
+                    'title'    => $title,
+                    'lines'    => $lines,
+                    'link'     => $link,
+                    'linkText' => $linkText !== '' ? $linkText : '打开网站',
+                ], $scope, (int)$admin['id']);
+
+                if (!$created['ok']) {
+                    if ($ajax) {
+                        header('Content-Type: application/json; charset=utf-8');
+                        echo json_encode(['success' => false, 'error' => $created['error']], JSON_UNESCAPED_UNICODE);
+                        exit;
+                    }
+                    $msg = '任务创建失败：' . $created['error'];
+                    $msgType = 'err';
+                } else {
+                    $taskId = (int)$created['id'];
+                    $run = lwMailTaskRun($taskId, $batchSize);
+
+                    if ($ajax) {
+                        header('Content-Type: application/json; charset=utf-8');
+                        echo json_encode(array_merge(
+                            ['success' => true, 'task_id' => $taskId],
+                            $run
+                        ), JSON_UNESCAPED_UNICODE);
+                        exit;
+                    }
+                    $msg = sprintf(
+                        '任务 #%d 已创建：共 %d 个收件人，首批已发 %d 封',
+                        $taskId, (int)$run['total'], (int)$run['sent_now']
+                    );
+                    $msgType = 'ok';
                 }
             }
         }
@@ -215,6 +290,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['act'] ?? '') === '
 // ---- 计算各范围的实际收件人数（供表单显示）-----------------------------------
 $scopeCounts = ['all' => 0, 'active' => 0, 'inactive' => 0, 'owner' => 0];
 $cut30 = time() - 30 * 86400;
+/* 【修复 500】$fs 在本文件里从未定义过 —— 只有群发分支局部用了 $fs2。
+ * 未定义变量是 null，null->read() 直接致命错误，整页 500。
+ * php -l 查不出这种问题，必须实际访问页面。 */
+$fs = getFS();
 foreach ($fs->read('users') as $u) {
     $uid = (int)($u['id'] ?? 0);
     if ($uid <= 0) continue;
@@ -270,37 +349,62 @@ adminHeader('邮件设置', $admin, $csrfToken);
 <style>
 .mail-wrap { max-width: 980px; }
 .mail-msg { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
-.mail-msg.ok  { background: var(--success-light); color: var(--success); border: 1px solid var(--success-light); }
-.mail-msg.err { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-light); }
-.mail-badge.on  { background: var(--success-light); color: var(--success); }
-.mail-badge.off { background: var(--warning-light); color: var(--warning); }
-@media (max-width: 700px) { }
+.mail-msg.ok  { background: #EAF7F1; color: #178A62; border: 1px solid #C5E9D8; }
+.mail-msg.err { background: #FDECEC; color: #C0392B; border: 1px solid #F5C6C6; }
+
+.mail-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    margin-bottom: 16px;
+}
+.mail-badge.on  { background: #EAF7F1; color: #178A62; }
+.mail-badge.off { background: #FEF3E7; color: #B4761F; }
+
+.mail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 700px) { .mail-grid { grid-template-columns: 1fr; } }
+
+.mail-field { margin-bottom: 14px; }
 .mail-field label {
     display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;
-    color: var(--text-primary, var(--text));
+    color: var(--text-primary, #1F2733);
 }
-.mail-field .hint { font-size: 12px; color: var(--text-muted, var(--text-muted)); margin-bottom: 6px; line-height: 1.6; }
+.mail-field .hint { font-size: 12px; color: var(--text-muted, #98A2B3); margin-bottom: 6px; line-height: 1.6; }
+.mail-input {
+    width: 100%; padding: 9px 12px; font-size: 13.5px; font-family: inherit;
+    border: 1px solid var(--border-color, #E4E9F0); border-radius: 9px;
+    background: var(--bg-input, #fff); color: var(--text-primary, #1F2733); outline: none;
+}
+.mail-input:focus { border-color: var(--primary, #2F5B9A); }
+
+.mail-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.mail-stat {
+    flex: 1 1 110px; min-width: 110px; padding: 14px 16px;
+    background: var(--bg-secondary, #F7F9FC); border-radius: 11px;
+    border: 1px solid var(--border-light, #EEF2F7);
+}
 .mail-stat b { display: block; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.mail-stat span { font-size: 12px; color: var(--text-muted, var(--text-muted)); }
+.mail-stat span { font-size: 12px; color: var(--text-muted, #98A2B3); }
+
+.mail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .mail-table th {
     text-align: left; padding: 9px 10px; font-size: 12px; font-weight: 600;
-    color: var(--text-muted, var(--text-muted)); border-bottom: 1px solid var(--border-color, var(--border));
+    color: var(--text-muted, #98A2B3); border-bottom: 1px solid var(--border-color, #E4E9F0);
     white-space: nowrap;
 }
 .mail-table td {
-    padding: 10px; border-bottom: 1px solid var(--border-light, var(--bg-secondary));
+    padding: 10px; border-bottom: 1px solid var(--border-light, #F3F6FA);
     vertical-align: top; word-break: break-all;
 }
-.mail-ok   { color: var(--success); font-weight: 600; }
-.mail-fail { color: var(--danger); font-weight: 600; }
-.mail-skip { color: var(--text-muted); }
+.mail-ok   { color: #178A62; font-weight: 600; }
+.mail-fail { color: #C0392B; font-weight: 600; }
+.mail-skip { color: #98A2B3; }
 
 .mail-pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; }
 .mail-pager a {
     padding: 5px 11px; border-radius: 7px; text-decoration: none;
-    background: var(--bg-secondary, var(--bg-secondary)); color: var(--text-secondary, var(--text-secondary));
+    background: var(--bg-secondary, #F3F6FA); color: var(--text-secondary, #5A6472);
 }
-.mail-pager a:hover { background: var(--primary, var(--primary)); color: var(--card-bg); }
+.mail-pager a:hover { background: var(--primary, #2F5B9A); color: #fff; }
 </style>
 
 <div class="mail-wrap">
@@ -319,25 +423,25 @@ adminHeader('邮件设置', $admin, $csrfToken);
         <div class="section-header"><h3>SMTP 连接参数</h3></div>
         <div class="section-body">
             <div class="mail-grid">
-                <div class="adm-field">
+                <div class="mail-field">
                     <label>SMTP 服务器</label>
                     <div class="hint">QQ 邮箱填 smtp.qq.com</div>
-                    <input class="adm-input" name="host" value="<?= htmlspecialchars((string)($curCfg['host'] ?? 'smtp.qq.com')) ?>">
+                    <input class="mail-input" name="host" value="<?= htmlspecialchars((string)($curCfg['host'] ?? 'smtp.qq.com')) ?>">
                 </div>
-                <div class="adm-field">
+                <div class="mail-field">
                     <label>端口</label>
                     <div class="hint">SSL 用 465，STARTTLS 用 587</div>
-                    <input class="adm-input" name="port" type="number" value="<?= (int)($curCfg['port'] ?? 465) ?>">
+                    <input class="mail-input" name="port" type="number" value="<?= (int)($curCfg['port'] ?? 465) ?>">
                 </div>
             </div>
 
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>发件邮箱</label>
                 <div class="hint">必须是邮箱完整地址，例如 123456@qq.com</div>
-                <input class="adm-input" name="user" value="<?= htmlspecialchars((string)($curCfg['user'] ?? '')) ?>">
+                <input class="mail-input" name="user" value="<?= htmlspecialchars((string)($curCfg['user'] ?? '')) ?>">
             </div>
 
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>授权码</label>
                 <div class="hint">
                     不是 QQ 密码，是「QQ 邮箱 → 设置 → 账户 → POP3/SMTP 服务」里生成的授权码。
@@ -348,21 +452,21 @@ adminHeader('邮件设置', $admin, $csrfToken);
                     </span>
                     <?php endif; ?>
                 </div>
-                <input class="adm-input" name="pass" type="password"
+                <input class="mail-input" name="pass" type="password"
                        placeholder="<?= $configured && !empty($curCfg['pass']) ? '已设置 ················（留空则不修改）' : '未设置，请填写授权码' ?>"
                        autocomplete="new-password">
             </div>
 
             <div class="mail-grid">
-                <div class="adm-field">
+                <div class="mail-field">
                     <label>发件人地址</label>
                     <div class="hint">留空则与发件邮箱相同</div>
-                    <input class="adm-input" name="from" value="<?= htmlspecialchars((string)($curCfg['from'] ?? '')) ?>">
+                    <input class="mail-input" name="from" value="<?= htmlspecialchars((string)($curCfg['from'] ?? '')) ?>">
                 </div>
-                <div class="adm-field">
+                <div class="mail-field">
                     <label>发件人显示名</label>
                     <div class="hint">收件人看到的发信人名字</div>
-                    <input class="adm-input" name="from_name" value="<?= htmlspecialchars((string)($curCfg['from_name'] ?? '')) ?>">
+                    <input class="mail-input" name="from_name" value="<?= htmlspecialchars((string)($curCfg['from_name'] ?? '')) ?>">
                 </div>
             </div>
 
@@ -381,7 +485,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 下面的发送记录里会写明具体原因（认证失败 / 连接超时 / 被拒收）。
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <input class="adm-input" name="test_to" style="flex:1 1 240px;"
+                <input class="mail-input" name="test_to" style="flex:1 1 240px;"
                        placeholder="收件邮箱，例如 1740443398@qq.com">
                 <button type="submit" class="btn btn-primary">发送测试</button>
             </div>
@@ -409,7 +513,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
 
         <div class="section-body">
             <!-- 模板选择 -->
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>选用模板</label>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <?php foreach ($templates as $k => $t): ?>
@@ -428,7 +532,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
             </div>
 
             <!-- 收件范围 + 数量（放在最上面，因为这是最关键的决策）-->
-            <div class="adm-card-body">
+            <div class="bs-scope-box">
                 <div class="bs-scope-title">发给谁</div>
                 <div class="bs-scope-grid">
                     <?php
@@ -452,46 +556,46 @@ adminHeader('邮件设置', $admin, $csrfToken);
             </div>
 
             <!-- 主题 -->
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>邮件主题</label>
-                <input class="adm-input" name="subject"
+                <input class="mail-input" name="subject"
                        value="<?= htmlspecialchars((string)$sel['subject']) ?>">
             </div>
 
             <!-- 正文标题 -->
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>正文标题</label>
-                <input class="adm-input" name="title"
+                <input class="mail-input" name="title"
                        value="<?= htmlspecialchars((string)$sel['title']) ?>">
             </div>
 
             <!-- 正文内容 -->
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>正文内容</label>
                 <div class="hint">每行一段，空行会被忽略</div>
-                <textarea class="adm-input" name="lines" rows="5"><?= htmlspecialchars((string)$sel['lines']) ?></textarea>
+                <textarea class="mail-input" name="lines" rows="5"><?= htmlspecialchars((string)$sel['lines']) ?></textarea>
             </div>
 
             <!-- 按钮 -->
             <div class="mail-grid">
-                <div class="adm-field">
+                <div class="mail-field">
                     <label>按钮链接（可留空）</label>
-                    <input class="adm-input" name="link" value="<?= htmlspecialchars((string)$sel['link']) ?>">
+                    <input class="mail-input" name="link" value="<?= htmlspecialchars((string)$sel['link']) ?>">
                 </div>
-                <div class="adm-field">
+                <div class="mail-field">
                     <label>按钮文字</label>
-                    <input class="adm-input" name="linkText" value="<?= htmlspecialchars((string)$sel['linkText']) ?>">
+                    <input class="mail-input" name="linkText" value="<?= htmlspecialchars((string)$sel['linkText']) ?>">
                 </div>
             </div>
 
             <!-- 批量大小 -->
-            <div class="adm-field">
+            <div class="mail-field">
                 <label>本批最多发送</label>
                 <div class="hint">
                     QQ 邮箱对短时间大量发信有限制。建议 30 封一批，
                     发完看下方记录，再点一次继续发下一批。
                 </div>
-                <input class="adm-input" name="limit" type="number" value="30" min="1" max="100"
+                <input class="mail-input" name="limit" type="number" value="10" min="1" max="50"
                        style="max-width:140px;">
             </div>
 
@@ -501,8 +605,16 @@ adminHeader('邮件设置', $admin, $csrfToken);
                     开始群发
                 </button>
                 <span class="bs-send-hint" id="bsSendHint">
-                    将发送给 <b id="bsCount"><?= $scopeCounts['all'] ?></b> 人
+                    将自动分批发送给 <b id="bsCount"><?= $scopeCounts['all'] ?></b> 人
                 </span>
+            </div>
+
+            <!-- 发送进度（默认隐藏）-->
+            <div class="bs-progress" id="bsProgress" style="display:none;">
+                <div class="bs-progress-track">
+                    <div class="bs-progress-fill" id="bsProgressBar"></div>
+                </div>
+                <div class="bs-progress-text" id="bsProgressText">准备中…</div>
             </div>
         </div>
     </form>
@@ -511,11 +623,11 @@ adminHeader('邮件设置', $admin, $csrfToken);
     .tpl-btn {
         padding: 6px 13px; border-radius: 8px; font-size: 12.5px; font-family: inherit;
         border: 1px solid transparent; cursor: pointer;
-        background: var(--bg-secondary, var(--bg-secondary)); color: var(--text-secondary, var(--text-secondary));
+        background: var(--bg-secondary, #F3F6FA); color: var(--text-secondary, #5A6472);
         transition: background .15s, color .15s;
     }
     .tpl-btn:hover { background: #E8EDF5; }
-    .tpl-btn.active { background: var(--primary, var(--primary)); color: var(--card-bg); }
+    .tpl-btn.active { background: var(--primary, #2F5B9A); color: #fff; }
     </style>
 
     <script>
@@ -533,7 +645,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
             var sel = form.querySelector('input[name="scope"]:checked');
             var scope = sel ? sel.value : 'all';
             var total = counts[scope] || 0;
-            var limit = parseInt(limitInput.value, 10) || 30;
+            var limit = parseInt(limitInput.value, 10) || 10;
             var actual = Math.min(total, limit);
 
             countEl.textContent = total;
@@ -557,26 +669,180 @@ adminHeader('邮件设置', $admin, $csrfToken);
         });
         limitInput.addEventListener('input', update);
 
+        /* =====================================================================
+         * 自动分批发送
+         * =====================================================================
+         * 【为什么不再让用户反复点】
+         * 原来每批只发 30 封，发完停在页面让用户再点一次 ——
+         * 115 个用户要点 4 次，很容易漏发或重复发。
+         *
+         * 现在点一次「开始群发」后，前端自己循环请求：
+         *   第 1 批 offset=0  → 后端返回 remaining=85
+         *   第 2 批 offset=30 → remaining=55
+         *   ...
+         *   直到 remaining=0 自动停止
+         *
+         * 每批之间停 600ms，避免被 QQ 邮箱判定为机器群发。
+         * 中途任何一批失败都会停下来并报告，不会静默跳过。
+         * ===================================================================== */
+        /* =====================================================================
+         * 自动连续发送 —— 点一次，一直发到没有为止
+         * =====================================================================
+         * 流程：
+         *   1. 提交表单 → 服务端创建任务，返回 task_id + 首批结果
+         *   2. 前端拿到 task_id，反复调同一个接口（带 task_id）
+         *   3. 每次服务端发一批（10 封），把进度写进数据库
+         *   4. 直到 remaining = 0 或发生熔断
+         *
+         * 为什么进度一定要在服务端：
+         *   原来 offset 存在浏览器变量里。页面一刷新、手机一切后台，
+         *   变量就没了，剩下的收件人永远发不出去 ——
+         *   这就是「选了全部用户却只发了一部分」的根本原因。
+         *
+         * 现在即使中途关掉页面，重新进来还能在「任务列表」里继续。
+         * ===================================================================== */
         form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            sendAll();
+        });
+
+        /* 从「未完成任务」列表继续：直接用 task_id 驱动，不需要重新填表单 */
+        window.resumeTask = function (taskId) {
+            if (!confirm('从断点继续发送任务 #' + taskId + '？')) return;
+            sendAll(taskId);
+        };
+
+        function sendAll(resumeTaskId) {
             var sel = form.querySelector('input[name="scope"]:checked');
             var scope = sel ? sel.value : 'all';
             var total = counts[scope] || 0;
-            var limit = parseInt(limitInput.value, 10) || 30;
-            var actual = Math.min(total, limit);
 
-            if (total === 0) {
-                e.preventDefault();
+            if (!resumeTaskId && total === 0) {
                 alert('该范围内没有可发送的收件人');
                 return;
             }
-            if (!confirm('确定向 ' + actual + ' 位用户群发邮件？\n\n主题：'
-                    + form.querySelector('input[name="subject"]').value)) {
-                e.preventDefault();
+
+            var subject = form.querySelector('input[name="subject"]').value;
+            if (!resumeTaskId && !confirm(
+                    '确定向 ' + total + ' 位用户群发邮件？\n\n'
+                    + '主题：' + subject + '\n\n'
+                    + '发送会自动进行到底，中途可以关掉页面 ——\n'
+                    + '重新打开后台还能继续。')) {
                 return;
             }
+
+            var baseData = new FormData(form);
+            baseData.set('ajax', '1');
+
+            var taskId = resumeTaskId || 0;
+            var sent = 0, failed = 0, skipped = 0;
+            var grandTotal = total;
+            var batchNo = 0;
+
+            var btn = document.getElementById('bsSendBtn');
+            var progress = document.getElementById('bsProgress');
+            var bar = document.getElementById('bsProgressBar');
+            var text = document.getElementById('bsProgressText');
+
             btn.disabled = true;
-            btn.textContent = '正在发送，请稍候…';
-        });
+            if (progress) progress.style.display = 'block';
+
+            function paint() {
+                var done = sent + failed + skipped;
+                var pct = grandTotal > 0 ? Math.min(100, Math.round(done / grandTotal * 100)) : 0;
+                if (bar) bar.style.width = pct + '%';
+                if (text) {
+                    text.textContent = '已处理 ' + done + ' / ' + grandTotal
+                        + '（' + pct + '%）· 第 ' + batchNo + ' 批'
+                        + (failed > 0 ? ' · 失败 ' + failed : '');
+                }
+                btn.textContent = '发送中 ' + done + '/' + grandTotal + '…';
+            }
+
+            function step() {
+                batchNo++;
+                paint();
+
+                var fd = new FormData();
+                baseData.forEach(function (v, k) { fd.append(k, v); });
+                if (taskId > 0) fd.set('task_id', String(taskId));
+
+                var ctrl = ('AbortController' in window) ? new AbortController() : null;
+                var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 120000);
+
+                fetch(location.href, {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: ctrl ? ctrl.signal : undefined
+                })
+                .then(function (r) {
+                    clearTimeout(timer);
+                    if (!r.ok) throw new Error('服务器返回 ' + r.status);
+                    return r.json();
+                })
+                .then(function (d) {
+                    if (!d || !d.success) throw new Error((d && (d.error || d.message)) || '返回异常');
+
+                    if (d.task_id) { taskId = d.task_id; grandTotal = d.total || grandTotal; }
+
+                    sent    = d.sent    || 0;
+                    failed  = d.failed  || 0;
+                    skipped = d.skipped || 0;
+                    if (d.total) grandTotal = d.total;
+
+                    paint();
+
+                    if (d.abort) {
+                        finish(true, d.error || 'SMTP 发送失败');
+                        return;
+                    }
+                    if (d.done || (d.remaining || 0) <= 0) {
+                        finish(false, '');
+                        return;
+                    }
+                    setTimeout(step, 400);
+                })
+                .catch(function (err) {
+                    clearTimeout(timer);
+                    finish(true, err.message || '网络错误');
+                });
+            }
+
+            function finish(isError, errMsg) {
+                btn.disabled = false;
+                btn.textContent = '开始群发';
+                if (bar) bar.style.width = '100%';
+
+                var done = sent + failed + skipped;
+                var summary = '发送完成：成功 ' + sent + ' 封'
+                    + (failed > 0 ? '，失败 ' + failed + ' 封' : '')
+                    + (skipped > 0 ? '，跳过 ' + skipped + ' 个' : '')
+                    + '（共 ' + batchNo + ' 批）';
+
+                if (isError) {
+                    summary = '⚠ 中断：' + errMsg
+                        + '\n\n已成功 ' + sent + ' 封，还有 ' + Math.max(0, grandTotal - done) + ' 个未发。'
+                        + '\n任务已保存（编号 #' + taskId + '），刷新页面后'
+                        + '可在「未完成任务」里继续。';
+                }
+
+                if (text) text.textContent = summary;
+
+                if (isError) {
+                    alert(summary);
+                } else {
+                    setTimeout(function () {
+                        if (confirm(summary + '\n\n是否刷新页面查看发送记录？')) {
+                            location.reload();
+                        }
+                    }, 250);
+                }
+            }
+
+            step();
+        }
 
         // ---- 模板切换（不刷新页面）----
         var tplBtns = form.querySelectorAll('.tpl-btn');
@@ -608,14 +874,178 @@ adminHeader('邮件设置', $admin, $csrfToken);
     </script>
 
     <style>
+    .bs-scope-box {
+        padding: 14px 16px;
+        background: #F7F9FC;
+        border: 1px solid #E4E9F0;
+        border-radius: 11px;
+        margin-bottom: 16px;
+    }
+    .bs-scope-title {
+        font-size: 13px; font-weight: 600; color: #1F2733; margin-bottom: 10px;
+    }
+    .bs-scope-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;
+    }
+    .bs-scope-opt {
+        display: block; padding: 10px 12px; background: #fff;
+        border: 1.5px solid #E4E9F0; border-radius: 9px; cursor: pointer;
+        transition: border-color .15s, background .15s;
+    }
+    .bs-scope-opt:hover { border-color: rgba(47,91,154,.4); }
     .bs-scope-opt:has(input:checked) {
-        border-color: var(--primary); background: var(--info-light);
+        border-color: #2F5B9A; background: #F0F6FF;
     }
     .bs-scope-opt input { margin-right: 6px; }
-    .bs-send-btn:hover:not(:disabled) { background: var(--primary-hover); }
+    .bs-scope-name { font-size: 13px; font-weight: 600; color: #1F2733; }
+    .bs-scope-count {
+        float: right; font-size: 12.5px; font-weight: 700; color: #2F5B9A;
+    }
+    .bs-scope-desc {
+        display: block; font-size: 11.5px; color: #98A2B3; margin-top: 4px; line-height: 1.5;
+    }
+    .bs-send-bar {
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        padding: 16px 18px; margin-top: 18px;
+        background: linear-gradient(135deg, #F0F6FF, #EAF7F1);
+        border: 1px solid #D6E6FA; border-radius: 11px;
+    }
+    .bs-send-btn {
+        padding: 11px 28px; font-size: 14px; font-weight: 700; font-family: inherit;
+        color: #fff; background: #2F5B9A; border: 0; border-radius: 9px;
+        cursor: pointer; transition: background .15s, transform .1s;
+        box-shadow: 0 2px 8px -3px rgba(47,91,154,.5);
+    }
+    .bs-send-btn:hover:not(:disabled) { background: #24487C; }
     .bs-send-btn:active:not(:disabled) { transform: scale(.98); }
+    .bs-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .bs-send-hint { font-size: 13px; color: #2F5B9A; }
+
+.bs-progress {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: #F7F9FC;
+    border: 1px solid #E4E9F0;
+    border-radius: 10px;
+}
+.bs-progress-track {
+    height: 8px;
+    background: #E4E9F0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.bs-progress-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #2F5B9A, #4F7FE0);
+    border-radius: 999px;
+    transition: width .3s ease;
+}
+/* ---- 未完成任务 ---- */
+.mt-list { display: flex; flex-direction: column; gap: 10px; }
+.mt-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; background: #F7F9FC;
+    border: 1px solid #E4E9F0; border-radius: 10px;
+}
+.mt-main { flex: 1 1 auto; min-width: 0; }
+.mt-title {
+    font-size: 13.5px; font-weight: 600; color: #1F2733;
+    display: flex; align-items: center; gap: 7px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mt-badge {
+    font-size: 10px; font-weight: 700; padding: 1px 6px;
+    border-radius: 4px; background: #E4E9F0; color: #5A6472; flex: 0 0 auto;
+}
+.mt-run { background: #FFF3E0; color: #B4761F; }
+.mt-err { background: #FDECEC; color: #C0392B; }
+.mt-meta { font-size: 11.5px; color: #98A2B3; margin-top: 4px; }
+.mt-errmsg {
+    font-size: 11.5px; color: #C0392B; margin-top: 4px;
+    background: #FDECEC; padding: 3px 7px; border-radius: 5px;
+    display: inline-block;
+}
+.mt-bar {
+    height: 4px; background: #E4E9F0; border-radius: 999px;
+    margin-top: 7px; overflow: hidden;
+}
+.mt-fill {
+    height: 100%; background: linear-gradient(90deg, #2F5B9A, #4F7FE0);
+    border-radius: 999px; transition: width .3s;
+}
+
+.bs-progress-text {
+    margin-top: 9px;
+    font-size: 12.5px;
+    color: #5A6472;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
     .bs-send-hint b { font-size: 15px; }
     </style>
+
+    <!-- ==================================================================
+         未完成的群发任务
+         ==================================================================
+         中断后（关页面、断网、SMTP 报错）任务还留在这里，
+         点「继续发送」从断点接着发，不会重复也不会漏。
+         ================================================================== -->
+    <?php
+    $__tasks = function_exists('lwMailTaskList') ? lwMailTaskList(10) : [];
+    $__pending = array_values(array_filter($__tasks, function ($t) {
+        return in_array((string)($t['status'] ?? ''), ['pending', 'running', 'error'], true);
+    }));
+    ?>
+    <?php if ($__pending): ?>
+    <div class="section" style="margin-top:16px;">
+        <div class="section-header">
+            <h3>未完成的群发任务</h3>
+            <span style="font-size:12px;color:var(--text-muted,#98A2B3);">
+                共 <?= count($__pending) ?> 个
+            </span>
+        </div>
+        <div class="section-body">
+            <div class="mt-list">
+                <?php foreach ($__pending as $t):
+                    $tid = (int)($t['id'] ?? 0);
+                    $tot = (int)($t['total'] ?? 0);
+                    $off = (int)($t['offset'] ?? 0);
+                    $pct = $tot > 0 ? (int)round($off / $tot * 100) : 0;
+                    $st = (string)($t['status'] ?? '');
+                ?>
+                <div class="mt-item">
+                    <div class="mt-main">
+                        <div class="mt-title">
+                            #<?= $tid ?> · <?= htmlspecialchars((string)($t['subject'] ?? '')) ?>
+                            <?php if ($st === 'error'): ?>
+                                <span class="mt-badge mt-err">已中断</span>
+                            <?php elseif ($st === 'running'): ?>
+                                <span class="mt-badge mt-run">发送中</span>
+                            <?php else: ?>
+                                <span class="mt-badge">待发送</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mt-meta">
+                            共 <?= $tot ?> 人 · 已处理 <?= $off ?> · 成功 <?= (int)($t['sent'] ?? 0) ?>
+                            · 剩余 <?= max(0, $tot - $off) ?>
+                            · <?= htmlspecialchars((string)($t['updated_at'] ?? '')) ?>
+                        </div>
+                        <?php if (!empty($t['last_error'])): ?>
+                            <div class="mt-errmsg"><?= htmlspecialchars((string)$t['last_error']) ?></div>
+                        <?php endif; ?>
+                        <div class="mt-bar"><div class="mt-fill" style="width:<?= $pct ?>%"></div></div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary"
+                            onclick="resumeTask(<?= $tid ?>)">
+                        继续发送
+                    </button>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- ============ 发送记录 ============ -->
     <div class="section" style="margin-top:16px;">
@@ -654,7 +1084,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 </div>
             <?php else: ?>
             <div style="overflow-x:auto;">
-                <table class="adm-table">
+                <table class="mail-table">
                     <thead>
                         <tr>
                             <th>时间</th>

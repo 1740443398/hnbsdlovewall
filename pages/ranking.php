@@ -217,8 +217,10 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <?php require __DIR__ . '/../includes/seo_meta.php'; ?>
     <meta name="description" content="<?= htmlspecialchars(t('rank.page_title') . ' · ' . SITE_NAME) ?>">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
@@ -266,8 +268,10 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
             .rk-panel{padding:1rem;}
         }
     </style>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
+    <?php endif; ?>
 </head>
 <body>
     <a class="skip-to-content" href="#main-content">跳到主内容</a>

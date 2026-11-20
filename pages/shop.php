@@ -35,7 +35,9 @@ $pageTitle = '装扮商城 - ' . SITE_NAME;
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <?php require __DIR__ . '/../includes/seo_meta.php'; ?>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
     <?php /* 本站 shop-wrap 自带 1rem 内边距，U 端副顶栏若也贴边会重复留白，故单独收窄 */ ?>
     <style>.u-appbar{padding-left:1rem;padding-right:1rem;}</style>

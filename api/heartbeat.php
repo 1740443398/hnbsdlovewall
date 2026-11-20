@@ -11,6 +11,13 @@
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/online.php';
+/* 每日访问统计 —— 仪表盘「今日访问用户」的数据来源。
+ *
+ * 为什么挂在心跳上：心跳是所有页面（含游客）都会定时发的请求，
+ * 是唯一能覆盖「只看不点」的用户的埋点。挂在页面渲染上会漏掉
+ * SPA 式的内部跳转，挂在 API 上又会漏掉纯浏览。
+ */
+require_once __DIR__ . '/../includes/visit_stats.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -43,4 +50,9 @@ if ($action === 'leave') {
     jsonSuccess(lwOnlineLeave($user));
 }
 
-jsonSuccess(lwHeartbeat($user));
+$beat = lwHeartbeat($user);
+
+// 记录今日访问（内部有 5 分钟节流，不会每次心跳都写盘）
+lwVisitTrack($user);
+
+jsonSuccess($beat);

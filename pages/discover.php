@@ -29,8 +29,10 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <?php require __DIR__ . '/../includes/seo_meta.php'; ?>
     <meta name="description" content="发现值得读的内容 · <?= htmlspecialchars(SITE_NAME) ?>">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <link rel="alternate" type="application/rss+xml" title="RSS" href="/api/rss.php">
     <script>
         const SITE_URL = '<?= SITE_URL ?>';

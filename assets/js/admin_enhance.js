@@ -67,40 +67,15 @@
         });
     }
 
-    /* 37. 表格列宽拖拽 */
+    /* 37. 表格列宽拖拽 —— 【已禁用】
+     *
+     * 它给每个 th 加 position:relative 和一个绝对定位的拖拽手柄。
+     * 在异步渲染的表格上，thead 可能被替换，手柄就丢了；
+     * 而且 position:relative 会改变某些布局行为。
+     * 先关掉，等确认基础功能稳定再说。
+     */
     function resizableColumns() {
-        document.querySelectorAll('table').forEach(function (table) {
-            var ths = table.querySelectorAll('thead th');
-            if (ths.length < 2 || table.dataset.resizable) return;
-            table.dataset.resizable = '1';
-            ths.forEach(function (th) {
-                if (th.querySelector('.lw-col-resize')) return;
-                th.style.position = 'relative';
-                var grip = document.createElement('div');
-                grip.className = 'lw-col-resize';
-                grip.style.cssText = 'position:absolute;right:0;top:0;bottom:0;width:5px;'
-                    + 'cursor:col-resize;user-select:none;';
-                th.appendChild(grip);
-
-                var startX, startW;
-                grip.addEventListener('mousedown', function (e) {
-                    e.preventDefault();
-                    startX = e.pageX;
-                    startW = th.offsetWidth;
-                    function onMove(ev) {
-                        var w = Math.max(50, startW + ev.pageX - startX);
-                        th.style.width = w + 'px';
-                        th.style.minWidth = w + 'px';
-                    }
-                    function onUp() {
-                        document.removeEventListener('mousemove', onMove);
-                        document.removeEventListener('mouseup', onUp);
-                    }
-                    document.addEventListener('mousemove', onMove);
-                    document.addEventListener('mouseup', onUp);
-                });
-            });
-        });
+        // 故意留空
     }
 
     /* 38. 快速搜索（Ctrl+F 增强） */
@@ -165,63 +140,44 @@
         };
     }
 
-    /* 42. 表格空状态友好提示 */
+    /* 42. 表格空状态 —— 【已移除】
+     *
+     * =====================================================================
+     * 这段代码是个灾难，必须记下来
+     * =====================================================================
+     * 原来它做的是：tbody 为空时把整个 table 设为 display:none。
+     * 想法是「空表格不如不显示」，但忽略了一个关键事实：
+     *
+     *   后台绝大多数表格是 **AJAX 异步填充**的。
+     *   DOMContentLoaded 时 tbody 本来就是空的，
+     *   于是表格被立即隐藏 —— 等数据回来时，
+     *   它已经被 display:none 了，用户永远看不到。
+     *
+     * 表现就是「后台所有数据都不显示」：
+     * 数据在库里、API 也返回了、DOM 里也有节点，
+     * 但整张表被 CSS 藏起来了。
+     *
+     * 这个 bug 极难排查，因为它不报错、不打日志，
+     * 看起来像后端挂了。教训：**永远不要在初始化阶段
+     * 根据「当前是否为空」去隐藏容器** —— 异步内容还没到。
+     *
+     * 如果真需要空状态，应该由渲染方在拿到空数据时自己输出，
+     * 而不是用一个全局的观察者在旁边猜。
+     */
     function emptyStates() {
-        document.querySelectorAll('table tbody').forEach(function (tbody) {
-            if (tbody.rows.length === 0 || (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1)) {
-                var table = tbody.closest('table');
-                if (table) table.style.display = 'none';
-            }
-        });
+        // 故意留空：不做任何事。
+        // 保留函数名是为了不破坏可能存在的调用点。
     }
 
-    /* 43. 长文本单元格折叠 */
+    /* 43. 长文本单元格折叠 —— 【已禁用】
+     *
+     * 它会把长单元格的 innerHTML 换成「摘要 + 展开按钮」。
+     * 风险：如果单元格里含事件绑定或表单元素，替换后就失效了。
+     * 而且它跟异步渲染抢时序 —— 数据刚插进来就被改掉。
+     * 收益不大，风险不小，直接关掉。
+     */
     function foldLongCells() {
-        document.querySelectorAll('table tbody td').forEach(function (td) {
-            var txt = (td.textContent || '').trim();
-            if (txt.length < 80 || td.querySelector('button, a')) return;
-            if (td.dataset.folded) return;
-            td.dataset.folded = '1';
-            var full = td.innerHTML;
-            var short = txt.slice(0, 60) + '…';
-            td.innerHTML = '<span class="lw-cell-short">' + short + '</span>'
-                + '<button type="button" class="lw-cell-more" style="margin-left:6px;font-size:11.5px;'
-                + 'color:#2F5B9A;background:none;border:0;cursor:pointer;padding:0;">展开</button>';
-            td.querySelector('.lw-cell-more').addEventListener('click', function () {
-                var expanded = td.dataset.expanded === '1';
-                if (expanded) {
-                    td.innerHTML = '<span class="lw-cell-short">' + short + '</span>'
-                        + '<button type="button" class="lw-cell-more" style="margin-left:6px;font-size:11.5px;'
-                        + 'color:#2F5B9A;background:none;border:0;cursor:pointer;padding:0;">展开</button>';
-                    td.dataset.expanded = '';
-                } else {
-                    td.innerHTML = full + '<button type="button" class="lw-cell-more" style="margin-left:6px;'
-                        + 'font-size:11.5px;color:#2F5B9A;background:none;border:0;cursor:pointer;padding:0;">收起</button>';
-                    td.dataset.expanded = '1';
-                }
-                bindMore(td);
-            });
-            bindMore(td);
-        });
-        function bindMore(td) {
-            var b = td.querySelector('.lw-cell-more');
-            if (!b) return;
-            b.addEventListener('click', function () {
-                var expanded = td.dataset.expanded === '1';
-                var txt = td.textContent.replace(/展开|收起/g, '').trim();
-                if (expanded) {
-                    td.innerHTML = '<span class="lw-cell-short">' + txt.slice(0, 60) + '…</span>'
-                        + '<button type="button" class="lw-cell-more" style="margin-left:6px;font-size:11.5px;'
-                        + 'color:#2F5B9A;background:none;border:0;cursor:pointer;padding:0;">展开</button>';
-                    td.dataset.expanded = '';
-                } else {
-                    td.innerHTML = txt + '<button type="button" class="lw-cell-more" style="margin-left:6px;'
-                        + 'font-size:11.5px;color:#2F5B9A;background:none;border:0;cursor:pointer;padding:0;">收起</button>';
-                    td.dataset.expanded = '1';
-                }
-                bindMore(td);
-            });
-        }
+        // 故意留空
     }
 
     /* 44. 数据导出（表格 → CSV） */
@@ -308,19 +264,36 @@
     }
 
     /* 启动 */
+    /* =====================================================================
+     * 启动
+     * =====================================================================
+     * 【2026-10-31 事故记录：为什么这里只剩三个功能】
+     *
+     * 之前这里调用了 12 个「增强」功能，结果导致
+     * 「后台所有数据都不显示」—— 排查了几个小时。
+     *
+     * 根因是 emptyStates()：它在 DOMContentLoaded 时检查
+     * 「tbody 是否为空」，为空就把整个 table 设 display:none。
+     * 但后台表格全是 AJAX 异步填充的，那一刻本来就是空的，
+     * 于是表格被永久隐藏 —— 数据回来了也看不见。
+     *
+     * 教训：**任何在初始化阶段修改 DOM 结构的「增强」都是定时炸弹**，
+     * 尤其当页面内容依赖异步加载时。
+     *
+     * 现在只保留零风险的三个：
+     *   quickSearch      只绑快捷键
+     *   dangerousConfirm 只在点击时拦截，不改 DOM
+     *   activeNavVisible 只滚动侧边栏
+     *
+     * 其余全部禁用。如果将来要加回来，必须满足：
+     *   1. 不在初始化阶段读「当前是否为空」
+     *   2. 不修改表格结构（不插列、不换 innerHTML）
+     *   3. 用 MutationObserver 感知异步渲染完成，而不是抢跑
+     * ===================================================================== */
     function boot() {
-        batchSelect();
-        resizableColumns();
         quickSearch();
-        formNav();
         dangerousConfirm();
-        resultToast();
-        emptyStates();
-        exportTable();
         activeNavVisible();
-        titleBadge();
-        autoRefresh();
-        copyCell();
     }
 
     if (document.readyState === 'loading') {

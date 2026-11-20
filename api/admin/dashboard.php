@@ -79,4 +79,41 @@ $data['trend'] = $trend;
 $maxCount = max(array_column($trend, 'count'));
 $data['max_count'] = $maxCount > 0 ? $maxCount : 1;
 
+/* ==========================================================================
+ * 今日访问用户
+ * ==========================================================================
+ * 数据来自 visit_stats 表（由 api/heartbeat.php 写入）。
+ *
+ * 【为什么不用 users.last_visit】
+ * last_visit 只存「最后一次访问时间」，一个人今天和昨天都来过，
+ * 它只剩今天那一条；跨天边界还会把「昨天 23:59 来过、今天没来」
+ * 的人算成今天。visit_stats 按 (日期, 用户) 聚合，去重准确。
+ *
+ * 返回三块：
+ *   today_visit   今日汇总（总人数 / 登录用户 / 游客 / 新访客 / 总访问次数）
+ *   visit_users   今日来访的登录用户列表（按最后访问时间倒序）
+ *   visit_trend   最近 7 天趋势，用于画小柱状图
+ * ========================================================================== */
+try {
+    $vis = lwVisitToday();
+    $data['today_visit'] = [
+        'total'     => (int)$vis['total'],
+        'members'   => (int)$vis['members'],
+        'guests'    => (int)$vis['guests'],
+        'new_users' => (int)$vis['new_users'],
+        'visits'    => (int)$vis['visits'],
+    ];
+    // 列表最多给 60 个，够仪表盘滚动看；要全量去「用户」页
+    $data['visit_users'] = array_slice($vis['users'], 0, 60);
+    $data['visit_users_total'] = count($vis['users']);
+    $data['visit_trend'] = lwVisitTrend(7);
+} catch (Throwable $e) {
+    $data['today_visit'] = [
+        'total' => 0, 'members' => 0, 'guests' => 0, 'new_users' => 0, 'visits' => 0,
+    ];
+    $data['visit_users'] = [];
+    $data['visit_users_total'] = 0;
+    $data['visit_trend'] = [];
+}
+
 jsonSuccess($data);

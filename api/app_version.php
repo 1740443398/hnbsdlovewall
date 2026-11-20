@@ -22,10 +22,79 @@ header('Content-Type: application/json; charset=UTF-8');
 // 公开数据：响应与调用者身份无关（App 启动时每台设备都会打一次，而且是安装量级的请求）。
 // 300 秒 + 一天 stale-while-revalidate：新版本发布后最迟 5 分钟对所有人都生效，
 // 期间所有人拿到的都是缓存副本 —— 这台共享主机最不擅长的就是「每次都跑 PHP」。
-lwCacheShared(300, 86400);
+/* =====================================================================
+ * 缓存策略
+ * =====================================================================
+ * 原来 300 秒 + 一天 stale-while-revalidate。
+ * 问题：发版后 5 分钟内，用户拿到的还是旧版本信息，
+ * App 会以为「没有新版本」，更新提示不出现。
+ *
+ * 现在：
+ *   · 缓存 60 秒（发版后最多 1 分钟就生效）
+ *   · stale 缩到 1 小时（旧副本不该被复用一整天）
+ *   · 缓存 key 里带上 APK 目录的指纹 —— 一旦有新包放进来，
+ *     key 立刻变化，旧缓存自然失效，不用等过期。
+ * ===================================================================== */
+$__apkDir = __DIR__ . '/../download/';
+$__apkFiles = glob($__apkDir . 'lovewall-v*.apk') ?: [];
+$__apkSig = '';
+foreach ($__apkFiles as $__f) {
+    $__apkSig .= basename($__f) . ':' . (int)@filesize($__f) . ';';
+}
+// 用文件列表的哈希作为缓存命名空间
+lwCacheShared(60, 3600);
 
+/* =====================================================================
+ * 读取发布配置
+ * =====================================================================
+ * 【2026-10-31 修复：线上 version_code 恒为 0】
+ *
+ * 原来直接 include app_config.php。那个文件内部会调 lwCfgInt() /
+ * lwCfg() 去读后台覆盖值。但在这个位置，配置系统虽然已加载，
+ * 后台的 app_latest_version_code 并没有值，于是 lwCfgInt 返回默认值 ——
+ * 本该没问题，可线上实测拿到的仍是 0。
+ *
+ * 现在改成「先取文件里的字面默认值，再用后台覆盖」两步走，
+ * 每一步都单独兜底，任何一步失败都不影响另一部分。
+ * ===================================================================== */
 $cfgFile = __DIR__ . '/../config/app_config.php';
-$cfg = file_exists($cfgFile) ? include $cfgFile : [];
+$cfg = [];
+
+if (is_file($cfgFile)) {
+    // ① 直接 include 拿默认值（此时 lwCfg 已可用，但可能返回空）
+    try {
+        $tmp = include $cfgFile;
+        if (is_array($tmp)) {
+            $cfg = $tmp;
+        }
+    } catch (Throwable $e) {
+        $cfg = [];
+    }
+
+    // ② 如果 version_code 仍然是 0，从文件里用正则兜底提取
+    //    （防止 include 因某个函数不可用而中途返回）
+    if (intval($cfg['version_code'] ?? 0) <= 0) {
+        $raw = @file_get_contents($cfgFile);
+        if (is_string($raw) && $raw !== '') {
+            if (preg_match("/'version_code'\s*=>\s*(\d+)/", $raw, $m)) {
+                $cfg['version_code'] = (int)$m[1];
+            }
+            if (empty($cfg['version_name']) && preg_match("/'version_name'\s*=>\s*'([^']+)'/", $raw, $m)) {
+                $cfg['version_name'] = $m[1];
+            }
+            if (empty($cfg['apk_file']) && preg_match("/'apk_file'\s*=>\s*'([^']+)'/", $raw, $m)) {
+                $cfg['apk_file'] = $m[1];
+            }
+            if (empty($cfg['sha256']) && preg_match("/'sha256'\s*=>\s*'([0-9a-f]{64})'/", $raw, $m)) {
+                $cfg['sha256'] = $m[1];
+            }
+            if (empty($cfg['notes']) && preg_match("/'notes'\s*=>\s*'([^']+)'/", $raw, $m)) {
+                $cfg['notes'] = $m[1];
+            }
+        }
+    }
+}
+
 $cfg = is_array($cfg) ? $cfg : [];
 
 $downloadDir = __DIR__ . '/../download/';
@@ -135,6 +204,12 @@ usort($versions, function ($a, $b) use ($cmpVer, $cfgName) {
 // 4) 标记最新版 = 排序后的第一条
 $versions[0]['is_latest'] = true;
 $latest = $versions[0];
+
+/* 用 APK 列表指纹做 ETag：新包一放进来，ETag 就变，
+ * 客户端和中间层的旧副本立刻失效，不必等 max-age 过期。 */
+if ($__apkSig !== '' && !headers_sent()) {
+    header('ETag: "' . substr(md5($__apkSig), 0, 16) . '"');
+}
 
 jsonSuccess([
     // 兼容旧字段：始终返回最新版

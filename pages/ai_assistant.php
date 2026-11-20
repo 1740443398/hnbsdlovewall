@@ -31,8 +31,10 @@ $aiWidgetMode = 'off';
     <?php require_once __DIR__ . '/../includes/pwa_head.php'; ?>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title>AI 助手 - <?= htmlspecialchars($siteName) ?></title>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/ai_widget.css') ?>?v=<?= asset_ver('/assets/css/ai_widget.css') ?>">
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
@@ -211,9 +213,13 @@ $aiWidgetMode = 'off';
 
     <!-- 核心脚本文件名不含 "chat"：本站所在主机对 URL 含 chat 的请求一律 403（见 includes/ai_widget.php 的说明），改名后即恢复正常，切勿改回 ai_chat_core.js -->
     <script src="<?= asset_url('/assets/js/ai_core.js') ?>?v=<?= asset_ver('/assets/js/ai_core.js') ?>" defer></script>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>
+    <?php endif; ?>
     <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
+    <?php endif; ?>
     <script>
     // 等共享核心就绪后挂载页面版对话。defer 脚本按顺序执行，但核心是 defer、
     // 本段是普通内联脚本（会在 defer 之前执行），所以轮询等待。

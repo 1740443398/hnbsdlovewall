@@ -40,7 +40,7 @@ if ($action === 'cloud') {
     $count = [];
     $lastUsed = [];
     foreach (lwAllPublicPosts() as $p) {
-        foreach (lwExtractTags($p) as $t) {
+        foreach (lwExtractPostTags($p) as $t) {
             $k = lwSlugify($t);
             $count[$k] = ($count[$k] ?? 0) + 1;
             $ts = strtotime((string)($p['created_at'] ?? 'now')) ?: 0;
@@ -60,7 +60,7 @@ if ($action === 'posts') {
     if ($tag === '') jsonError('请指定标签');
     $hit = [];
     foreach (lwAllPublicPosts() as $p) {
-        foreach (lwExtractTags($p) as $t) {
+        foreach (lwExtractPostTags($p) as $t) {
             if (lwSlugify($t) === $tag) { $hit[] = $p; break; }
         }
     }
@@ -73,7 +73,7 @@ if ($action === 'of_post') {
     $p = $fs->findById('posts', $pid);
     if (!$p) jsonError('帖子不存在', 404);
     $tags = [];
-    foreach (lwExtractTags($p) as $t) {
+    foreach (lwExtractPostTags($p) as $t) {
         $tags[] = ['name' => $t, 'slug' => lwSlugify($t)];
     }
     jsonSuccess(['tags' => $tags]);
@@ -85,7 +85,7 @@ if ($action === 'related') {
     // 共现统计：同一帖里与该标签一起出现的其它标签
     $co = [];
     foreach (lwAllPublicPosts() as $p) {
-        $ts = array_map('lwSlugify', lwExtractTags($p));
+        $ts = array_map('lwSlugify', lwExtractPostTags($p));
         if (!in_array($tag, $ts, true)) continue;
         foreach ($ts as $t) {
             if ($t !== $tag) $co[$t] = ($co[$t] ?? 0) + 1;

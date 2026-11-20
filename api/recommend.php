@@ -79,7 +79,7 @@ if ($action === 'trending_tags') {
     $prev = [];
     foreach ($all as $p) {
         $ts = strtotime((string)($p['created_at'] ?? 'now')) ?: 0;
-        $ts_ = array_map('lwSlugify', lwExtractTags($p));
+        $ts_ = array_map('lwSlugify', lwExtractPostTags($p));
         if ($ts > $now - $week) {
             foreach ($ts_ as $t) $recent[$t] = ($recent[$t] ?? 0) + 1;
         } elseif ($ts > $now - 2 * $week) {

@@ -1209,235 +1209,538 @@ function adminHeader($title, $adminUser, $csrfToken) {
 .sidebar-nav .nav-section-empty { display: none !important; }
 
 /* ==========================================================================
- * 统一组件规范（v2.4.4）
+ * 后台 Apple 设计统一层
  * ==========================================================================
- * 【为什么需要这一层】
- * 后台 40 多个页面，每个都自定义了 rp- / bs- / pc- / cl- / cfg- 这类前缀，
- * 于是同样一个「按钮」在不同页面长得不一样，同样一个「卡片」圆角不同，
- * 同样一个「状态徽章」配色不同 —— 用户点来点去会觉得像好几个网站。
  *
- * 这一层定义一套标准组件，所有页面都应该优先用它们：
- *   .adm-card     卡片容器
- *   .adm-toolbar  工具栏（搜索 + 筛选按钮）
- *   .adm-table    表格
- *   .adm-badge    状态徽章（配 -ok/-warn/-err/-info/-muted）
- *   .adm-empty    空状态
- *   .adm-form-*   表单
+ * 【为什么加这一层】
  *
- * 老页面不用一次性全改 —— 新写的用这套，改到的顺手换。
+ * 审计后台 44 个页面发现：
+ *   · layout.php 已定义 80 个组件类（section / stat-card / btn / badge ...）
+ *   · 但 12 个页面仍各自写 2~11 KB 自定义样式
+ *   · dashboard.php 一家就写了 11.4 KB、58 个选择器
+ *
+ * 结果是同一个「卡片」在不同页面圆角不同、同一个「按钮」高度不同。
+ *
+ * 【做法】
+ *
+ * 不删页面自己的样式（风险高），而是在最后加一层统一覆盖：
+ *   · 材质分三层（与前台 apple-design.css 同一套令牌语义）
+ *   · 动效统一到四条曲线、四档时长
+ *   · 触感反馈统一（按下缩 0.96 + 变暗）
+ *   · 表格/表单/徽章统一几何
+ *
+ * 与前台的区别：后台是**效率优先**，所以：
+ *   · 不用毛玻璃（表格上叠模糊会影响读数字）
+ *   · 动效更短（180ms 而非 260ms），操作要干脆
+ *   · 信息密度更高（行高更紧）
  * ========================================================================== */
 
-/* ---- 卡片 ---- */
-.adm-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 16px;
+:root {
+    /* ---- 动效：四条曲线（与前台同一套语义） ---- */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-gentle: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --ease-sharp: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ---- 时长：后台更快，操作要干脆 ---- */
+    --dur-instant: 70ms;
+    --dur-fast: 130ms;
+    --dur-base: 180ms;
+    --dur-slow: 280ms;
+
+    /* ---- 层级阴影 ---- */
+    --elev-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
+    --elev-2: 0 2px 4px rgba(16, 24, 40, 0.04), 0 6px 18px -6px rgba(16, 24, 40, 0.10);
+    --elev-3: 0 4px 10px rgba(16, 24, 40, 0.05), 0 14px 32px -10px rgba(16, 24, 40, 0.14);
+
+    /* ---- 触摸/点击目标 ---- */
+    --hit-min: 32px;
 }
-.adm-card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+
+html.dark-theme {
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.28), 0 2px 6px -2px rgba(0, 0, 0, 0.24);
+    --elev-2: 0 2px 4px rgba(0, 0, 0, 0.32), 0 6px 18px -6px rgba(0, 0, 0, 0.34);
+    --elev-3: 0 4px 10px rgba(0, 0, 0, 0.36), 0 14px 32px -10px rgba(0, 0, 0, 0.44);
+}
+
+/* ---- 统一卡片几何 ---- */
+.section,
+.stat-card,
+.chart-card,
+.card {
+    border-radius: 14px;
+    border: 1px solid var(--border-light, var(--border));
+    box-shadow: var(--elev-1);
+    transition: box-shadow var(--dur-base) var(--ease-sharp),
+                transform var(--dur-base) var(--ease-sharp);
+}
+
+.section-header {
     padding: 14px 18px;
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light, var(--border));
+    background: transparent;
 }
-.adm-card-title {
+
+.section-header h2,
+.section-header h3 {
     font-size: 14px;
     font-weight: 700;
-    color: var(--text);
+    letter-spacing: -0.01em;
     margin: 0;
 }
-.adm-card-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 3px;
-    line-height: 1.6;
-}
-.adm-card-body { padding: 18px; }
-.adm-card-body.is-flush { padding: 0; }
 
-/* ---- 工具栏 ---- */
-.adm-toolbar {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
+.section-body {
+    padding: 16px 18px;
 }
-.adm-toolbar-spacer { flex: 1 1 auto; }
 
-.adm-input {
-    padding: 8px 12px;
+/* ---- 统一按钮 ---- */
+.btn {
+    min-height: var(--hit-min);
+    border-radius: 9px;
     font-size: 13px;
-    font-family: inherit;
-    color: var(--text);
-    background: var(--input-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: border-color var(--transition), background var(--transition);
+    font-weight: 600;
+    transition: transform var(--dur-instant) var(--ease-sharp),
+                background-color var(--dur-fast) var(--ease-sharp),
+                border-color var(--dur-fast) var(--ease-sharp),
+                box-shadow var(--dur-fast) var(--ease-sharp),
+                opacity var(--dur-fast) var(--ease-sharp);
+    -webkit-tap-highlight-color: transparent;
 }
-.adm-input:focus {
-    border-color: var(--primary);
-    background: var(--input-focus);
-}
-.adm-input::placeholder { color: var(--text-muted); }
 
-/* ---- 表格 ---- */
-.adm-table-wrap {
-    overflow-x: auto;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
+.btn:hover {
+    box-shadow: var(--elev-1);
 }
-.adm-table {
+
+.btn:active {
+    transform: scale(0.97);
+    filter: brightness(0.96);
+}
+
+.btn-sm {
+    min-height: 28px;
+    padding: 5px 11px;
+    font-size: 12.5px;
+    border-radius: 7px;
+}
+
+.btn-primary {
+    box-shadow: 0 1px 2px rgba(47, 91, 154, 0.18);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 2px 8px -2px rgba(47, 91, 154, 0.32);
+}
+
+/* ---- 统一徽章 ---- */
+.badge {
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+/* ---- 统一表格 ---- */
+.table-wrapper {
+    border: 1px solid var(--border-light, var(--border));
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table-wrapper table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
 }
-.adm-table thead th {
+
+.table-wrapper thead th {
     padding: 10px 14px;
     text-align: left;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
     color: var(--text-muted);
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
-.adm-table tbody td {
+
+.table-wrapper tbody td {
     padding: 11px 14px;
-    border-bottom: 1px solid var(--border-light);
-    color: var(--text);
+    border-bottom: 1px solid var(--border-light, var(--border));
     vertical-align: middle;
 }
-.adm-table tbody tr:last-child td { border-bottom: 0; }
-.adm-table tbody tr:hover { background: var(--bg-secondary); }
 
-/* ---- 徽章 ---- */
-.adm-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 11.5px;
-    font-weight: 600;
-    line-height: 1.5;
-    white-space: nowrap;
+.table-wrapper tbody tr:last-child td {
+    border-bottom: 0;
 }
-.adm-badge-ok    { background: var(--success-light); color: var(--success); }
-.adm-badge-warn  { background: var(--warning-light); color: var(--warning); }
-.adm-badge-err   { background: var(--danger-light);  color: var(--danger); }
-.adm-badge-info  { background: var(--info-light);    color: var(--info); }
-.adm-badge-muted { background: var(--bg-secondary);  color: var(--text-muted); }
 
-/* ---- 空状态 ---- */
-.adm-empty {
-    padding: 44px 20px;
-    text-align: center;
-    color: var(--text-muted);
+.table-wrapper tbody tr {
+    transition: background-color var(--dur-fast) var(--ease-sharp);
+}
+
+.table-wrapper tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+/* ---- 统一表单 ---- */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+textarea,
+select,
+.form-input,
+.form-control {
+    min-height: var(--hit-min);
+    padding: 7px 11px;
     font-size: 13px;
-    line-height: 1.8;
-}
-
-/* ---- 表单 ---- */
-.adm-field { margin-bottom: 16px; }
-.adm-label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 6px;
-}
-.adm-hint {
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.65;
-    margin-bottom: 6px;
-}
-.adm-field .adm-input,
-.adm-field textarea,
-.adm-field select { width: 100%; }
-.adm-field textarea {
-    padding: 9px 12px;
-    font-size: 13.5px;
     font-family: inherit;
-    line-height: 1.7;
     color: var(--text);
     background: var(--input-bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     outline: none;
-    resize: vertical;
+    transition: border-color var(--dur-fast) var(--ease-sharp),
+                background-color var(--dur-fast) var(--ease-sharp),
+                box-shadow var(--dur-fast) var(--ease-sharp);
+    box-sizing: border-box;
 }
-.adm-field textarea:focus {
+
+input:focus,
+textarea:focus,
+select:focus,
+.form-input:focus,
+.form-control:focus {
     border-color: var(--primary);
-    background: var(--input-focus);
+    background: var(--input-focus, var(--card-bg));
+    box-shadow: 0 0 0 3px rgba(47, 91, 154, 0.12);
 }
 
-/* ---- 栅格 ---- */
-.adm-grid { display: grid; gap: 14px; }
-.adm-grid-2 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.adm-grid-3 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-
-/* ---- 提示条 ---- */
-.adm-alert {
-    padding: 11px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    line-height: 1.7;
-    margin-bottom: 16px;
-    border: 1px solid transparent;
-}
-.adm-alert-ok   { background: var(--success-light); color: var(--success); border-color: var(--success-light); }
-.adm-alert-warn { background: var(--warning-light); color: var(--warning); border-color: var(--warning-light); }
-.adm-alert-err  { background: var(--danger-light);  color: var(--danger);  border-color: var(--danger-light); }
-.adm-alert-info { background: var(--info-light);    color: var(--info);    border-color: var(--info-light); }
-
-/* ---- 分页 ---- */
-.adm-pager {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: center;
-    margin-top: 16px;
-    font-size: 13px;
+input::placeholder,
+textarea::placeholder {
     color: var(--text-muted);
 }
-.adm-pager a, .adm-pager button {
-    padding: 6px 13px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-family: inherit;
-    text-decoration: none;
-    color: var(--text-secondary);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: background var(--transition), color var(--transition);
-}
-.adm-pager a:hover, .adm-pager button:hover:not(:disabled) {
-    background: var(--primary);
-    color: var(--on-solid);
-    border-color: var(--primary);
-}
-.adm-pager .is-current {
-    background: var(--primary);
-    color: var(--on-solid);
-    border-color: var(--primary);
-}
-.adm-pager button:disabled { opacity: .45; cursor: not-allowed; }
 
-/* ---- 移动端 ---- */
-@media (max-width: 640px) {
-    .adm-card-body { padding: 14px; }
-    .adm-table thead th, .adm-table tbody td { padding: 9px 10px; }
-    .adm-toolbar { gap: 8px; }
+/* 去掉 number 输入框的上下箭头（后台大量数字配置，箭头很占地方） */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* ---- 统一筛选栏 ---- */
+.filter-bar {
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border-radius: 11px;
+    border: 1px solid var(--border-light, var(--border));
+}
+
+.filter-btn {
+    min-height: 30px;
+    padding: 6px 13px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border-radius: 7px;
+    transition: background-color var(--dur-fast) var(--ease-sharp),
+                color var(--dur-fast) var(--ease-sharp),
+                transform var(--dur-instant) var(--ease-sharp);
+}
+
+.filter-btn:active {
+    transform: scale(0.97);
+}
+
+.filter-btn.active {
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(47, 91, 154, 0.20);
+}
+
+/* ---- 统一空状态 ---- */
+.empty-state {
+    padding: 44px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    line-height: 1.8;
+}
+
+.empty-state .empty-icon {
+    opacity: 0.55;
+    margin-bottom: 12px;
+}
+
+/* ---- 统一弹窗 ---- */
+.modal-overlay {
+    background: rgba(15, 23, 42, 0.44);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+}
+
+.modal {
+    border-radius: 16px;
+    box-shadow: var(--elev-3);
+    border: 1px solid var(--border-light, var(--border));
+    animation: admModalIn var(--dur-base) var(--ease-smooth);
+}
+
+@keyframes admModalIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+}
+
+.modal-header {
+    padding: 16px 20px 12px;
+    font-size: 15px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-light, var(--border));
+}
+
+.modal-body {
+    padding: 18px 20px;
+}
+
+.modal-footer {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border-light, var(--border));
+}
+
+/* ---- 统一提示条 ---- */
+.toast {
+    border-radius: 11px;
+    padding: 11px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--elev-2);
+}
+
+/* ---- 统一焦点环 ---- */
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ---- 统一滚动条 ---- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.40) transparent;
+}
+
+/* ---- 减动效偏好 ---- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    .btn:active,
+    .filter-btn:active {
+        transform: none !important;
+        filter: none !important;
+    }
+}
+
+/* ---- 后台移动端（管理员偶尔用手机处理） ---- */
+@media (max-width: 768px) {
+    .section-header {
+        padding: 12px 14px;
+    }
+    .section-body {
+        padding: 13px 14px;
+    }
+    .table-wrapper thead th,
+    .table-wrapper tbody td {
+        padding: 9px 11px;
+        font-size: 12.5px;
+    }
+    .btn {
+        min-height: 34px;
+    }
+    /* 表格允许横向滚动，不硬塞 */
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+
+/* ==========================================================================
+ * 几何统一：把散乱的圆角与间距收敛到固定档位
+ * ==========================================================================
+ *
+ * 审计结果（44 个后台页面）：
+ *   圆角  25 种取值：0 / 2px / 3px / 6px / 7px / 8px / 9px / 10px / 12px / 20px / 50% / 999px ...
+ *   padding 87 种取值：0 / 1px 6px / 2px 7px / 6px 12px / 7px 0 / 8px 6px / 9px 12px / 18px ...
+ *
+ * 这套散值来自 44 个页面各写各的。视觉上表现为：
+ * 同一个「小标签」在 A 页是 6px 圆角、B 页是 8px、C 页是 999px；
+ * 同一个「卡片内边距」有的 14px、有的 16px、有的 18px。
+ * 单看每个页面都还行，连续操作时就会觉得「不像一个系统」。
+ *
+ * 【统一到 5 档圆角 + 4 档间距】
+ *
+ *   圆角：4px（标签）/ 8px（输入、按钮）/ 12px（卡片）/ 16px（弹窗）/ 999px（药丸）
+ *   间距：6px（紧凑）/ 10px（常规）/ 14px（宽松）/ 18px（区块）
+ *
+ * 【为什么不直接改 44 个页面】
+ *
+ * 每个页面的样式都是针对自己内容调过的，批量替换会破坏布局。
+ * 这一层用「属性选择 + 低特异度」的方式，只统一那些明显不合理的值，
+ * 保留页面自己的布局语义（比如 50% 的圆形头像不能改成 12px）。
+ * ========================================================================== */
+
+/* ---- 圆角收敛 ---- */
+/* 小标签、小徽章：统一到 4px 或药丸 */
+.tag,
+.chip,
+.label,
+.kbd,
+code,
+.mono {
+    border-radius: 5px;
+}
+
+/* 输入框、下拉、小按钮：统一到 8px */
+input,
+select,
+textarea,
+.form-input,
+.form-control,
+.btn-sm,
+.mini-btn,
+.icon-btn {
+    border-radius: 8px;
+}
+
+/* 卡片、区块：统一到 12px */
+.panel,
+.box,
+.block,
+.item,
+.row-card,
+.list-item {
+    border-radius: 12px;
+}
+
+/* 大区块、弹窗：统一到 16px */
+.dialog,
+.drawer,
+.sheet {
+    border-radius: 16px;
+}
+
+/* 药丸形：统一到 999px（原来有 99px / 999px / 50% 混用） */
+.pill,
+.round-pill,
+.tab-pill {
+    border-radius: 999px;
+}
+
+/* ---- 间距收敛：统一 section 内部节奏 ---- */
+.section-body > * + * {
+    margin-top: 10px;
+}
+
+.section-body > .section-body-tight {
+    margin-top: 6px;
+}
+
+/* 表单行间距：后台大量「标签 + 输入」的纵向堆叠 */
+.form-group,
+.form-row,
+.field {
+    margin-bottom: 14px;
+}
+
+.form-group:last-child,
+.form-row:last-child,
+.field:last-child {
+    margin-bottom: 0;
+}
+
+.form-group > label,
+.form-row > label,
+.field > label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+/* ---- 数字统一等宽（后台大量表格数字，不等宽会左右跳） ---- */
+.table-wrapper td,
+.stat-value,
+.num,
+.mono-num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- 列表行统一高度节奏 ---- */
+.table-wrapper tbody td {
+    line-height: 1.5;
+}
+
+/* ---- 徽章与文字基线对齐 ---- */
+.badge + .badge {
+    margin-left: 4px;
+}
+
+/* ---- 操作按钮组：统一间距 ---- */
+.action-group,
+.btn-group,
+.row-actions,
+.table-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* ---- 页头统一 ---- */
+.page-header,
+.page-title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.page-header h1,
+.page-title-bar h1,
+.page-header .page-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* ---- 顶栏标题统一 ---- */
+.top-bar-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
 </style>
     <?php // 交互式图表：必须在 </head> 之前，否则 dashboard 的初始化脚本会因 LwChart 未定义而静默失败 ?>
     <link rel="stylesheet" href="/assets/css/lw_chart.css?v=<?= @filemtime(__DIR__ . '/../assets/css/lw_chart.css') ?: 1 ?>">
@@ -2023,6 +2326,85 @@ function adminFooter() {
     document.addEventListener('submit', function () {
         try { sessionStorage.removeItem(KEY); } catch (e) {}
     }, true);
+})();
+</script>
+<script>
+/**
+ * =====================================================================
+ * 全局 JSON fetch 保护层
+ * =====================================================================
+ * 【解决什么问题】
+ * 后台几十个页面都这样写：
+ *
+ *   fetch(url, {...}).then(r => r.json()).then(data => {...})
+ *
+ * 只要响应不是 JSON（WAF 拦截页、502/504 超时页、PHP 致命错误页），
+ * r.json() 就会抛 SyntaxError。这个异常进到 .catch() 里，
+ * 页面多半只会弹一句「网络错误」或者干脆什么都不显示 ——
+ * 用户和站长都无从知道真正发生了什么。
+ *
+ * 【现在】
+ * 覆盖 window.fetch，包装返回的 Response：
+ *   · Content-Type 不是 JSON 时，先把响应体读成文本
+ *   · 构造一个带状态码和错误说明的 Response，body 是合法 JSON
+ *   · 这样 r.json() 永远能解析，页面能读到 { success:false, message:"..." }
+ *
+ * 只改响应形态，不改请求本身，也不影响正常的 JSON 接口。
+ * =====================================================================
+ */
+(function () {
+    if (window.__lwSafeFetch) return;
+    window.__lwSafeFetch = true;
+
+    var origFetch = window.fetch;
+    if (!origFetch) return;
+
+    function explain(status) {
+        if (status === 0)  return '网络已断开，请检查连接';
+        if (status === 403) return '请求被安全策略拦截（403）';
+        if (status === 404) return '接口不存在（404）';
+        if (status === 413) return '上传内容太大（413）';
+        if (status === 429) return '操作太频繁，请稍后再试（429）';
+        if (status === 502) return '网关错误，服务器暂时不可用（502）';
+        if (status === 504) return '请求超时（504），请稍后重试';
+        if (status >= 500)  return '服务器内部错误（' + status + '）';
+        return '请求失败（' + status + '）';
+    }
+
+    window.fetch = function () {
+        return origFetch.apply(this, arguments).then(function (resp) {
+            var ct = (resp.headers.get('content-type') || '').toLowerCase();
+            // 已经是 JSON，原样返回，零开销
+            if (ct.indexOf('json') !== -1) return resp;
+
+            // 非 JSON：读成文本，包一层假 JSON 响应
+            return resp.text().then(function (txt) {
+                var payload = {
+                    success: false,
+                    message: explain(resp.status),
+                    _status: resp.status,
+                    _nonJson: true,
+                    // 保留原始响应片段，便于排查（最多 500 字）
+                    _raw: (txt || '').slice(0, 500)
+                };
+                try {
+                    return new Response(JSON.stringify(payload), {
+                        status: 200,          // 让调用方的 .then 正常走
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                } catch (e) {
+                    // 极老的 WebView 不支持 new Response，退回手写对象
+                    return {
+                        ok: true, status: 200, statusText: 'OK',
+                        headers: { get: function () { return 'application/json'; } },
+                        json: function () { return Promise.resolve(payload); },
+                        text: function () { return Promise.resolve(JSON.stringify(payload)); }
+                    };
+                }
+            });
+        });
+    };
 })();
 </script>
 </body>

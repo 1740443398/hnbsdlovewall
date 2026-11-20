@@ -64,7 +64,16 @@ if (!defined('LW_ENHANCE_LOADED')) {
      * 规则：先看作者手填的 tags 字段；没有就从标题里取 #话题# 与常见关键词。
      * 刻意保守 —— 宁可少打标签，也不要把「的」「了」这类字当标签。
      */
-    function lwExtractTags(array $post): array
+    /* 【改名：lwExtractTags → lwExtractPostTags】
+     *
+     * 原来这里也叫 lwExtractTags，而 text_linkify.php 里已有一个
+     * lwExtractTags(?string $raw)。两个文件都被 config.php 引入时，
+     * PHP 会抛 "Cannot redeclare function lwExtractTags()" —— 整站致命错误。
+     *
+     * 两者语义也不同：这个从「帖子数组」取标签，那个从「正文字符串」取话题。
+     * 改成语义更明确的 lwExtractPostTags，避免再次撞名。
+     */
+    function lwExtractPostTags(array $post): array
     {
         $tags = [];
         if (!empty($post['tags'])) {
@@ -209,7 +218,7 @@ if (!defined('LW_ENHANCE_LOADED')) {
             if (!isset($liked[$pid]) && !isset($seenIds[$pid])) {
                 continue;
             }
-            foreach (lwExtractTags($p) as $t) {
+            foreach (lwExtractPostTags($p) as $t) {
                 $k = lwSlugify($t);
                 $tagWeight[$k] = ($tagWeight[$k] ?? 0) + 1;
             }
@@ -237,7 +246,7 @@ if (!defined('LW_ENHANCE_LOADED')) {
                 continue;
             }
             $score = 0.0;
-            foreach (lwExtractTags($p) as $t) {
+            foreach (lwExtractPostTags($p) as $t) {
                 $score += ($tagWeight[lwSlugify($t)] ?? 0) * 3;
             }
             $score += ($catWeight[(string)($p['category'] ?? '')] ?? 0) * 2;
@@ -317,7 +326,7 @@ if (!defined('LW_ENHANCE_LOADED')) {
                 'comment_count' => (int)($p['comments'] ?? 0),
                 'view_count' => (int)($p['views'] ?? 0),
                 'created_at' => (string)($p['created_at'] ?? ''),
-                'tags' => lwExtractTags($p),
+                'tags' => lwExtractPostTags($p),
             ];
         }
         return $out;

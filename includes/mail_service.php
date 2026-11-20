@@ -297,7 +297,7 @@ if (!defined('LW_MAIL_SERVICE_LOADED')) {
      * @param int    $gapMs   每封之间间隔毫秒
      * @return array ['sent'=>int, 'failed'=>int, 'skipped'=>int, 'results'=>[...]]
      */
-    function lwMailBroadcast(array $userIds, string $subject, array $data, int $limit = 30, int $gapMs = 350): array
+    function lwMailBroadcast(array $userIds, string $subject, array $data, int $limit = 10, int $gapMs = 150): array
     {
         $out = ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'results' => []];
 

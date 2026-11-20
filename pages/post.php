@@ -73,8 +73,10 @@ if ($editPostId > 0) {
     <?php require_once __DIR__ . '/../includes/pwa_head.php'; ?>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title>发布帖子 - <?= SITE_NAME ?></title>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <style>
         .post-page {
             max-width: 700px;

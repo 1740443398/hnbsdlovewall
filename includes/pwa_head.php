@@ -210,43 +210,58 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
     // 总开关默认开启，用户可在个人中心关闭（自动回退 MIUIX 主题）。
     ?>
     <?php /* liquid-glass 的样式已经在 bundle.css 里，不再单独 preload —— 少一个请求 */ ?>
-    <?php // 双向适配：移动浏览器里提示「用 App 打开」 ?>
-    <script>
-    (function(){
-      // 只在移动端、非 App 内、且用户没关过时提示
-      var ua = navigator.userAgent || '';
-      var isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
-      var inApp = /LoveWallApp/i.test(ua);
-      if (!isMobile || inApp) return;
-      try { if (localStorage.getItem('lw_app_banner_closed') === '1') return; } catch(e) {}
-      if (document.getElementById('lwAppBanner')) return;
-
-      function show(){
-        var d = document.createElement('div');
-        d.id = 'lwAppBanner';
-        d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9997;' +
-          'background:linear-gradient(135deg,#2F5B9A,#24487A);color:#fff;' +
-          'padding:12px 16px;display:flex;align-items:center;gap:12px;' +
-          'font-size:.85rem;box-shadow:0 -2px 16px rgba(0,0,0,.14);' +
-          'padding-bottom:calc(12px + env(safe-area-inset-bottom))';
-        d.innerHTML = '<div style="flex:1;line-height:1.5">' +
-          '<b>用 App 打开体验更好</b><br>' +
-          '<span style="opacity:.85;font-size:.78rem">支持离线缓存、消息推送、图片查看器</span></div>' +
-          '<a href="/download/lovewall-v2.4.0.apk" style="background:#fff;color:#2F5B9A;' +
-          'padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600;' +
-          'font-size:.82rem;white-space:nowrap">下载</a>' +
-          '<span id="lwAppBannerX" style="opacity:.7;padding:4px 8px;cursor:pointer;font-size:1.2rem">×</span>';
-        document.body.appendChild(d);
-        document.getElementById('lwAppBannerX').addEventListener('click', function(){
-          d.remove();
-          try { localStorage.setItem('lw_app_banner_closed', '1'); } catch(e) {}
-        });
-      }
-      // 等页面稳定再显示，避免和首屏渲染抢资源
-      if (document.readyState === 'complete') setTimeout(show, 2500);
-      else window.addEventListener('load', function(){ setTimeout(show, 2500); });
-    })();
-    </script>
+    <?php
+    /* APK 下载地址 —— 扫目录取最新版。
+     * 旧逻辑「先读配置，包不存在才扫目录」有致命问题：服务器上历史版本
+     * 一直留着，is_file() 永远为真，扫描分支永远不执行，
+     * 下载按钮就永远指向最老的包。现在始终扫目录取最大版本。 */
+    $__apkDir  = __DIR__ . '/../download';
+    $__apkHref = '';
+    $__apkBest = '';
+    $__apkBestVer = '';
+    foreach (glob($__apkDir . '/*.apk') ?: [] as $__f) {
+        $__bn = basename($__f);
+        if (!preg_match('/v(\d+(?:\.\d+)*)\.apk$/i', $__bn, $__mv)) continue;
+        if ($__apkBestVer === '' || version_compare($__mv[1], $__apkBestVer, '>')) {
+            $__apkBestVer = $__mv[1];
+            $__apkBest = $__bn;
+        }
+    }
+    if ($__apkBest !== '') $__apkHref = '/download/' . rawurlencode($__apkBest);
+    if (function_exists('lwCfg')) {
+        $__cfgName = basename((string)lwCfg('app_apk_file', ''));
+        if ($__cfgName !== '' && preg_match('/^[\w.\-]+\.apk$/i', $__cfgName)
+                && is_file($__apkDir . '/' . $__cfgName)) {
+            $__cfgVer = '';
+            if (preg_match('/v(\d+(?:\.\d+)*)\.apk$/i', $__cfgName, $__m2)) $__cfgVer = $__m2[1];
+            if ($__cfgVer === '' || $__apkBestVer === ''
+                    || version_compare($__cfgVer, $__apkBestVer, '>=')) {
+                $__apkHref = '/download/' . rawurlencode($__cfgName);
+            }
+        }
+    }
+    if ($__apkHref === '') $__apkHref = '/download/lovewall-v2.5.0.apk';
+    ?>
+    <?php
+    /* ==================================================================
+     * App 下载横幅 —— 已移除（2026-11-20）
+     * ==================================================================
+     * 【为什么移除】
+     *
+     * 原逻辑：手机浏览器访问时，底部弹一条「用 App 打开体验更好」的横幅。
+     *
+     * 实测问题：
+     *   1. 横幅固定 88px 高，加上 padding 实际吃掉约 100px 可视区 ——
+     *      手机屏幕本来就小，这相当于把可用高度又砍掉 1/6。
+     *   2. 需要用户手动点 × 才消失，且只记在 localStorage，
+     *      换浏览器/清缓存后又会出现。
+     *   3. 用户反馈「下载软件有点费事」—— 这条横幅反而在催促下载，
+     *      而不是解决手机端本身的体验问题。
+     *
+     * 现在的方向：把手机端网页本身做成接近 App 的体验（见 mobile-app.css），
+     * 下载入口保留在用户菜单里，不再主动弹窗打扰。
+     * ================================================================== */
+    ?>
 
     <?php
     /* =====================================================================

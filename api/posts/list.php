@@ -96,11 +96,24 @@ unset($decorated);
 // 与搜索、AI 助手各写一份且不一致；现在三处共用同一条判定）。
 $filteredPosts = lwFilterVisiblePosts($posts, $user);
 
+/* 总数与「本次返回条数」要分开算。
+ *
+ * 【原来这里有个严重的设计缺陷】
+ * 游客时把 $total 也截断成 GUEST_VISIBLE_POSTS（5），
+ * 于是响应里 pagination.total = 5、has_more = false。
+ *
+ * 前端拿到这个响应会认为「全站只有 5 条帖子」——
+ * 既不显示「登录后看更多」，也不会再请求下一页。
+ * 用户看到的就是「帖子显示不全」，而且永远看不到其余内容，
+ * 除非自己意识到要去登录。
+ *
+ * 【现在】
+ *   total         = 真实可见总数（前端据此显示「还有 N 条」）
+ *   guest_limited = true 时，前端会主动提示登录
+ *   返回条数仍按 GUEST_VISIBLE_POSTS 截断（这是产品策略，保留）
+ */
 $total = count($filteredPosts);
-// 游客的总数也按上限封顶，避免前端据此判断还有更多内容
-if ($isGuest) {
-    $total = min($total, GUEST_VISIBLE_POSTS);
-}
+$guestTotal = $total;   // 真实总数，给前端做「登录后可看更多」提示
 $posts = array_slice($filteredPosts, $offset, $limit);
 
 $result = [];
@@ -248,6 +261,8 @@ jsonSuccess(lwProjectTop(
             ['id']
         ),
         'guest_limited' => $isGuest,
+        /* 真实总数：游客时前端用它显示「还有 N 条，登录后可见」 */
+        'guest_total' => $isGuest ? $guestTotal : null,
         'pagination' => [
             'total' => $total,
             'page' => $page,

@@ -223,7 +223,7 @@ foreach (lwEnhRead('posts') as $p) {
     if (($p['visibility'] ?? 'public') !== 'public') continue;
     if ($category !== '' && (string)($p['category'] ?? '') !== $category) continue;
     if ($tag !== '') {
-        $ts = array_map('lwSlugify', lwExtractTags($p));
+        $ts = array_map('lwSlugify', lwExtractPostTags($p));
         if (!in_array($tag, $ts, true)) continue;
     }
     $posts[] = $p;

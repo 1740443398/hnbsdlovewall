@@ -144,29 +144,238 @@ adminHeader('兑换码管理', $admin, $csrfToken);
 ?>
 
 <style>
-.pc-wrap { max-width: 960px; }
-.pc-msg { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
-.pc-msg.ok  { background: var(--success-light); color: var(--success); border: 1px solid var(--success-light); }
-.pc-msg.err { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger-light); }
-.pc-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.pc-field .hint { font-size: 12px; color: var(--text-muted, var(--text-muted)); margin-bottom: 6px; line-height: 1.6; }
-@media (max-width: 700px) { }
-.pc-type-opt:has(input:checked) { border-color: var(--primary); background: var(--info-light); }
-.pc-type-opt span { font-size: 13px; font-weight: 600; margin-left: 6px; }
-.pc-type-opt small {
-    display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 4px; margin-left: 22px;
+/* ==========================================================================
+ * 兑换码管理
+ * ==========================================================================
+ * 布局原则：把「选什么 → 填什么 → 生成多少」拆成三个编号步骤，
+ * 每一步只问一件事。原来所有字段平铺在一起，用户不知道该先填哪个。
+ *
+ * 输入框统一宽度、统一高度、标签在上方、提示在下方 ——
+ * 这是最不容易出错的形式（左右布局在窄屏上会挤成两行）。
+ * ========================================================================== */
+
+.pc-step {
+    display: flex;
+    gap: 14px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-light, #F0F3F8);
 }
-.pc-table th {
-    text-align: left; padding: 9px 10px; font-size: 12px; font-weight: 600;
-    color: var(--text-muted, var(--text-muted)); border-bottom: 1px solid var(--border-color, var(--border));
+.pc-step:last-of-type { border-bottom: 0; }
+
+.pc-step-num {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--primary, #2F5B9A);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
 }
-.pc-table td { padding: 10px; border-bottom: 1px solid var(--border-light, var(--bg-secondary)); }
+.pc-step-body { flex: 1 1 auto; min-width: 0; }
+.pc-step-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text, #1F2733);
+    margin-bottom: 10px;
+}
+
+/* ---- 二选一卡片 ---- */
+.pc-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+}
+.pc-choice {
+    display: block;
+    cursor: pointer;
+}
+.pc-choice input { display: none; }
+.pc-choice-inner {
+    padding: 13px 15px;
+    border: 2px solid var(--border, #E4E9F0);
+    border-radius: 10px;
+    background: var(--card-bg, #fff);
+    transition: border-color .15s, background .15s;
+}
+.pc-choice:hover .pc-choice-inner {
+    border-color: rgba(47,91,154,.45);
+}
+.pc-choice input:checked + .pc-choice-inner {
+    border-color: var(--primary, #2F5B9A);
+    background: rgba(47,91,154,.06);
+}
+.pc-choice-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text, #1F2733);
+    margin-bottom: 3px;
+}
+.pc-choice input:checked + .pc-choice-inner .pc-choice-name {
+    color: var(--primary, #2F5B9A);
+}
+.pc-choice-desc {
+    font-size: 12px;
+    color: var(--text-muted, #98A2B3);
+    line-height: 1.6;
+}
+
+/* ---- 字段行 ---- */
+.pc-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}
+.pc-field { min-width: 0; }
+.pc-field-wide { grid-column: span 2; }
+@media (max-width: 640px) {
+    .pc-field-wide { grid-column: auto; }
+}
+
+.pc-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text, #1F2733);
+    margin-bottom: 6px;
+}
+.pc-hint {
+    font-size: 11.5px;
+    color: var(--text-muted, #98A2B3);
+    line-height: 1.6;
+    margin-top: 5px;
+}
+
+/* ---- 输入框统一 ---- */
+.pc-input {
+    display: block;
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    font-size: 13.5px;
+    font-family: inherit;
+    color: var(--text, #1F2733);
+    background: var(--input-bg, #F4F6FA);
+    border: 1px solid var(--border, #E4E9F0);
+    border-radius: 9px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .15s, background .15s;
+}
+select.pc-input {
+    height: 38px;
+    padding-right: 30px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398A2B3' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+}
+.pc-input:focus {
+    border-color: var(--primary, #2F5B9A);
+    background: var(--card-bg, #fff);
+}
+.pc-input::placeholder { color: var(--text-muted, #98A2B3); }
+
+/* ---- 提交条 ---- */
+.pc-submit-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding: 15px 17px;
+    background: rgba(47,91,154,.05);
+    border: 1px solid rgba(47,91,154,.15);
+    border-radius: 11px;
+}
+.pc-submit-bar .btn {
+    padding: 10px 26px;
+    font-size: 14px;
+    font-weight: 700;
+    height: auto;
+}
+.pc-submit-hint {
+    font-size: 12.5px;
+    color: var(--text-secondary, #5A6472);
+}
+
+/* ---- 生成结果 ---- */
+.pc-codes {
+    background: #1E252F;
+    color: #A8E6B8;
+    border-radius: 11px;
+    padding: 16px 18px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 2;
+    max-height: 320px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin-top: 14px;
+}
+.pc-copy { margin-top: 10px; }
+
+/* ---- 表格 ---- */
+.pc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.pc-table thead th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #98A2B3);
+    background: var(--bg-secondary, #F7F9FC);
+    border-bottom: 1px solid var(--border, #E4E9F0);
+    white-space: nowrap;
+}
+.pc-table tbody td {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border-light, #F0F3F8);
+    color: var(--text, #1F2733);
+    vertical-align: middle;
+}
+.pc-table tbody tr:last-child td { border-bottom: 0; }
+.pc-table tbody tr:hover { background: var(--bg-secondary, #F7F9FC); }
 .pc-table code {
-    background: var(--bg-secondary, var(--bg-secondary)); padding: 2px 7px; border-radius: 5px;
-    font-size: 12px; letter-spacing: .5px;
+    background: var(--bg-secondary, #F3F6FA);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 12px;
+    letter-spacing: .5px;
 }
-.pc-pill.used { background: var(--border-light); color: var(--text-secondary); }
-.pc-pill.live { background: var(--success-light); color: var(--success); }
+.pc-pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+.pc-pill.used { background: var(--bg-secondary, #EEF2F7); color: var(--text-secondary, #5A6472); }
+.pc-pill.live { background: var(--success-light, #EAF7F1); color: var(--success, #178A62); }
+
+/* ---- 提示条 ---- */
+.pc-msg {
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.pc-msg.ok  { background: var(--success-light, #EAF7F1); color: var(--success, #178A62); border: 1px solid var(--success-light, #C5E9D8); }
+.pc-msg.err { background: var(--danger-light, #FDECEC); color: var(--danger, #C0392B); border: 1px solid var(--danger-light, #F5C6C6); }
+
+@media (max-width: 640px) {
+    .pc-step { gap: 10px; padding: 13px 0; }
+    .pc-step-num { flex-basis: 22px; width: 22px; height: 22px; font-size: 12px; }
+    .pc-table thead th, .pc-table tbody td { padding: 8px 9px; }
+}
 </style>
 
 <div class="pc-wrap">
@@ -177,57 +386,65 @@ adminHeader('兑换码管理', $admin, $csrfToken);
     <form method="post" class="section" id="genForm">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
         <input type="hidden" name="act" value="gen">
-        <div class="section-header"><h3>生成兑换码</h3></div>
+
+        <div class="section-header">
+            <h3>生成兑换码</h3>
+        </div>
         <div class="section-body">
-            <div class="hint" style="margin-bottom:14px;">
-                生成后把码复制发出去，用户在「商店」页输入即可兑换积分。
-                每码只能用一次。
-            </div>
-            <div class="pc-grid">
-                <div class="pc-field">
-                    <label>数量</label>
-                    <div class="hint">1~500</div>
-                    <input class="pc-input" name="count" type="number" value="10" min="1" max="500">
-                </div>
-                <div class="pc-field">
-                    <label>每个码的积分</label>
-                    <input class="pc-input" name="points" type="number" value="100" min="1" max="100000">
-                </div>
-                <div class="pc-field">
-                    <label>备注（便于日后分辨批次）</label>
-                    <div class="hint">例如「国庆活动」「给高三鼓励」</div>
-                    <input class="pc-input" name="note" placeholder="可留空">
+
+            <!-- 第一步：选类型（最关键的决策，放最上面）-->
+            <div class="pc-step">
+                <div class="pc-step-num">1</div>
+                <div class="pc-step-body">
+                    <div class="pc-step-title">选择兑换内容</div>
+                    <div class="pc-choices">
+                        <label class="pc-choice">
+                            <input type="radio" name="code_type" value="points" checked
+                                   onchange="toggleType('points')">
+                            <div class="pc-choice-inner">
+                                <div class="pc-choice-name">积分码</div>
+                                <div class="pc-choice-desc">兑换后账户增加积分</div>
+                            </div>
+                        </label>
+                        <label class="pc-choice">
+                            <input type="radio" name="code_type" value="widget"
+                                   onchange="toggleType('widget')">
+                            <div class="pc-choice-inner">
+                                <div class="pc-choice-name">商品码</div>
+                                <div class="pc-choice-desc">兑换后直接获得指定装扮</div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </div>
 
-            <!-- 码类型：积分码 / 商品码 -->
-            <div class="adm-card-body">
-                <div class="pc-type-title">兑换什么</div>
-                <div class="pc-type-tabs">
-                    <label class="pc-type-opt">
-                        <input type="radio" name="code_type" value="points" checked
-                               onchange="toggleType('points')">
-                        <span>积分码</span>
-                        <small>兑换后账户增加积分</small>
-                    </label>
-                    <label class="pc-type-opt">
-                        <input type="radio" name="code_type" value="widget"
-                               onchange="toggleType('widget')">
-                        <span>商品码</span>
-                        <small>兑换后直接获得指定装扮</small>
-                    </label>
+            <!-- 第二步：积分（仅积分码）-->
+            <div class="pc-step" id="stepPoints">
+                <div class="pc-step-num">2</div>
+                <div class="pc-step-body">
+                    <div class="pc-step-title">设置积分数量</div>
+                    <div class="pc-row">
+                        <div class="pc-field">
+                            <label class="pc-label">每个码多少积分</label>
+                            <input class="pc-input" name="points" type="number"
+                                   value="100" min="1" max="100000">
+                            <div class="pc-hint">范围 1 ~ 100000</div>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div id="widgetPicker" style="display:none;margin-top:12px;">
-                    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">
-                        选择商品
-                    </label>
-                    <div class="hint" style="margin-bottom:8px;">
-                        共 <?= count($allWidgets) ?> 个在售装扮。选中的商品会直接发给兑换人，
-                        不扣积分。
+            <!-- 第二步（商品码）：选商品 -->
+            <div class="pc-step" id="stepWidget" style="display:none;">
+                <div class="pc-step-num">2</div>
+                <div class="pc-step-body">
+                    <div class="pc-step-title">选择要发放的商品</div>
+                    <div class="pc-hint" style="margin-bottom:10px;">
+                        共 <?= count($allWidgets) ?> 个在售装扮。兑换后直接发放，
+                        不扣积分、不需要用户自己买。
                     </div>
                     <select class="pc-input" name="widget_id" id="widgetSelect">
-                        <option value="0">— 请选择 —</option>
+                        <option value="0">— 请选择商品 —</option>
                         <?php
                         $curSlot = '';
                         foreach ($allWidgets as $w):
@@ -239,7 +456,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                         ?>
                         <option value="<?= $w['id'] ?>">
                             <?= htmlspecialchars($w['name']) ?>
-                            （<?= $w['price'] ?> 积分 / <?= $w['days'] > 0 ? $w['days'] . ' 天' : '永久' ?>）
+                            （原价 <?= $w['price'] ?> 积分 / <?= $w['days'] > 0 ? $w['days'] . ' 天' : '永久' ?>）
                         </option>
                         <?php endforeach; ?>
                         <?php if ($curSlot !== '') echo '</optgroup>'; ?>
@@ -247,7 +464,36 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" id="genBtn">生成积分码</button>
+            <!-- 第三步：数量与备注 -->
+            <div class="pc-step">
+                <div class="pc-step-num">3</div>
+                <div class="pc-step-body">
+                    <div class="pc-step-title">生成多少个</div>
+                    <div class="pc-row">
+                        <div class="pc-field">
+                            <label class="pc-label">数量</label>
+                            <input class="pc-input" name="count" type="number"
+                                   value="10" min="1" max="500">
+                            <div class="pc-hint">范围 1 ~ 500</div>
+                        </div>
+                        <div class="pc-field pc-field-wide">
+                            <label class="pc-label">备注（可选）</label>
+                            <input class="pc-input" name="note"
+                                   placeholder="例如：国庆活动 / 给高三鼓励">
+                            <div class="pc-hint">方便日后在批次列表里分辨</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pc-submit-bar">
+                <button type="submit" class="btn btn-primary" id="genBtn">
+                    生成积分码
+                </button>
+                <span class="pc-submit-hint" id="genHint">
+                    生成后可在下方复制全部兑换码
+                </span>
+            </div>
         </div>
     </form>
 
@@ -290,7 +536,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                 </div>
             <?php else: ?>
             <div style="overflow-x:auto;">
-                <table class="adm-table">
+                <table class="pc-table">
                     <thead>
                         <tr>
                             <th>批次</th><th>积分/码</th><th>备注</th>
@@ -340,7 +586,7 @@ adminHeader('兑换码管理', $admin, $csrfToken);
                 </div>
             <?php else: ?>
             <div style="overflow-x:auto;">
-                <table class="adm-table">
+                <table class="pc-table">
                     <thead>
                         <tr><th>兑换码</th><th>积分</th><th>兑换人</th><th>时间</th></tr>
                     </thead>

@@ -47,8 +47,10 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= t('tools.name_rollcall') ?> - <?= htmlspecialchars($siteName) ?></title>
     <meta name="description" content="<?= htmlspecialchars(t('rollcall.page_desc')) ?>">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
@@ -309,7 +311,9 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
     <?php lwRenderFooter([]); ?>
 
     <?php // E18 xlsx 体积 929KB，仅在点名页「导入 Excel」时才按需加载（见 rollCallReadExcel 的动态注入），不再随页面常驻。 ?>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>
+    <?php endif; ?>
     <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
     <script>
     /* ===== 随机点名（独立页） ===== */
@@ -542,6 +546,8 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
         });
     })();
     </script>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
+    <?php endif; ?>
 </body>
 </html>

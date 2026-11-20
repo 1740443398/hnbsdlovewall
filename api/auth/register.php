@@ -237,6 +237,10 @@ logUserActivity($user['id'], 'register', '注册成功');
 // 欢迎邮件（邮箱由 QQ 号推导，见 includes/mail_service.php）
 if (is_file(__DIR__ . '/../../includes/mail_service.php')) {
     require_once __DIR__ . '/../../includes/mail_service.php';
+/* 释放 session 锁：发邮件要 1 秒以上，持锁期间同用户的其他请求
+ * 会全部排队，多用户并发时整站卡死。 */
+if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+
     lwMailNotify('register', (int)$user['id'], [
         'title' => '欢迎加入 ' . (defined('SITE_NAME') ? SITE_NAME : '校园交流墙'),
         'lines' => [

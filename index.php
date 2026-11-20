@@ -59,14 +59,36 @@ $categories = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <?php require_once __DIR__ . '/includes/pwa_head.php'; ?>
-<link rel="stylesheet" href="/assets/css/ssr-cards.css?v=<?= @filemtime(__DIR__ . '/assets/css/ssr-cards.css') ?>" >
-    <script src="<?= asset_url('/assets/js/anti_hijack.js') ?>?v=<?= asset_ver('/assets/js/anti_hijack.js') ?>"></script>
+<?php
+/* =====================================================================
+ * 两个小文件内联 —— 每个省一次「2 秒起步」的请求
+ * =====================================================================
+ * ssr-cards.css  1.3 KB  首屏 SSR 卡片样式，只有首页用
+ * anti_hijack.js 1.6 KB  反劫持检测，必须最早执行
+ *
+ * 加起来 3 KB，而主机上任何额外请求都固定 2 秒。
+ * 内联后少 2 个请求，且 anti_hijack 执行得更早（不用等下载）。
+ * ===================================================================== */
+$__ssrCss = __DIR__ . '/assets/css/ssr-cards.css';
+if (is_file($__ssrCss)) {
+    echo '<style>' . file_get_contents($__ssrCss) . '</style>' . "\n";
+}
+$__ahJs = __DIR__ . '/assets/js/anti_hijack.min.js';
+if (!is_file($__ahJs)) {
+    $__ahJs = __DIR__ . '/assets/js/anti_hijack.js';
+}
+if (is_file($__ahJs)) {
+    echo '<script>' . file_get_contents($__ahJs) . '</script>' . "\n";
+}
+?>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= htmlspecialchars($siteName) ?></title>
     <?php require __DIR__ . '/includes/seo_meta.php'; ?>
     <meta name="description" content="<?= htmlspecialchars(t('site.meta_desc')) ?>">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
@@ -418,8 +440,10 @@ $categories = [
       } catch (e) {}
     })();
     </script>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
+    <?php endif; ?>
     <?php require_once __DIR__ . '/includes/lang_ui.php'; ?>
 </body>
 </html>

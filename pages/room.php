@@ -32,7 +32,9 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <?php require __DIR__ . '/../includes/seo_meta.php'; ?>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <?php endif; ?>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;

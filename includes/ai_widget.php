@@ -115,8 +115,21 @@ if (!function_exists('lw_ai_widget_render')) {
         $__bundleCss = __DIR__ . '/../assets/css/bundle.css';
         $__inBundle = false;
         if (is_file($__bundleCss)) {
-            $__head = @file_get_contents($__bundleCss, false, null, 0, 65536);
-            if ($__head !== false && strpos($__head, '.lw-ai') !== false) {
+            /* 【2026-10-31 修复：判断失效导致 AI 样式重复加载】
+             *
+             * 原来只读前 64 KB。但 style.css（156 KB）现在被放进了 bundle
+             * 的最前面，于是 .lw-ai 规约落在 64 KB 之后 ——
+             * strpos 扫不到，判断失败，每页又单独加载了一次 ai_widget.min.css。
+             *
+             * 现在改成「整文件扫描」：bundle.css 有 200 KB 左右，
+             * 一次 file_get_contents 在这台主机上的开销远小于一次额外 HTTP 请求
+             * （前者是本地磁盘读，微秒级；后者是 2 秒的网关往返）。
+             *
+             * 另外判断条件从 '.lw-ai' 改成更独特的 '.lw-ai-panel' ——
+             * 前者太短，可能被注释或无关声明误命中。
+             */
+            $__all = @file_get_contents($__bundleCss);
+            if ($__all !== false && strpos($__all, '.lw-ai-panel') !== false) {
                 $__inBundle = true;
             }
         }

@@ -1,12 +1,20 @@
 # ===== 本地开发环境 =====
 .idea/
 .trae/
+.vscode/
+.workbuddy/
+.wbapp_*
+.shots/
+.buildtools/
 start_server.bat
+Thumbs.db
+.DS_Store
 
 # ===== 运行时数据与用户内容（切勿上传，内含真实用户数据）=====
 data/
 uploads/
 music/
+fonts/
 data_backup_*/
 *_backup_*/
 *.lock
@@ -18,51 +26,52 @@ data_backup_*/
 *.swp
 *.rej
 
+# ===== 日志 =====
+*.log
+
+# ===== 敏感配置（含密钥，绝不提交）=====
+config/mail_config.php
+config/db_config.php
+config/ai_config.php
+config/sign_secret.php
+config/feijipan_config.php
+config/sync_config.php
+config/sign_mode.php
+config/sync_nonces.json
+config/*_secret.php
+config/*_key.php
+
 # ===== 二进制产物 / 大文件 =====
-# 注：download/ 下的 APK 有意纳入仓库（方便访客直接下载安装）
+# 注意：download/ 下的 APK 有意纳入仓库（方便访客直接下载安装）
 *.jks
 *.keystore
 keystore.properties
+love_wall.zip
 *.zip
 
-# ===== 本机专属配置（含数据库密码 / 网盘账号 / SMTP授权码 / 同步密钥 / AI密钥）=====
-# 【务必保持这份清单完整】
-# 任何一个漏掉，真实凭据就会跟着开源版一起发布出去 —— 那是不可撤销的泄漏。
-config/mail_config.php
-config/sync_config.php
-config/sync_nonces.json
-config/ai_config.php
-config/db_config.php
-config/feijipan_config.php
-config/sign_secret.php
-config/sign_mode.php
-
-# ===== 本地打包/脚本产物（非源码，不上传）=====
-love_wall.zip
-_setup_git_gh.py
-fonts/
-.shots/
-.workbuddy/
-.wbapp_*
-
-# ===== 构建工具依赖（本地压缩/构建用，非源码）=====
-.buildtools/
+# ===== 构建缓存 =====
 node_modules/
+.buildtools/
+dist/
 
-# ===== 本机专用的一次性运维脚本（含同步/挑战流程，不上传）=====
-_challenge_solve.php
-_sync_write_local.php
-_sync_pull.json
-_pull_prod.php
-_ref_*
+# ===== 安卓客户端构建产物 =====
+love_wall_app_v3/.gradle/
+love_wall_app_v3/build/
+love_wall_app_v3/app/build/
+love_wall_app_v3/local.properties
+
+# ===== 临时脚本（不同 agent 留下的调试文件）=====
+_*.php
+_*.py
 _tmp_*
+_ref_*
 _verify_*
 _bk_*
 _zipcheck*
-
-# ===== 系统 / 编辑器 =====
-Thumbs.db
-.DS_Store
-
+_pull_prod.php
+_setup_git_gh.py
+_challenge_solve.php
+_sync_write_local.php
+_sync_pull.json
 _lwtest/
 _lwapp/

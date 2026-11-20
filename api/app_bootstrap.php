@@ -77,9 +77,25 @@ try {
     usort($all, function ($x, $y) {
         return strcmp((string)($y['created_at'] ?? ''), (string)($x['created_at'] ?? ''));
     });
-    // 游客只看前 3 条（与 list.php 的 GUEST_VISIBLE_POSTS 一致）
-    $guestLimit = defined('GUEST_VISIBLE_POSTS') ? (int)GUEST_VISIBLE_POSTS : 3;
-    $limit = $isGuest ? $guestLimit : 20;
+    /* 每类用户各给多少条。
+     *
+     * 【为什么登录用户不再是 20】
+     * 原来写死 20，App 首页只显示 20 条，用户以为「网站只有这么多帖子」。
+     * 现在登录用户默认给 200 条（覆盖本站全部已发布帖子），
+     * 并可用 ?limit= 自定义（1~500）。
+     *
+     * 为什么封顶 500 而不是无限：
+     *   单次响应体过大在手机上解析会卡，而且主机对响应大小有限制。
+     *   500 条 × 约 400 字节 ≈ 200 KB，仍在安全范围内。
+     *   真要更多，App 应改用 /api/posts/list.php 分页拉取。
+     */
+    $guestLimit = defined('GUEST_VISIBLE_POSTS') ? (int)GUEST_VISIBLE_POSTS : 5;
+    if ($isGuest) {
+        $limit = $guestLimit;
+    } else {
+        $reqLimit = (int)($_REQUEST['limit'] ?? 0);
+        $limit = $reqLimit > 0 ? min(500, max(1, $reqLimit)) : 200;
+    }
     $slice = array_slice($all, 0, $limit);
     $out['feed'] = [
         'posts' => lwPostListPayload($slice),
@@ -148,19 +164,55 @@ if (!$isGuest) {
         $out['profile'] = ['id' => $uid];
     }
 
-    // 3.4 签到状态
+    /* 3.4 签到状态
+     *
+     * App 端要显示「今日已签 / 连续 N 天 / 累计 N 天」，
+     * 原来只返回 today_done 一个布尔值，App 只能显示「已签/未签」，
+     * 连续天数和累计天数只能自己算 —— 算错就会显示「签到失败」。
+     *
+     * 现在直接复用 api/checkin.php 用的同一个状态函数
+     * （includes/actions/checkin.php 里的 lw_checkinState），
+     * 保证网页端和 App 端看到的是同一份数据。
+     */
     try {
         $today = date('Y-m-d');
-        $checked = false;
-        foreach ($fs->find('checkins', ['user_id' => $uid]) as $c) {
-            if (strpos((string)($c['created_at'] ?? ''), $today) === 0) {
-                $checked = true;
-                break;
+        $rows = $fs->find('checkins', ['user_id' => $uid]);
+
+        // 历史重复行兜底（与 api/checkin.php 一致）
+        if (count($rows) > 1) {
+            for ($i = 1; $i < count($rows); $i++) {
+                try { $fs->delete('checkins', (int)$rows[$i]['id']); } catch (Throwable $e2) {}
             }
+            $rows = [$rows[0]];
         }
-        $out['checkin'] = ['today_done' => $checked];
+
+        $row = $rows ? $rows[0] : null;
+
+        if (function_exists('lw_checkinState')) {
+            $st = lw_checkinState($row, $today);
+            $out['checkin'] = [
+                'today_done' => !empty($st['checked_today']),
+                'streak'     => (int)($st['streak'] ?? 0),
+                'total'      => (int)($st['total'] ?? 0),
+                'last_date'  => (string)($st['last_date'] ?? ''),
+                'today'      => $today,
+            ];
+        } else {
+            // 兜底：函数没加载时用最简判断
+            $checked = $row && strpos((string)($row['last_date'] ?? ($row['created_at'] ?? '')), $today) === 0;
+            $out['checkin'] = [
+                'today_done' => (bool)$checked,
+                'streak'     => 0,
+                'total'      => count($rows),
+                'last_date'  => (string)($row['last_date'] ?? ''),
+                'today'      => $today,
+            ];
+        }
     } catch (Throwable $e) {
-        $out['checkin'] = ['today_done' => false];
+        $out['checkin'] = [
+            'today_done' => false, 'streak' => 0, 'total' => 0,
+            'last_date' => '', 'today' => date('Y-m-d'),
+        ];
     }
 }
 

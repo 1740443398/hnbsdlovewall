@@ -251,6 +251,10 @@ if ($action === 'ban') {
         }
         $__banLines[] = '如果你认为这是误判，可以通过站内私信或在群里联系管理员说明情况。';
 
+/* 释放 session 锁：发邮件要 1 秒以上，持锁期间同用户的其他请求
+ * 会全部排队，多用户并发时整站卡死。 */
+if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+
         lwMailNotify('ban', $userId, [
             'subject' => '你的账号已被封禁',
             'title' => '账号封禁通知',

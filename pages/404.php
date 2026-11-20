@@ -12,7 +12,9 @@ http_response_code(404);
     <?php require_once __DIR__ . '/../includes/theme_boot.php'; ?>
     <title>404 页面未找到 - <?= SITE_NAME ?></title>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <?php endif; ?>
     <!-- 404 不经过 pwa_head.php，彩蛋资源在这里单独引入（绝对路径，与全站一致） -->
     <link rel="stylesheet" href="<?= asset_url('/assets/css/easter-eggs.css') ?>?v=<?= asset_ver('/assets/css/easter-eggs.css') ?>">
     <style>

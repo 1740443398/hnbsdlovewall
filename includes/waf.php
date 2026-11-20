@@ -1106,12 +1106,51 @@ class WAF {
         }
     }
 
+    /**
+     * 浏览器指纹。
+     *
+     * =====================================================================
+     * 【2026-10-31 重大修正：不再把 IP 纳入指纹】
+     * =====================================================================
+     * 原来参与哈希的有四项：UA、Accept-Language、Accept-Encoding、客户端 IP。
+     *
+     * 问题出在 IP 上。手机用户的 IP 本来就会频繁变化：
+     *   · 从教室 WiFi 走到操场，切到 4G
+     *   · 校园网 NAT 出口池轮换
+     *   · 运营商给移动网络做 CGNAT，几十个人共享一个出口，
+     *     而同一个人的出口也可能几分钟换一次
+     *
+     * 每一次 IP 变化都会让指纹「变了」。累计超过 15 次就触发
+     * banIP(300) —— 把这整个 IP 拉黑 5 分钟。
+     *
+     * 后果就是用户看到的现象：
+     *   「刚才还好好的，突然所有页面都报网络错误」
+     *   「上传文件时报网络错误」
+     *   「过几分钟自己又好了」
+     *
+     * WAF 日志里 fingerprint_anomaly 有 244 条，远高于其他所有原因，
+     * 就是这个规则在误伤真实用户。
+     *
+     * =====================================================================
+     * 现在怎么判断
+     * =====================================================================
+     * 1. 指纹只看 UA + 语言 + 编码 —— 这三项在一次会话里几乎不会变，
+     *    变了才是可疑（换浏览器、脚本伪造请求头）。
+     *
+     * 2. IP 变化单独判断，且只看「极短时间内跨大洲/跨运营商」这种
+     *    真正异常的情况（见 detectIPRotation 里的距离阈值）。
+     *    单纯的 IP 变化不再触发任何封禁。
+     *
+     * 3. 就算指纹真变了，也只降级为 JS 挑战，不再直接 banIP。
+     *    挑战通过就放行 —— 正常用户点一下就好，攻击脚本过不去。
+     * =====================================================================
+     */
     public static function generateFingerprint() {
+        // 刻意排除 IP：移动网络下 IP 不稳定，纳入指纹等于给所有手机用户埋雷
         $components = [
             $_SERVER['HTTP_USER_AGENT']      ?? '',
             $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '',
             $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '',
-            self::getClientIP(),
         ];
         $fingerprint = hash('sha256', implode('|', $components));
 
@@ -1120,14 +1159,24 @@ class WAF {
             $prev = $_SESSION[$key];
             if ($prev['hash'] !== $fingerprint && ($prev['time'] ?? 0) > time() - 10) {
                 $_SESSION['waf_fp_changes'] = ($_SESSION['waf_fp_changes'] ?? 0) + 1;
-                // 阈值 15 次（原 8 次，2026-10 放宽）：UA / 语言头被中间层改写、移动网络切换
-                // 出口 IP 都会造成指纹变化，过低会把正常用户整段 IP 拉黑。
-                if ($_SESSION['waf_fp_changes'] > 15) {
-                    $ip = self::getClientIP();
-                    self::banIP($ip, 'fingerprint_anomaly', 300);
-                    self::logAndBlock('fingerprint_anomaly', 'Rapid fingerprint changes detected');
+
+                /* 阈值调到 40，并且**不再 banIP**。
+                 *
+                 * 为什么改成挑战而不是封禁：
+                 *   UA 被中间层改写（部分校园网代理、旧版 WebView）也会让指纹变，
+                 *   这跟攻击毫无关系。封禁的代价是用户 5 分钟完全用不了站点，
+                 *   而挑战的代价只是多点一下。
+                 *
+                 * 40 次的门槛：正常用户一天内几乎不可能触发；
+                 * 而脚本伪造请求头会非常快，几秒内就超过。
+                 */
+                if ($_SESSION['waf_fp_changes'] > 40) {
+                    self::setJSChallenge('fingerprint_change');
+                    // 通过挑战后计数清零，不要让人一直背着这个累计值
+                    $_SESSION['waf_fp_changes'] = 0;
                 }
             } elseif ($prev['hash'] !== $fingerprint) {
+                // 距离上次超过 10 秒，属于正常变化，直接清零
                 $_SESSION['waf_fp_changes'] = 0;
             }
         }

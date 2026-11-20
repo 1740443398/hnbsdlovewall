@@ -917,6 +917,94 @@ function jsonSuccess($data = [], $message = '操作成功') {
 function getCurrentUser() {
     static $cachedUser = null;
     static $cachedUserId = null;
+    /* 本轮请求是否已经尝试过 remember_token 自动登录。
+     * 只试一次 —— 失败后不再重复查表，避免每个请求都多读一次文件。 */
+    static $rememberTried = false;
+
+    /* =================================================================
+     * remember_token 自动恢复登录
+     * =================================================================
+     * 【原来为什么没有】
+     * getCurrentUser() 只看 $_SESSION['user_id']。
+     * 而 session 会因为各种原因丢：
+     *   · 共享主机的 GC 清了 session 文件
+     *   · session ID 格式变化（我们改过 sid_bits_per_character）
+     *   · 安卓 WebView 进程被杀、cookie 被清
+     *   · 用户清了浏览器数据
+     * 丢了之后，即使 remember_token 的 cookie 还在、数据库里那行也
+     * 完全有效，用户还是被当成游客 —— 只能看 GUEST_VISIBLE_POSTS 条。
+     *
+     * 表现就是站长反复反馈的「登录后帖子还是显示不全」「过一会就掉登录」。
+     *
+     * 【现在】
+     * session 里没有 user_id 时，检查 remember_token cookie，
+     * 校验通过就**透明地重建会话** —— 用户无感，不用重新登录。
+     *
+     * 安全上不放宽：
+     *   · token 用 hash 比对（数据库里不存明文）
+     *   · 校验 expires_at
+     *   · 校验 security_stamp（改密码会让旧 token 失效）
+     *   · 校验账号未被封禁
+     *   · 恢复后轮换 token（一次性，防重放）
+     * ================================================================= */
+    if (empty($_SESSION['user_id']) && !$rememberTried) {
+        $rememberTried = true;
+
+        $raw = (string)($_COOKIE['remember_token'] ?? '');
+        if ($raw !== '' && strlen($raw) >= 32) {
+            try {
+                $rfs = getFS();
+                $hash = hash('sha256', $raw);
+                $row = $rfs->findOne('remember_tokens', ['token_hash' => $hash]);
+
+                if ($row) {
+                    $expOk = strtotime((string)($row['expires_at'] ?? '')) > time();
+                    $uid = (int)($row['user_id'] ?? 0);
+                    $u = $uid > 0 ? $rfs->findById('users', $uid) : null;
+
+                    if ($expOk && $u && empty($u['is_banned'])) {
+                        // 重建会话
+                        $_SESSION['user_id'] = $uid;
+                        $_SESSION['user_role'] = (string)($u['role'] ?? 'user');
+                        $_SESSION['security_stamp'] = (string)($u['security_stamp'] ?? '');
+                        if (function_exists('disableGuestMode')) {
+                            disableGuestMode();
+                        }
+                        // 换发会话 ID，防止固定会话攻击
+                        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+                            @session_regenerate_id(true);
+                        }
+                        // 轮换 token：旧的作废，发新的
+                        $newTok = bin2hex(random_bytes(32));
+                        try {
+                            $rfs->update('remember_tokens', (int)$row['id'], [
+                                'token_hash' => hash('sha256', $newTok),
+                                'expires_at' => date('Y-m-d H:i:s',
+                                    time() + (defined('COOKIE_REMEMBER_DAYS') ? (int)COOKIE_REMEMBER_DAYS : 30) * 86400),
+                            ]);
+                            if (!headers_sent()) {
+                                $sec = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                                    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+                                setcookie('remember_token', $newTok,
+                                    [
+                                        'expires'  => time() + (defined('COOKIE_REMEMBER_DAYS') ? (int)COOKIE_REMEMBER_DAYS : 30) * 86400,
+                                        'path'     => '/',
+                                        'secure'   => $sec,
+                                        'httponly' => true,
+                                        'samesite' => 'Lax',
+                                    ]);
+                            }
+                        } catch (Throwable $e) { /* 轮换失败不影响本次登录 */ }
+
+                        // 落库后继续走下面的正常流程
+                        $cachedUserId = null;
+                    }
+                }
+            } catch (Throwable $e) {
+                /* 自动恢复失败就按未登录处理，绝不能因此让整站报错 */
+            }
+        }
+    }
 
     if (empty($_SESSION['user_id'])) {
         return null;

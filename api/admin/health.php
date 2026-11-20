@@ -12,6 +12,9 @@
  * 且只删自己写入时留下、且超过 1 小时的 .tmp/.lock）。
  */
 require_once __DIR__ . '/../../config/config.php';
+/* lwFmtBytes() 在 includes/resources.php 里 —— 不引入会抛
+ * "Call to undefined function lwFmtBytes()"，健康检查页直接 500。 */
+require_once __DIR__ . '/../../includes/resources.php';
 
 $admin = requireAdmin();
 $admin = checkBanned($admin);

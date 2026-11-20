@@ -76,6 +76,10 @@ if (QQMailer::isConfigured()) {
         'code'      => $code,
         'reset_url' => $resetUrl,
     ]);
+/* 释放 session 锁：发邮件要 1 秒以上，持锁期间同用户的其他请求
+ * 会全部排队，多用户并发时整站卡死。 */
+if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+
     $mailOk = QQMailer::send($email, $mail['subject'], $mail['html']);
 }
 

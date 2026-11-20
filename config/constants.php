@@ -87,7 +87,7 @@ define('ITEMS_PER_PAGE', lwCfgIntSafe('items_per_page', 20));
  * 注意：这个值同时影响 index.php 的 SSR 首屏、api/posts/list.php、
  * api/app_bootstrap.php 和 topic.php / u.php 的截断，改一处即全站生效。
  */
-define('GUEST_VISIBLE_POSTS', lwCfgIntSafe('guest_visible_posts', 5));   // 后台可配
+define('GUEST_VISIBLE_POSTS', lwCfgIntSafe('guest_visible_posts', 20));   // 后台可配
 
 
 // （EXPECTED_HOSTS 已在文件开头定义，SITE_URL 的 Host 头校验需要它）

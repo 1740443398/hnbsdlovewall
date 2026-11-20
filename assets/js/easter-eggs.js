@@ -290,29 +290,89 @@
       activeConfetti = launchConfetti();
     }
 
-    /* 彩带放完再跳走。
+    /* 彩带放完再打开。
      *
-     * 为什么不在触发瞬间就跳：
+     * 为什么不在触发瞬间就打开：
      *   用户是被「连点五次」这个动作引导过来的，先给他看 2.5 秒的
-     *   彩带和一句文案，再跳转，才像「彩蛋」而不是「我被弹窗绑架了」。
-     *   直接把页面切走的话，用户只会觉得网站抽风。
+     *   彩带和一句文案，再打开，才像「彩蛋」而不是「我被弹窗绑架了」。
      *
-     * 跳转地址优先取 window.LW_EGG_URL（页面可覆盖），
-     * 没有就用内置常量。用 location.assign 而不是 replace ——
-     * 让用户按返回还能回到站内，别把人扔出去就回不来了。
+     * =====================================================================
+     * 【为什么改成新标签页】
+     * =====================================================================
+     * 原来用 location.assign()，当前页面直接被替换掉 ——
+     * 用户看完视频按返回，回来时页面状态全丢了（滚动位置、输入的内容、
+     * 正在看的帖子都没了），体验很差。
+     *
+     * 现在用 window.open(dest, '_blank')：原页面原封不动留在那儿，
+     * 用户关掉新标签页就回到原来的位置，什么都不丢。
+     *
+     * 注意 window.open 会被浏览器的弹窗拦截器盯上。这里能成功是因为：
+     *   1. 调用时机在用户点击之后（虽然隔了 2.5 秒）
+     *   2. 部分浏览器仍会拦截「延迟打开」
+     * 所以下面加了兜底：如果 window.open 返回 null（被拦截），
+     * 就退回到当前页跳转，保证彩蛋一定能看到。
+     * =====================================================================
      */
     var dest = (typeof window.LW_EGG_URL === 'string' && window.LW_EGG_URL)
       ? window.LW_EGG_URL
       : EGG_URL;
 
-    window.setTimeout(function () {
+    /* =====================================================================
+     * 【关键：必须立刻打开，不能延迟】
+     * =====================================================================
+     * 浏览器判断「是否允许弹窗」的依据是：这次 window.open 是不是
+     * 在用户手势的同步调用栈里。一旦进了 setTimeout，手势就过期了，
+     * window.open 会被直接拦截（返回 null），用户什么也看不到。
+     *
+     * 所以顺序改成：
+     *   1. 立刻打开新标签页（空窗口先占位，浏览器认为有手势）
+     *   2. 原页面继续放彩带和文案（2.5 秒）
+     *   3. 彩带放完，把占位窗口的地址改成目标 URL
+     *
+     * 这样既保证弹窗不被拦，又不影响彩蛋动画的观感。
+     * ===================================================================== */
+    var win = null;
+    try {
+      // 先开一个空白页占位。noopener 会让 win 返回 null，
+      // 所以这里不能用 noopener —— 我们需要拿句柄去改地址。
+      win = window.open('about:blank', '_blank');
+    } catch (e) {
+      win = null;
+    }
+
+    if (win) {
+      // 占位成功：先给它一个提示，避免用户看到纯白页
       try {
-        window.location.assign(dest);
-      } catch (e) {
-        // 极少数 WebView 里 location 被限制，退回新窗口
-        try { window.open(dest, '_blank', 'noopener'); } catch (e2) {}
-      }
-    }, ANIM_MS);
+        win.document.write(
+          '<!doctype html><meta charset="utf-8">'
+          + '<title>正在打开…</title>'
+          + '<style>body{margin:0;height:100vh;display:flex;align-items:center;'
+          + 'justify-content:center;font:15px/1.6 system-ui,sans-serif;'
+          + 'color:#5A6472;background:#F7F9FC}</style>'
+          + '<div>正在打开彩蛋…</div>'
+        );
+        win.document.close();
+      } catch (e) {}
+
+      // 彩带放完再导航过去
+      window.setTimeout(function () {
+        try {
+          win.location.replace(dest);
+        } catch (e) {
+          try { win.location.href = dest; } catch (e2) {}
+        }
+      }, ANIM_MS);
+    } else {
+      // 弹窗被拦（用户可能禁用了弹窗，或是某些严格模式浏览器）
+      // 退回当前页跳转 —— 彩蛋一定要能看到
+      window.setTimeout(function () {
+        try {
+          window.location.assign(dest);
+        } catch (e) {
+          showToast('彩蛋在这里 → ' + dest, 6000);
+        }
+      }, ANIM_MS);
+    }
   }
 
   // 键盘密令：↑↑↓↓←→←→ B A（用 event.key 判断，大小写不敏感）

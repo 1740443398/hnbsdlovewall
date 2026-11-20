@@ -58,26 +58,100 @@
         }
 
         var url = '/api/filehelper.php?' + params.toString();
-        var init = { credentials: 'same-origin' };
+
+        /* =================================================================
+         * 【必须带 X-Requested-With，否则会被 WAF 拦掉】
+         * =================================================================
+         * includes/waf.php 的 validateReferer() 有这条规则：
+         *
+         *   Referer 为空 + POST + 不是 XHR + 没有 csrf_token
+         *     → logAndBlock('empty_referer_post')
+         *
+         * 原来的 init 只有 { credentials: 'same-origin' }，
+         * 既没带 X-Requested-With，也没带 csrf_token。
+         * 于是每一次上传都被 WAF 直接拦下，返回一个纯文本错误页
+         * （不是 JSON），前端 r.json() 解析失败 → 抛异常 →
+         * 用户看到「网络错误」。
+         *
+         * 为什么只加头就够了：
+         *   $isXhr 为真时，这条规则直接放行。
+         *   而且 filehelper 本身不需要 CSRF（游客也能用），
+         *   所以带 XHR 头是正确且最小的改动。
+         * ================================================================= */
+        var init = {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+        };
 
         if (opts.form) {
             init.method = 'POST';
             init.body = opts.form;
         } else if (opts.method === 'POST') {
             init.method = 'POST';
-            init.headers = { 'Content-Type': 'application/json' };
+            init.headers['Content-Type'] = 'application/json';
             init.body = JSON.stringify(opts.body || {});
         }
 
         return fetch(url, init).then(function (r) {
-            if (r.status === 404 || r.status === 410 || r.status === 409) {
-                return r.json().then(function (j) {
-                    var e = new Error(j.message || '请求失败');
+            /* 错误响应也可能是非 JSON（WAF 拦截页、502、504 超时页）。
+             * 原来直接 r.json() 会抛 SyntaxError，
+             * 前端只能笼统提示「网络错误」——
+             * 用户和站长都不知道真正发生了什么。
+             *
+             * 现在先看 Content-Type，不是 JSON 就构造一个带状态码
+             * 和响应片段的可读错误，日志里也能看到真因。 */
+            var ct = (r.headers.get('content-type') || '').toLowerCase();
+
+            if (ct.indexOf('json') === -1) {
+                return r.text().then(function (txt) {
+                    var msg;
+                    if (r.status === 0) {
+                        msg = '网络已断开，请检查连接';
+                    } else if (r.status === 403) {
+                        msg = '请求被安全策略拦截（403）';
+                    } else if (r.status === 413) {
+                        msg = '文件太大，超出服务器限制（413）';
+                    } else if (r.status === 429) {
+                        msg = '操作太频繁，请稍后再试（429）';
+                    } else if (r.status >= 500) {
+                        msg = '服务器暂时不可用（' + r.status + '），请稍后重试';
+                    } else {
+                        msg = '请求失败（' + r.status + '）';
+                    }
+                    var e = new Error(msg);
                     e.status = r.status;
+                    e.raw = txt.slice(0, 200);
                     throw e;
                 });
             }
-            return r.json();
+
+            return r.json().then(function (j) {
+                if (r.status === 404 || r.status === 410 || r.status === 409) {
+                    var e = new Error(j.message || '请求失败');
+                    e.status = r.status;
+                    throw e;
+                }
+                // 业务失败也统一抛出来，交给调用方的 catch 处理
+                if (j && j.success === false) {
+                    var e2 = new Error(j.message || '操作失败');
+                    e2.status = r.status;
+                    throw e2;
+                }
+                return j;
+            });
+        }, function (netErr) {
+            /* fetch 本身失败（断网、DNS、CORS、请求被 abort） */
+            var e = new Error(
+                netErr && netErr.name === 'AbortError'
+                    ? '请求已取消'
+                    : '无法连接服务器，请检查网络'
+            );
+            e.status = 0;
+            e.cause = netErr;
+            throw e;
         });
     }
 

@@ -143,9 +143,13 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         }
         require __DIR__ . '/../includes/seo_meta.php';
     ?>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <style>
         /* ================= 详情页重做 =================
          * 旧版的「怪」来自三处：
@@ -382,8 +386,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         const CSRF_TOKEN = '<?= generateCSRFToken() ?>';
         const POST_ID = <?= $postId ?>;
     </script>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/main.js') ?>?v=<?= asset_ver('/assets/js/main.js') ?>" defer></script>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
+    <?php endif; ?>
 </head>
 <body>
     <a class="skip-to-content" href="#main-content">跳到主内容</a>

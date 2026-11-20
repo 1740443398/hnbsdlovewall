@@ -80,9 +80,13 @@ if ($inviteEnabled && $tab === 'invite') {
     <?php require_once __DIR__ . '/../includes/pwa_head.php'; ?>
     <link rel="icon" href="/icon.ico" type="image/x-icon">
     <title><?= t('uc.page_title') ?> - <?= SITE_NAME ?></title>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
+    <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
+    <?php endif; ?>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = true;
@@ -2555,6 +2559,8 @@ if ($inviteEnabled && $tab === 'invite') {
 
     </script>
     <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
+    <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
+    <?php endif; ?>
 </body>
 </html>

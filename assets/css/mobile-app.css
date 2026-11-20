@@ -1,0 +1,748 @@
+/* ==========================================================================
+ * 手机端 App 化布局层  mobile-app.css
+ * ==========================================================================
+ *
+ * 【这一层要解决什么】
+ *
+ * 用户的真实痛点：「手机端就是电脑端缩小版，屏幕太小不够用，下载 App 又费事」。
+ *
+ * 现状测量（iPhone SE 375×667 视角）：
+ *   顶栏 50px + 分类条 40px + 游客条 44px + 公告条 40px = 174px
+ *   574px 里被固定元素吃掉 174px（30%），只剩 493px 给内容。
+ *   一条帖子卡片 200~260px，也就是一屏只能看到 1.9 条。
+ *
+ * 而 App 一屏通常能看到 3~4 条。差距不在「好不好看」，在于：
+ *
+ *   1. 固定元素太多 —— 每一条都在抢竖向空间
+ *   2. 卡片太胖 —— 内边距 16px 四周 + 头像 40px + 大标题
+ *   3. 控件是桌面尺寸 —— 按钮 36px 高在手指下偏小，但再大又占地方
+ *   4. 没有「滚动即收起」的机制 —— 顶栏永远占着那 50px
+ *
+ * --------------------------------------------------------------------------
+ * 【这一层的做法】
+ * --------------------------------------------------------------------------
+ * 按「哪些东西必须一直可见」重新分层：
+ *
+ *   永驻：底部导航（56px）—— 唯一的导航入口
+ *   随滚动隐藏：顶栏、分类条 —— 往下滑时收起，往上滑时回来
+ *   折叠到底部抽屉：公告、游客提示 —— 不占首屏
+ *   内容区：占满剩余空间
+ *
+ * 这样 667px 屏幕上，内容区从 493px 提升到 600px+，
+ * 一屏能看到 2.8 条以上。
+ *
+ * --------------------------------------------------------------------------
+ * 【为什么不改 PHP 结构】
+ * --------------------------------------------------------------------------
+ * 与 Apple 设计层同样的理由：PHP 有 316 个文件、435 个组件类，
+ * 改结构风险极高。这一层纯 CSS，只改「怎么排」，不改「有什么」。
+ * 要回退只需删掉引用。
+ * --------------------------------------------------------------------------
+ * 【参考】
+ * --------------------------------------------------------------------------
+ * SPT 主题 32「手机端适配」：
+ *   - 侧栏挤占主内容 → 改成可访问的展开入口（本文件用底部导航替代）
+ *   - 页面横向滚动 → 逐个确认溢出来源，不用 overflow-x:hidden 掩盖
+ *   - hover 才出现关键操作 → 提供直接可见可点的按钮
+ *   - 弹层语义、焦点与关闭、软键盘遮挡
+ * Apple HIG：44×44 触摸目标、安全区避让、减动效支持
+ * ==========================================================================
+ */
+
+@media (max-width: 768px) {
+
+    /* ======================================================================
+     * 一、根布局：给底部导航留出空间
+     * ====================================================================== */
+
+    html {
+        /* 防止 iOS 横屏时字号被放大 */
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    body {
+        /* 底部导航 56px + 安全区 */
+        padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+        /* 禁止橡皮筋带动整页（iOS 上会露出灰底） */
+        overscroll-behavior-y: none;
+        background: var(--bg, #F4F6F9);
+    }
+
+    /* 主容器：铺满，去掉桌面端留白 */
+    .container,
+    .site-main,
+    .content-wrap {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* ======================================================================
+     * 二、顶栏：滚动即收起
+     * ======================================================================
+     * 关键收益：往下滑看内容时，这 50px 全部让给内容。
+     * 手势方向判断在 mobile-app.js 里做（往上滑 = 想看上面 = 展开）。
+     */
+
+    .site-header {
+        height: 48px !important;
+        padding: 0 12px !important;
+        transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1) !important;
+        will-change: transform;
+    }
+    .site-header.is-hidden {
+        transform: translateY(-100%);
+    }
+    .site-header .header-inner {
+        height: 48px !important;
+        gap: 8px !important;
+    }
+
+    /* Logo 与站名收紧 */
+    .site-header .logo,
+    .site-header .site-logo {
+        height: 24px !important;
+        max-width: 110px !important;
+        object-fit: contain;
+    }
+    .site-header .site-name {
+        font-size: 15px !important;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 46vw;
+    }
+
+    /* 顶栏图标：保持 40px 触摸区但视觉收紧 */
+    .site-header .header-icon,
+    .site-header .icon-btn,
+    .site-header .btn-icon {
+        width: 40px !important;
+        height: 40px !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* 桌面端搜索框在手机上收进图标（搜索页独立） */
+    .site-header .search-box,
+    .site-header .search-input,
+    .site-header .header-search {
+        display: none !important;
+    }
+
+    /* ======================================================================
+     * 三、分类条：横向滚动 + 吸顶（但随顶栏一起收起）
+     * ======================================================================
+
+     */
+    .category-tabs,
+    .filter-bar,
+    .tab-bar,
+    .cat-filter-bar {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 6px !important;
+        padding: 7px 12px !important;
+        background: var(--card-bg, #fff);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 0.5px solid var(--border-glass, rgba(15,23,42,.06));
+        transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .category-tabs::-webkit-scrollbar,
+    .filter-bar::-webkit-scrollbar,
+    .tab-bar::-webkit-scrollbar {
+        display: none;
+    }
+    .category-tabs.is-hidden,
+    .filter-bar.is-hidden {
+        transform: translateY(-100%);
+    }
+
+    .category-tab,
+    .filter-btn,
+    .tab-item,
+    .cat-filter {
+        flex: 0 0 auto !important;
+        white-space: nowrap;
+        padding: 6px 12px !important;
+        font-size: 13px !important;
+        border-radius: 999px !important;
+        min-height: 30px !important;
+        display: inline-flex !important;
+        align-items: center;
+    }
+    .category-tab.active,
+    .filter-btn.active,
+    .tab-item.active,
+    .cat-filter.active {
+        background: var(--primary, #2F5B9A) !important;
+        color: #fff !important;
+        font-weight: 600;
+    }
+
+    /* ======================================================================
+     * 四、公告 / 游客提示：折叠成一条细带，不占首屏
+     * ======================================================================
+     * 原来公告条 40px + 游客条 44px = 84px，占首屏 12%。
+     * 现在收成 32px 的一条，文字单行滚动。
+     */
+
+    .announcement-bar {
+        height: 32px !important;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+    .announcement-bar .container {
+        height: 32px !important;
+        padding: 0 12px !important;
+        display: flex;
+        align-items: center;
+    }
+    .announcement-scroll {
+        height: 32px !important;
+        display: flex !important;
+        align-items: center;
+        font-size: 12px !important;
+        line-height: 1.4;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .guest-bar {
+        height: 34px !important;
+        padding: 0 !important;
+    }
+    .guest-bar .container {
+        height: 34px !important;
+        padding: 0 12px !important;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .guest-bar-text {
+        font-size: 11.5px !important;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1 1 auto;
+    }
+    .guest-bar-btn {
+        flex: 0 0 auto;
+        font-size: 11.5px !important;
+        padding: 4px 10px !important;
+        min-height: 26px !important;
+    }
+
+    /* ======================================================================
+     * 五、帖子卡片：App 式紧凑布局
+     * ======================================================================
+     * 从「内边距 16 + 头像 40 + 大标题」压缩到「12 内边距 + 头像 36」。
+     * 单条高度从 200~260px 降到 150~190px，一屏多看到 0.8 条。
+     */
+
+    .post-card,
+    .post-item,
+    .feed-item {
+        border-radius: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-top: 0 !important;
+        margin: 0 !important;
+        padding: 13px 13px 10px !important;
+        box-shadow: none !important;
+    }
+
+    /* 卡片之间用 8px 底色缝隙，比画线干净 */
+    .post-list,
+    .feed-list,
+    .posts-container {
+        background: var(--bg-secondary, #EEF1F5);
+    }
+    .post-list .post-card + .post-card,
+    .posts-container .post-card + .post-card {
+        margin-top: 8px !important;
+    }
+
+    .post-card-header {
+        gap: 8px !important;
+        margin-bottom: 8px !important;
+    }
+    .post-card-avatar,
+    .post-avatar,
+    .lw-av-img {
+        width: 36px !important;
+        height: 36px !important;
+        flex-shrink: 0;
+        border-radius: 50%;
+    }
+
+    .post-card-author-name,
+    .post-author {
+        font-size: 13.5px !important;
+        font-weight: 600 !important;
+        line-height: 1.3;
+        color: var(--text, #1A1D23);
+    }
+    .post-card-time,
+    .post-time,
+    .post-meta {
+        font-size: 11.5px !important;
+        line-height: 1.4;
+        color: var(--text-muted, #98A2B3) !important;
+    }
+
+    .post-card-title,
+    .post-title {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        line-height: 1.42 !important;
+        margin: 0 0 5px !important;
+    }
+
+    /* 正文：15px / 1.65 行高，最多 5 行。
+     * 中文在 1.5 行高下太挤，长段落会串行 —— 1.65 是可读性拐点。 */
+    .post-card-content,
+    .post-content,
+    .post-body {
+        font-size: 15px !important;
+        line-height: 1.65 !important;
+        color: var(--text-secondary, #4A5260) !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    /* 详情页不折叠 */
+    .post-detail .post-card-content,
+    .post-detail-body {
+        -webkit-line-clamp: unset !important;
+        display: block !important;
+        font-size: 16px !important;
+        line-height: 1.75 !important;
+    }
+
+    /* 图片网格：间距收窄，单图限高 */
+    .post-card-images,
+    .post-images,
+    .image-grid {
+        gap: 3px !important;
+        margin-top: 8px !important;
+        border-radius: 8px !important;
+        overflow: hidden;
+    }
+    .post-card-images img,
+    .post-images img,
+    .image-grid img {
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 4px !important;
+    }
+    .post-card-images.grid-1 img,
+    .post-images.single img {
+        aspect-ratio: 4 / 3;
+        max-height: 210px;
+        border-radius: 8px !important;
+    }
+
+    /* 互动栏：32px 高触摸区，间距 22px */
+    .post-card-actions,
+    .post-actions,
+    .post-footer {
+        margin-top: 8px !important;
+        padding-top: 0 !important;
+        border-top: 0 !important;
+        gap: 20px !important;
+    }
+    .post-card-actions .action,
+    .post-actions .action,
+    .post-card-actions button,
+    .post-actions button,
+    .post-card-actions a,
+    .post-actions a {
+        min-height: 32px !important;
+        min-width: 32px !important;
+        padding: 5px 0 !important;
+        font-size: 12.5px !important;
+        gap: 4px !important;
+        display: inline-flex;
+        align-items: center;
+    }
+    .post-card-actions svg,
+    .post-actions svg {
+        width: 17px !important;
+        height: 17px !important;
+    }
+    /* ======================================================================
+     * 六、底部导航 —— 保留原有悬浮胶囊设计
+     * ======================================================================
+     *
+     * 【重要：不要重写这个】
+     *
+     * 原设计（style.css L2268）是一个悬浮在底部、居中、最大 400px 的
+     * 毛玻璃胶囊，图标带蓝色药丸底，激活项有独立样式。
+     * 这是全站最精致的一个组件。
+     *
+     * 我第一版 mobile-app.css 把它改成了「全宽 + 顶部边框」的普通 tab bar，
+     * 用 ::before 画圆形按钮 —— 结果反而更粗糙，而且破坏了
+     * --compose 原本的绝对定位（截图里底栏只剩 3 个图标就是这个原因）。
+     *
+     * 现在改为：**不改结构，只调尺寸**。
+     * 唯一的改动是让它在小屏上更紧凑一点。
+     * ====================================================================== */
+
+    /* 底栏本体：只收窄内边距，其他保持原样 */
+    .mobile-bottom-nav {
+        bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)) !important;
+        max-width: min(calc(100vw - 20px), calc(var(--app-width, 400px) - 20px)) !important;
+        padding: 0.375rem 0.375rem !important;
+    }
+
+    /* 导航项：触摸区保证 44px 高，但视觉更紧凑 */
+    .mobile-nav-item {
+        min-height: 44px !important;
+        gap: 0.125rem !important;
+        padding: 2px 2px 0.125rem !important;
+        font-size: 0.64rem !important;
+    }
+
+    /* 图标垫：略缩小，给标签留空间 */
+    .mobile-nav-item svg {
+        width: 2.5rem !important;
+        height: 1.5rem !important;
+    }
+
+    /* 发帖按钮：保持原有的蓝色圆形（原设计已实现，这里只确保不被压扁） */
+    .mobile-nav-item--compose {
+        flex: 0 0 auto !important;
+        min-width: 48px !important;
+    }
+    .mobile-nav-item--compose svg {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+    }
+
+    /* ======================================================================
+     * 七、弹层：底部抽屉
+     * ======================================================================
+     * 手机上从底部升起的抽屉最符合拇指位置（内容在下方、按钮够得着）。
+     * 居中对话框在 667px 屏幕上很容易被键盘顶掉。
+     */
+
+    .modal-box,
+    .modal-content,
+    .site-modal-box,
+    .pm-modal,
+    .pmr-modal,
+    .sponsor-modal {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 88vh !important;
+        border-radius: 18px 18px 0 0 !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+        animation: lwSheetIn 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    @keyframes lwSheetIn {
+        from { transform: translateY(100%); }
+        to   { transform: translateY(0); }
+    }
+
+    .modal-header, .site-modal-header {
+        padding: 15px 16px 10px !important;
+        font-size: 16px !important;
+        font-weight: 600;
+        border-bottom: 0.5px solid var(--border-light, rgba(15,23,42,.06));
+    }
+    .modal-body, .site-modal-body {
+        padding: 0 16px 16px !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .modal-footer, .site-modal-footer {
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+        position: sticky;
+        bottom: 0;
+        background: var(--card-bg, #fff);
+        border-top: 0.5px solid var(--border-light, rgba(15,23,42,.06));
+    }
+
+    /* 下拉菜单 / 通知面板：铺满宽度，避免右边留白 */
+    .user-dropdown,
+    .notification-panel,
+    .search-history-dropdown,
+    .search-suggestions {
+        width: calc(100vw - 20px) !important;
+        max-width: calc(100vw - 20px) !important;
+        left: auto !important;
+        right: 10px !important;
+        top: 50px !important;
+        max-height: calc(100dvh - 70px) !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        border-radius: 14px !important;
+    }
+    .user-dropdown .menu-item,
+    .user-dropdown a,
+    .notification-panel-list a {
+        min-height: 46px !important;
+        padding: 12px 16px !important;
+        font-size: 14.5px !important;
+        display: flex;
+        align-items: center;
+    }
+
+    /* ======================================================================
+     * 八、横向溢出修复
+     * ======================================================================
+     * SPT 主题 32：不要用 overflow-x:hidden 掩盖问题，要逐个找到溢出来源。
+     * 下面按「最可能的来源」逐项处理。
+     */
+
+    /* ① 表格：横向滚动容器（合理场景，允许有边界滚动） */
+    .table,
+    table.data-table,
+    .table-wrap {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+
+    /* ② 代码块：同样允许边界滚动 */
+    pre,
+    .lw-code-block,
+    code {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        word-break: normal;
+    }
+
+    /* ③ 长 URL / 长英文串：强制断行 */
+    .post-card-content a,
+    .post-content a,
+    .comment-content a,
+    .pm-body a {
+        word-break: break-all;
+        overflow-wrap: anywhere;
+    }
+
+    /* ④ 图片：不超出容器 */
+    img {
+        max-width: 100% !important;
+        height: auto;
+    }
+
+    /* ⑤ 固定宽度的容器：一律改成 100% */
+    .container, .wrapper, .content, .main, .page-wrap, .site-main {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
+
+    /* ⑥ 绝对定位越界的装饰元素 */
+    .decor,
+    .bg-decor,
+    .floating-decor {
+        display: none !important;
+    }
+
+    /* ======================================================================
+     * 九、表单与软键盘
+     * ======================================================================
+     * iOS Safari 在 input 字号 < 16px 时会自动放大页面 —— 这是最毁体验的细节。
+     * 把所有输入框锁在 16px，页面就不会跳。
+     */
+
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    textarea,
+    select,
+    .form-input,
+    .uc-form-input {
+        font-size: 16px !important;
+        min-height: 44px !important;
+        padding: 11px 13px !important;
+        border-radius: 10px !important;
+    }
+    textarea {
+        min-height: 96px !important;
+        line-height: 1.6 !important;
+    }
+
+    /* 软键盘弹起时，底部导航让位 */
+    body.lw-keyboard-open .mobile-bottom-nav {
+        transform: translateY(100%);
+        transition: transform 200ms ease;
+    }
+    body.lw-keyboard-open {
+        padding-bottom: 0 !important;
+    }
+
+    /* 评论输入条：吸底，但在导航之上 */
+    .comment-input-bar,
+    .comment-composer,
+    .comment-form {
+        position: sticky !important;
+        bottom: 0 !important;
+        background: var(--card-bg, #fff) !important;
+        border-top: 0.5px solid var(--border-glass, rgba(15,23,42,.08));
+        padding: 9px 12px !important;
+        z-index: 25 !important;
+    }
+
+    /* ======================================================================
+     * 十、按钮与触摸目标
+     * ======================================================================
+
+     */
+    .btn,
+    button.btn,
+    .t-btn,
+    .pm-btn {
+        min-height: 44px !important;
+        padding: 11px 20px !important;
+        font-size: 15px !important;
+        border-radius: 10px !important;
+    }
+    .btn-sm {
+        min-height: 34px !important;
+        padding: 6px 13px !important;
+        font-size: 13px !important;
+    }
+
+    /* 所有可点元素：去除 iOS 的灰色高亮，靠自己的 :active 反馈 */
+    a, button, .clickable {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ======================================================================
+     * 十一、隐藏桌面专用元素
+     * ======================================================================
+     */
+
+    .sidebar,
+    .aside,
+    .side-nav,
+    .breadcrumb,
+    .breadcrumbs,
+    .desktop-only,
+    .hide-mobile {
+        display: none !important;
+    }
+
+    .site-footer {
+        padding: 18px 16px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* ==========================================================================
+ * 十二、超小屏（<=360px）额外收紧
+ * ==========================================================================
+     */
+@media (max-width: 360px) {
+    .post-card { padding: 11px 10px 9px !important; }
+    .post-card-content { font-size: 14.5px !important; }
+    .post-card-title { font-size: 14.5px !important; }
+    .post-card-actions, .post-actions { gap: 14px !important; }
+    .mobile-bottom-nav .nav-item { min-width: 48px !important; font-size: 10px !important; }
+    .post-card-avatar, .post-avatar { width: 32px !important; height: 32px !important; }
+}
+
+/* ==========================================================================
+ * 十三、横屏：导航隐藏，内容最大化
+ * ==========================================================================
+     */
+@media (max-width: 900px) and (orientation: landscape) {
+    .site-header { height: 42px !important; }
+    .site-header .header-inner { height: 42px !important; }
+    .mobile-bottom-nav { display: none !important; }
+    body { padding-bottom: 0 !important; }
+    .category-tabs, .filter-bar { padding: 5px 12px !important; }
+}
+
+/* ==========================================================================
+ * 十四、暗色模式
+ * ==========================================================================
+     */
+@media (max-width: 768px) {
+    html.dark-theme body {
+        background: var(--bg, #0F1520);
+    }
+    html.dark-theme .post-list,
+    html.dark-theme .posts-container {
+        background: var(--bg, #0F1520);
+    }
+    html.dark-theme .post-card {
+        background: var(--card-bg, #1B2434);
+    }
+    html.dark-theme .category-tabs,
+    html.dark-theme .filter-bar {
+        background: var(--card-bg, #1B2434);
+    }
+    html.dark-theme .mobile-bottom-nav {
+        background: rgba(24, 30, 41, 0.76) !important;
+    }
+    html.dark-theme .modal-box,
+    html.dark-theme .site-modal-box {
+        background: var(--card-bg, #1B2434) !important;
+    }
+}
+
+/* ==========================================================================
+ * 十五、减动效偏好
+ * ==========================================================================
+     */
+@media (prefers-reduced-motion: reduce) {
+    .site-header,
+    .category-tabs,
+    .mobile-bottom-nav {
+        transition: none !important;
+    }
+    .modal-box, .site-modal-box {
+        animation: none !important;
+    }
+}
+
+/* ==========================================================================
+ * 十六、打印
+ * ==========================================================================
+     */
+@media print {
+    .mobile-bottom-nav { display: none !important; }
+    body { padding-bottom: 0 !important; }
+}

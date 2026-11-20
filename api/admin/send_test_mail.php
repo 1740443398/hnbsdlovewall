@@ -60,6 +60,10 @@ if (!QQMailer::isConfigured()) {
 // 用示例上下文渲染 —— 与真实发送调用的是同一个 lwMailBuild()，
 // 所以测试邮件看到的就是用户收到的那一份（模板库顶部会加一条"这是测试邮件"的提示条）。
 $mail = lwMailBuild($type, lwMailSampleCtx($type));
+/* 释放 session 锁：发邮件要 1 秒以上，持锁期间同用户的其他请求
+ * 会全部排队，多用户并发时整站卡死。 */
+if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
+
 $ok = QQMailer::send($to, (string)$mail['subject'], (string)$mail['html']);
 
 if ($ok) {
