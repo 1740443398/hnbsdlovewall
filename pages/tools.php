@@ -834,6 +834,27 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
             <div class="tools-category">
                 <div class="tools-category-title">站务</div>
                 <div class="tool-grid">
+<a class="tool-card" href="/pages/clock.php" style="text-decoration:none;color:inherit">
+                        <div class="icon-wrap">
+                            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="ckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#E4501C"/>
+                                        <stop offset="100%" stop-color="#F0824E"/>
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="32" cy="32" r="22" fill="url(#ckGrad)" opacity=".14"/>
+                                <circle cx="32" cy="32" r="22" fill="none" stroke="url(#ckGrad)" stroke-width="2.2"/>
+                                <line x1="32" y1="32" x2="32" y2="18" stroke="#E4501C" stroke-width="3" stroke-linecap="round"/>
+                                <line x1="32" y1="32" x2="42" y2="37" stroke="#F0824E" stroke-width="2.6" stroke-linecap="round"/>
+                                <circle cx="32" cy="32" r="2.6" fill="#E4501C"/>
+                                <circle cx="32" cy="10" r="1.8" fill="#F0824E"/>
+                            </svg>
+                        </div>
+                        <div class="tool-name">时间校准</div>
+                    </a>
+
+                    
                     <a class="tool-card" href="/changelog.php" style="text-decoration:none;color:inherit">
                         <div class="icon-wrap">
                             <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
