@@ -33,6 +33,26 @@
         var e = entries[i];
         if (!e.isIntersecting) continue;
         var el = e.target;
+
+        /* 【让位给 motion-plus】
+         *
+         * 两套显现系统（motion.js 的 lw-reveal / motion-plus.js 的 mp-reveal）
+         * 都会给同一批卡片挂 opacity:0。谁先加类，谁的过渡先跑，
+         * 另一套的 transform 就被打断 —— 实测 20 张卡片只有首屏 3 张真正播了动画。
+         *
+         * 这里在「进入视口」这一刻实时检查：如果 motion-plus 已经接管了这个元素
+         * （它有 mp-reveal / mp-in / mp-page 类），本层就**彻底退出**，
+         * 连 lw-reveal 一起摘掉，避免残留的 opacity:0 参与过渡。
+         * 用实时检查而不是标记时判断，是因为 markReveal 可能先于 motion-plus 执行。 */
+        var mpOwns = (document.documentElement.classList.contains('js-motion')
+                      && (el.classList.contains('mp-reveal') || el.classList.contains('mp-in')
+                          || el.classList.contains('mp-page') || el.classList.contains('ssr-card')));
+        if (mpOwns) {
+          el.classList.remove('lw-reveal');
+          io.unobserve(el);
+          continue;
+        }
+
         el.classList.add('is-in');
         // 动画结束后撤掉 will-change，释放合成层
         window.setTimeout(function (node) {
@@ -55,10 +75,17 @@
    */
   function markReveal(root) {
     if (reduce) return;
+    /* 【与 motion-plus.js 分工，不要重叠】
+     *
+     * motion-plus 的 REVEAL_SEL 已经覆盖了 .post-card / .comment-item 等列表项，
+     * 它是主显现层（420ms + 错峰 + 首屏豁免 + 低端机降级）。
+     * 本层如果也标记同一批元素，就会出现「一张卡片挂两套 opacity:0、两个 IO 各等各的」，
+     * 谁的类先加上谁的过渡先跑，另一套的 transform 被打断 ——
+     * 实测 20 张卡片只有首屏 3 张真正播了入场动画，其余「啪」地出现，这就是生硬感来源。
+     *
+     * 现在本层只负责 motion-plus **没有**覆盖的块（页面分区、面板、消息项等），
+     * 两边选择器完全不重叠，谁也不会打断谁。 */
     var sel = [
-      '.post-card',
-      '.u-post',
-      '.comment-item',
       '.tool-card',
       '.bk-card',
       '.stat-card',
@@ -74,6 +101,17 @@
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
       if (n.classList.contains('lw-reveal') || n.hasAttribute('data-no-reveal')) continue;
+      /* 【不要和 motion-plus 抢同一批元素】
+       *
+       * motion-plus.js 才是主显现层（mp-reveal / mp-in，420ms + 错峰 + 首屏豁免）。
+       * 这里原来也给它已经管起来的元素加 lw-reveal，于是同一张卡片同时挂着
+       * 两套 opacity:0 → 两个 IntersectionObserver 各等各的；
+       * 谁的类先加上，谁的过渡就先跑，另一套的 transform 就被打断 ——
+       * 实测 20 张卡片只有首屏 3 张真正播了入场动画，其余直接「啪」地出现，
+       * 这正是「生硬」的来源。
+       *
+       * 规则：motion-plus 存在时（html.js-motion），本层只兜底它明确跳过的元素；
+       *       它没加载时（脚本失败/被精简）本层才接管，保证任何情况下都有渐显。 */
       n.classList.add('lw-reveal');
       ob.observe(n);
     }
