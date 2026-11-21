@@ -110,11 +110,103 @@ window.CSRF_TOKEN = <?= json_encode(function_exists('generateCSRFToken') ? gener
             paint(pref);
         },
         set: function (pref) { LWTheme.apply(pref, true); },
-        next: function () {
+        /* 只算出下一个偏好，不应用 —— 给 reveal() 用：
+         * 圆形扩展需要**先**知道目标值（要同步返回给调用方刷新按钮外观），
+         * 再在 View Transition 的回调里才真正切换。 */
+        nextPref: function () {
             var idx = PREFS.indexOf(readPref());
-            var nxt = PREFS[(idx + 1) % PREFS.length];
+            return PREFS[(idx + 1) % PREFS.length];
+        },
+        next: function () {
+            var nxt = LWTheme.nextPref();
             LWTheme.set(nxt);
             return nxt;
+        },
+        /* ── 圆形扩展切换主题（Android 12+ / ColorOS 的深色模式动画）────────────
+         *
+         * 为什么需要它：
+         *   原来主题切换是**瞬间硬切** —— withTransition() 会在 350ms 内
+         *   给所有元素禁掉过渡（.theme-transitioning * { transition:none !important }），
+         *   目的正是避免「几百个颜色变量一起渐变」产生的拖影。
+         *   但代价是切换毫无过程感：点一下，整页配色一帧内翻过去。
+         *
+         * 圆形扩展是更好的解法：它不做**颜色插值**，而是抓新旧两帧快照，
+         * 让新帧以圆形 clip-path 从点击位置扩散开、旧帧静止垫在下面。
+         * 既没有拖影（不是插值），又有明确的过程感（遮罩在扩展）。
+         *
+         * 参数 originEl：点击来源元素（按钮），圆形从它的中心扩散；
+         * 不传就从视口中心扩散。
+         * 返回：切换后的偏好值（同步可得，方便调用方立即刷新按钮外观）。
+         */
+        reveal: function (originEl) {
+            var target = LWTheme.nextPref();
+            var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            var apply = function () { LWTheme.set(target); };
+
+            if (!document.startViewTransition || reduce) {
+                LWTheme.withTransition();
+                apply();
+                return target;
+            }
+
+            var x = window.innerWidth / 2;
+            var y = window.innerHeight / 2;
+            try {
+                if (originEl && originEl.getBoundingClientRect) {
+                    var r = originEl.getBoundingClientRect();
+                    if (r.width || r.height) {
+                        x = r.left + r.width / 2;
+                        y = r.top + r.height / 2;
+                    }
+                }
+            } catch (e) { /* 取不到就用视口中心 */ }
+
+            /* 半径要覆盖到最远的那个角 */
+            var dx = Math.max(x, window.innerWidth - x);
+            var dy = Math.max(y, window.innerHeight - y);
+            var maxR = Math.sqrt(dx * dx + dy * dy);
+
+            var el = document.documentElement;
+            el.classList.add("theme-reveal");
+            var cleanup = function () { el.classList.remove("theme-reveal"); };
+
+            try {
+                var vt = document.startViewTransition(function () {
+                    /* 抑制 CSS 过渡：新快照要「立刻」呈现最终配色，
+                     * 否则快照里会拍到过渡中间态。 */
+                    LWTheme.withTransition();
+                    apply();
+                });
+                if (vt && vt.ready && vt.ready.then) {
+                    vt.ready.then(function () {
+                        try {
+                            el.animate(
+                                {
+                                    clipPath: [
+                                        "circle(0px at " + x + "px " + y + "px)",
+                                        "circle(" + maxR + "px at " + x + "px " + y + "px)"
+                                    ]
+                                },
+                                {
+                                    duration: 420,
+                                    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+                                    pseudoElement: "::view-transition-new(root)"
+                                }
+                            );
+                        } catch (e2) { cleanup(); }
+                    }).catch(cleanup);
+                }
+                if (vt && vt.finished && vt.finished.then) {
+                    vt.finished.then(cleanup, cleanup);
+                } else {
+                    window.setTimeout(cleanup, 600);
+                }
+            } catch (e3) {
+                cleanup();
+                LWTheme.withTransition();
+                apply();
+            }
+            return target;
         },
         subscribe: function (fn) {
             if (typeof fn !== 'function') { return function () {}; }

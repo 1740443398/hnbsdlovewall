@@ -218,8 +218,9 @@ if (!isset($headerGuestCta) || $headerGuestCta === '') {
             if (window.LWTheme) { syncLabel(window.LWTheme.pref()); }
             themeBtn.addEventListener('click', function () {
                 if (!window.LWTheme) { return; }
-                window.LWTheme.withTransition();
-                var pref = window.LWTheme.next();
+                var pref = (typeof window.LWTheme.reveal === 'function')
+                    ? window.LWTheme.reveal(themeBtn)
+                    : (window.LWTheme.withTransition(), window.LWTheme.next());
                 syncLabel(pref);
                 post('/api/user/update_theme.php', 'theme=' + encodeURIComponent(pref) + '&csrf_token=' + encodeURIComponent(csrf()))
                     .catch(function () {});

@@ -1215,10 +1215,13 @@
     syncThemeToggleUI(pref);
   }
 
-  function toggleTheme() {
+  function toggleTheme(btn) {
     if (!window.LWTheme) return;
-    window.LWTheme.withTransition();
-    var pref = window.LWTheme.next();
+    /* 用 LWTheme.reveal()：View Transitions 做「圆形从按钮扩散」的切换。
+     * 不支持 View Transitions 或系统开了「减少动效」时，reveal 内部自动退回原来的硬切。 */
+    var pref = (typeof window.LWTheme.reveal === 'function')
+      ? window.LWTheme.reveal(btn)
+      : (window.LWTheme.withTransition(), window.LWTheme.next());
     syncThemeToggleUI(pref);
     reportTheme(pref);
   }
@@ -1232,7 +1235,7 @@
     var btn = document.getElementById('themeToggle');
     if (btn && !btn.__lwThemeBound) {
       btn.__lwThemeBound = true;
-      btn.addEventListener('click', toggleTheme);
+      btn.addEventListener('click', function (e) { toggleTheme(e.currentTarget || btn); });
     }
     // 偏好可能被其它入口（快捷键 t / 工具条 / 命令面板 / 其它标签页）改动，
     // 订阅一次即可让按钮外观始终跟手
