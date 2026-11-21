@@ -177,23 +177,27 @@
  * ========================================================================== */
 
 ::view-transition-old(root) {
-    animation: mp-vt-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+    /* 旧页：像被推远一层 —— 缩小 + 变暗，但**不做透明度淡出**
+       （淡出会让两个页面互相透视，看起来是「淡化」而不是「推走」） */
+    animation: mp-vt-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 ::view-transition-new(root) {
-    animation: mp-vt-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    /* 新页：从略小的圆角卡片长满全屏。**关键是不淡入** ——
+       ColorOS 的页面切换是形状生长，不是两层叠在一起互相透视。 */
+    animation: mp-vt-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes mp-vt-out {
-    from { opacity: 1; transform: scale(1); }
-    to   { opacity: 0; transform: scale(0.98); }
+    from { transform: scale(1); filter: brightness(1); }
+    to   { transform: scale(0.92); filter: brightness(0.86); }
 }
 
 @keyframes mp-vt-in {
     from {
-        opacity: 0;
-        transform: scale(1.02);
-        clip-path: inset(4% 4% 4% 4% round 24px);
+        opacity: 1;
+        transform: scale(1);
+        clip-path: inset(9% 5% 9% 5% round 30px);
     }
     to {
         opacity: 1;
