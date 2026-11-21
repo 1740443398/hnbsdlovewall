@@ -352,6 +352,35 @@
 
 
     /* ======================================================================
+     * 六、触感反馈（ColorOS 的「按下去有实感」）
+     * ======================================================================
+     * 手机 ROM 里按一下按钮会有一次极短的触感反馈（10ms 级），
+     * 网页上对应 navigator.vibrate()。它比纯视觉的缩放更能让人觉得「有响应」。
+     *
+     * 只在这些条件下启用：
+     *   · 设备支持 vibrate（安卓 Chrome；iOS Safari 没有，自动跳过）
+     *   · 触屏设备（hover: none）—— 桌面鼠标点击不该震
+     *   · 用户没开「减少动态效果」（系统级无障碍偏好，尊重它）
+     * 时长 8ms：太短感觉不到，太长变「嗡嗡」噪音。
+     * ====================================================================== */
+    var lastHaptic = 0;
+    function initHaptics() {
+        if (!navigator.vibrate) { return; }
+        if (reduceMotion) { return; }
+        if (!window.matchMedia || !window.matchMedia("(hover: none)").matches) { return; }
+
+        document.addEventListener("pointerdown", function (e) {
+            var el = e.target && e.target.closest ? e.target.closest(".mp-press, .mp-press-lg, .cat-filter, .sort-tab, .mnb-item") : null;
+            if (!el) { return; }
+            /* 节流 65ms：滑动时手指会连续触发 pointerdown，不能一直震 */
+            var now = Date.now();
+            if (now - lastHaptic < 65) { return; }
+            lastHaptic = now;
+            try { navigator.vibrate(8); } catch (err) {}
+        }, { passive: true });
+    }
+
+    /* ======================================================================
      * 六、横向滚动条手感（磁吸 / 边缘渐隐 / 滚轮横滚）
      * ======================================================================
      * 选择器只挑「单行横滑」的容器；桌面端给鼠标用户把竖向滚轮转成横向，
@@ -400,6 +429,7 @@
 
     function refreshHScroll() {
         initHScroll(document);
+        initHaptics();
     }
 
     function boot() {

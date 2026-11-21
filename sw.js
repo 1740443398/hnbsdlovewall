@@ -8,7 +8,10 @@
  *   2) 顺带提供离线兜底：断网/弱网时不再白屏。
  *
  * 缓存策略（保守优先，绝不能出现「看到旧页面」）：
- *   - 页面导航：一律走网络，保证页面永远是最新的；只有断网时才给离线页；
+ *   - 页面导航：**完全不拦截**（必须）。SW 一旦对导航调 respondWith，
+ *     Chrome 就会跳过跨文档 View Transition，全站页面切换动画失效；
+ *     实测绕过 SW 后 hasViewTransition 立刻变 true。离线页兜底因此取消，
+ *     断网时交给浏览器默认处理 —— 这是为「页面转场」做的取舍。
  *   - /assets/ 下的静态资源（css/js/图片/字体）：**网络优先，失败才回退缓存**；
  *   - 其余一切同源 GET（/api/、manifest.webmanifest、东西向的杂项请求）：
  *     完全不拦截，交回浏览器自己处理。
@@ -32,6 +35,8 @@
 // 另外：缓存名升到 v3 会让 activate 阶段把旧的（可能已被污染的）缓存整体删掉，
 // 受影响用户打开一次页面即自动恢复，不需要手动清缓存。
 var CACHE = 'lovewall-static-v3';
+/* offline.html 保留在磁盘上（如果将来改回拦截导航可以直接用），
+   但当前导航不拦截，因此断网时浏览器不会显示它。 */
 var OFFLINE_URL = '/offline.html';
 var PRECACHE = [OFFLINE_URL, '/assets/images/icons/icon-192.png'];
 // 缓存条目上限，超出按最旧的删（避免 ?v= 版本更迭导致缓存无限膨胀）
@@ -100,20 +105,24 @@ self.addEventListener('fetch', function (event) {
   try { url = new URL(req.url); } catch (e) { return; }
   if (url.origin !== self.location.origin) { return; }
 
-  // ① 页面导航：网络优先，断网给离线页
+  /* ① 页面导航：**不拦截**（直接放行给浏览器）
+   *
+   * 【为什么改成放行】
+   * 实测：当 SW 对导航请求调用 respondWith() 时，Chrome 会**跳过跨文档
+   * View Transition**（@view-transition { navigation: auto } 不生效）。
+   * 用 CDP 绕过 SW 后同一路径立刻 hasViewTransition = true，
+   * 说明「页面切换动画」和「SW 导航拦截」二选一。
+   *
+   * 本站是动态 PHP 站：
+   *   · 页面切换动画正是站长要的「ColorOS 式丝滑」，观感收益最大
+   *   · 离线兜底只影响断网场景，而校园墙用户基本都在线
+   *   · 而且 HTML 进 SW 缓存本身就有脏数据风险（挑战页/登录态串号）
+   * 所以选择放行导航，换取全站页面转场。
+   *
+   * 注意：不调 respondWith 只是「不介入」，浏览器照常走网络；
+   * 断网时浏览器显示自己的离线页（各平台默认行为）。
+   */
   if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req).catch(function () {
-        return caches.open(CACHE).then(function (cache) {
-          return cache.match(OFFLINE_URL);
-        }).then(function (cached) {
-          return cached || new Response('离线中，请检查网络后重试', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-          });
-        });
-      })
-    );
     return;
   }
 
