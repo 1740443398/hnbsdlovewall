@@ -1,0 +1,81 @@
+/* ==========================================================================
+ * 触控命中区  a11y-touch.css
+ * ==========================================================================
+ *
+ * 【规范依据】
+ * WCAG 2.5.5 / iOS HIG / WeUI / TDesign 都要求触摸目标至少 44×44（CSS px）。
+ * Material Design 用 48×48。本站按 44 走。
+ *
+ * 【为什么单独做一层】
+ * 站内小图标按钮（点赞/评论/分享/收藏、顶栏的搜索与菜单）视觉上是 32~36px，
+ * 这在桌面端没问题（鼠标精确），但在手机上：
+ *
+ *   · 32px 的目标大约只有指尖接触面的 1/4，点偏是常态
+ *   · 一排 4 个 32px 按钮时，误触率会明显上升
+ *   · 用户会「点了没反应 / 点到了旁边那个」，感觉界面不跟手
+ *
+ * 直接把这些按钮改成 44px 会撑高卡片、打乱排版 ——
+ * 所以用 ::after 铺一层**透明**的命中区：
+ *   视觉尺寸一点不变，只有可点击范围变大。
+ *
+ * 【只在触摸设备生效】
+ * media (pointer: coarse) 只匹配以触摸为主要输入方式的设备。
+ * 桌面端（鼠标/触控板）完全不受影响 —— 那里 32px 的按钮本来就好点。
+ *
+ * 【为什么只选这几个】
+ * 只给「孤立的图标按钮」扩。正文里的内联链接不在此列
+ * （扩展会互相重叠、干扰文本选择）。卡片本体、整行菜单项本来就是大目标。
+ * ========================================================================== */
+
+@media (pointer: coarse) {
+    /* 帖子卡片底部的一排动作按钮：点赞 / 评论 / 分享 / 收藏 / 稍后看 */
+    .post-card-actions .action-btn,
+    .post-detail-actions .action-btn,
+    .comment-like-btn,
+    /* 移动端标题条上的搜索与菜单 */
+    .u-appbar-btn,
+    /* 弹窗右上角的关闭 */
+    .modal-close,
+    /* 顶栏的几个小按钮 */
+    .header-actions .lang-btn,
+    .header-actions .notification-bell,
+    .header-actions .mobile-menu-btn,
+    .header-actions .user-menu-btn,
+    .header-actions .pm-btn,
+    .header-actions .feature-vote-btn,
+    .header-actions .draft-box-btn,
+    .guest-bar-btn {
+        position: relative;
+    }
+
+    .post-card-actions .action-btn::after,
+    .post-detail-actions .action-btn::after,
+    .comment-like-btn::after,
+    .u-appbar-btn::after,
+    .modal-close::after,
+    .header-actions .lang-btn::after,
+    .header-actions .notification-bell::after,
+    .header-actions .mobile-menu-btn::after,
+    .header-actions .user-menu-btn::after,
+    .header-actions .pm-btn::after,
+    .header-actions .feature-vote-btn::after,
+    .header-actions .draft-box-btn::after,
+    .guest-bar-btn::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: max(100%, 2.75rem);
+        height: max(100%, 2.75rem);
+        transform: translate(-50%, -50%);
+        /* 完全透明：只扩大命中区，不改变视觉 */
+        background: transparent;
+        /* 伪元素跟随宿主元素的可点状态（宿主 disabled 时也不该能点） */
+        pointer-events: auto;
+    }
+
+    /* 已有的 ::after 语义不能被这层覆盖：底部导航的激活圆点 */
+    .mobile-nav-item::after {
+        pointer-events: none;
+    }
+}

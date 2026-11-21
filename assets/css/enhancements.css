@@ -168,14 +168,23 @@
     body { padding-bottom: 0; }
 }
 
-/* ② 底部导航：当前项实心蓝药丸（与 style.css 的悬浮胶囊一致） */
+/* ② 底部导航：当前项的状态样式
+ *
+ * 【已移除「整项实心蓝药丸」】
+ * 这里原来是 .mobile-nav-item.active { background: var(--primary); color: #fff; }。
+ * 那是一条旧设计，而 style.css 里的新设计是
+ *   「只有图标垫（svg）落进蓝色药丸，标签文字转主色，另加一颗小圆点」。
+ * 两套同时生效的结果是：
+ *   [ 178px 的蓝色大块 ] 里再套 [ 40px 的蓝色图标垫 ] —— 双层蓝底。
+ * 而且游客态只有 2 项时（首页/登录），那块蓝会直接占掉半个屏幕宽。
+ * 截图验证时一眼就看出来了。
+ *
+ * 底色/字色交给 style.css 的新设计，这里只保留字重。 */
 @media (max-width: 768px) {
     .mobile-nav-item.active {
-        background: var(--primary, #2F5B9A);
-        color: var(--on-solid, #fff);
         font-weight: 600;
     }
-    .mobile-nav-item.active:active { color: #fff; }
+    .mobile-nav-item.active:active { color: var(--primary); }
 }
 
 /* ③ 顶栏控件触控目标 ≥ 44px（仅窄屏） */

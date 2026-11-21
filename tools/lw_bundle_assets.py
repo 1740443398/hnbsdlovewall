@@ -72,6 +72,7 @@ CSS_ORDER = [
     'assets/css/apple-design.css',
     'assets/css/motion-plus.css',
     'assets/css/motion-interact.css',
+    'assets/css/a11y-touch.css',
     'assets/css/motion-liquid-tab.css',
     'assets/css/mobile-app.css',
     'assets/css/motion-sheet.css',
