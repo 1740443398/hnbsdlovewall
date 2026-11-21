@@ -184,7 +184,19 @@ if (!function_exists('lwQzoneSyncToPosts')) {
             $exist = $fs->findOne('posts', ['source_tid' => $tid]);
             if ($exist) {
                 $patch = $meta;
-                if (!empty($profFields)) { $patch = array_merge($patch, $profFields); $patch['status'] = 'pending'; }
+                if (!empty($profFields)) {
+                    $patch = array_merge($patch, $profFields);
+                    $patch['status'] = 'pending';
+                } elseif (($exist['status'] ?? '') === 'hidden') {
+                    /* 【必须能「解除隐藏」】
+                     * 站长把「导入条数上限」从小往大调（或从 0 / N 调回 -1）时，
+                     * 这些帖子之前被本函数置成了 hidden。如果这里不恢复，
+                     * 它们会永远看不见 —— 实测 home_count=5 时可见 0 条、
+                     * 恢复 -1 后只有 2/19 可见，就是这个原因。
+                     * hidden 是本模块专用的语义（后台拒绝用的是 rejected），
+                     * 所以恢复成 published 是安全的。 */
+                    $patch['status'] = 'published';
+                }
                 if (trim((string) ($exist['title'] ?? '')) === '') {
                     $patch['title'] = lwQzonePostTitle($tid);
                 }
