@@ -25,7 +25,7 @@
  *
  * 用法：
  *   node tools/verify_motion.mjs
- *   node tools/verify_motion.mjs --site   # 额外检查线上 bundle 是否含关键标记
+ *   node tools/verify_motion.mjs --live --page=/pages/tools.php   # 指定页面
  */
 
 import { spawn } from "node:child_process";
@@ -231,15 +231,16 @@ async function main() {
   await send("Runtime.enable");
   /* --live：用真实页面结构；默认：用 mock */
   const isLive = process.argv.includes("--live");
+  const pageArg = (process.argv.find(a => a.startsWith("--page=")) || "").replace("--page=", "") || "/index.php";
   let probe = null;
   let targetUrl = "file:///" + mockPath.replace(/\\/g, "/").replace(/^\//, "");
   if (process.argv.includes("--live")) {
     console.log("抓取线上真实页面…");
-    const liveHtml = await fetchLiveHtml(process.argv.includes("--live-admin") ? "/admin/index.php" : "/index.php");
+    const liveHtml = await fetchLiveHtml(process.argv.includes("--live-admin") ? "/admin/index.php" : pageArg);
     const livePath = path.join(ROOT, "_lw_live_verify.html");
     fs.writeFileSync(livePath, liveHtml, "utf8");
     targetUrl = "file:///" + livePath.replace(/\\/g, "/").replace(/^\//, "");
-    console.log("已保存 " + (liveHtml.length / 1024).toFixed(0) + " KB");
+    console.log("页面 " + pageArg + " → " + (liveHtml.length / 1024).toFixed(0) + " KB");
     liveFile = livePath;
   }
 
