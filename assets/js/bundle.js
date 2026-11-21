@@ -666,9 +666,29 @@
         return r.top < vh * 1.08 && r.bottom > -40;
     }
 
+    /* 收集 root 自身（若匹配）及其子树里匹配的元素。
+     *
+     * 【为什么需要这个】
+     * 动态加载时常把整张卡片作为新节点插进来，
+     * 只扫 root.querySelectorAll 会漏掉 root 自己。
+     * 但也不能因此退化成「每次都扫全文档」—— 那是下面修掉的性能问题。
+     */
+    function collect(root, sel) {
+        var out = [];
+        if (!root) { return out; }
+        if (root !== document && root.nodeType === 1 && root.matches && root.matches(sel)) {
+            out.push(root);
+        }
+        if (root.querySelectorAll) {
+            var list = root.querySelectorAll(sel);
+            for (var i = 0; i < list.length; i++) { out.push(list[i]); }
+        }
+        return out;
+    }
+
     function observeAll(root) {
         if (!io) { return; }
-        var list = root.querySelectorAll(REVEAL_SEL);
+        var list = collect(root, REVEAL_SEL);
         for (var i = 0; i < list.length; i++) {
             var el = list[i];
             if (el.classList.contains("mp-reveal") || el.classList.contains("mp-page")) { continue; }
@@ -691,7 +711,7 @@
      * ====================================================================== */
 
     function initImages(root) {
-        var imgs = (root || document).querySelectorAll("img");
+        var imgs = collect(root || document, "img");
         for (var i = 0; i < imgs.length; i++) {
             var img = imgs[i];
             if (img.classList.contains("mp-img")) { continue; }
@@ -735,7 +755,7 @@
     ].join(",");
 
     function initPress(root) {
-        var list = (root || document).querySelectorAll(PRESS_SEL);
+        var list = collect(root || document, PRESS_SEL);
         for (var i = 0; i < list.length; i++) {
             var el = list[i];
             if (el.classList.contains("mp-press")) { continue; }
@@ -756,21 +776,58 @@
      * 节流：连续插入 20 张卡只处理一次。
      * ====================================================================== */
 
+    /* 【性能：只处理新增节点，不全文档重扫】
+     *
+     * 原实现是「每次 DOM 变化 → 节流 120ms → 对 document 做三次
+     * querySelectorAll（REVEAL_SEL / PRESS_SEL / img）」。
+     *
+     * 首页 SSR 就有几十张卡片、上百个 img；每加载一页评论、每次 toast、
+     * 每次动画类切换都会唤醒 observer。整页重扫一遍是实打实的 CPU 开销，
+     * 长列表滚动时会掉帧 —— 那比没有动画更不「丝滑」。
+     *
+     * 现在只把「新插入的元素」记下来，只在这些子树里找。
+     * 同时用 Set 去重，避免同一个节点被多次入队。
+     */
     var moTimer = 0;
+    var pendingRoots = [];
+    var seenRoots = typeof WeakSet === "function" ? new WeakSet() : null;
+
     function initDynamicWatch() {
         if (!("MutationObserver" in window)) { return; }
 
-        var mo = new MutationObserver(function () {
-            if (moTimer) { return; }
-            moTimer = setTimeout(function () {
-                moTimer = 0;
-                observeAll(document);
-                initPress(document);
-                initImages(document);
-            }, 120);
+        var mo = new MutationObserver(function (records) {
+            for (var i = 0; i < records.length; i++) {
+                var added = records[i].addedNodes;
+                if (!added || !added.length) { continue; }
+                for (var j = 0; j < added.length; j++) {
+                    var n = added[j];
+                    if (n.nodeType !== 1) { continue; }
+                    if (seenRoots) {
+                        if (seenRoots.has(n)) { continue; }
+                        seenRoots.add(n);
+                    }
+                    pendingRoots.push(n);
+                }
+            }
+            if (moTimer || !pendingRoots.length) { return; }
+            moTimer = setTimeout(flushRoots, 120);
         });
 
         mo.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function flushRoots() {
+        moTimer = 0;
+        var roots = pendingRoots;
+        pendingRoots = [];
+        for (var k = 0; k < roots.length; k++) {
+            var r = roots[k];
+            /* 已经不在文档里了（比如被替换掉）就跳过 */
+            if (!r.isConnected) { continue; }
+            observeAll(r);
+            initPress(r);
+            initImages(r);
+        }
     }
 
     /* ======================================================================
@@ -907,7 +964,12 @@
     var SKELETON_SEL = ".skeleton, .lw-skeleton, .skeleton-card, .post-skeleton";
 
     if ("MutationObserver" in window) {
+        /* 节流：这个回调会遍历所有 records 并在命中列表容器时挂动画类。
+         * 不节流的话，一次批量渲染（比如加载 20 张卡片）会连续触发几十次。 */
+        var ieTimer = 0;
         var mo = new MutationObserver(function (records) {
+            if (ieTimer) { return; }
+            ieTimer = setTimeout(function () { ieTimer = 0; }, 140);
             for (var i = 0; i < records.length; i++) {
                 var rec = records[i];
                 if (rec.type !== "childList" || !rec.addedNodes.length) { continue; }
@@ -1304,8 +1366,16 @@
     }
 
     if ("MutationObserver" in window) {
+        /* 节流：Lightbox overlay 只会在打开时插入一次，
+         * 但 body 的 subtree 变化非常频繁。不节流等于每次 DOM 变化都
+         * 跑一遍 querySelectorAll('.lightbox-overlay')。 */
+        var lbTimer = 0;
         var mo = new MutationObserver(function () {
-            scan();
+            if (lbTimer) { return; }
+            lbTimer = setTimeout(function () {
+                lbTimer = 0;
+                scan();
+            }, 150);
         });
         function start() {
             scan();

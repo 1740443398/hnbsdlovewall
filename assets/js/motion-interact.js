@@ -90,7 +90,12 @@
     var SKELETON_SEL = ".skeleton, .lw-skeleton, .skeleton-card, .post-skeleton";
 
     if ("MutationObserver" in window) {
+        /* 节流：这个回调会遍历所有 records 并在命中列表容器时挂动画类。
+         * 不节流的话，一次批量渲染（比如加载 20 张卡片）会连续触发几十次。 */
+        var ieTimer = 0;
         var mo = new MutationObserver(function (records) {
+            if (ieTimer) { return; }
+            ieTimer = setTimeout(function () { ieTimer = 0; }, 140);
             for (var i = 0; i < records.length; i++) {
                 var rec = records[i];
                 if (rec.type !== "childList" || !rec.addedNodes.length) { continue; }

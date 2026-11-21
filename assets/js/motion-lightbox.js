@@ -136,8 +136,16 @@
     }
 
     if ("MutationObserver" in window) {
+        /* 节流：Lightbox overlay 只会在打开时插入一次，
+         * 但 body 的 subtree 变化非常频繁。不节流等于每次 DOM 变化都
+         * 跑一遍 querySelectorAll('.lightbox-overlay')。 */
+        var lbTimer = 0;
         var mo = new MutationObserver(function () {
-            scan();
+            if (lbTimer) { return; }
+            lbTimer = setTimeout(function () {
+                lbTimer = 0;
+                scan();
+            }, 150);
         });
         function start() {
             scan();
