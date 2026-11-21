@@ -5002,28 +5002,44 @@
       var isFollowing = btn.classList.contains('following');
       var action = isFollowing ? 'unfollow' : 'follow';
 
+      /* 乐观更新：关注是一键操作，等 2 秒才变会让人以为没点上 */
+      function applyFollowState(following) {
+        if (following) {
+          btn.classList.add('following');
+          btn.innerHTML = svgIcon('check', 14) + ' 已关注';
+        } else {
+          btn.classList.remove('following');
+          btn.innerHTML = svgIcon('userPlus', 14) + ' 关注';
+        }
+      }
+
+      applyFollowState(!isFollowing);
+      if (!isFollowing) {
+        btn.classList.remove('is-pop');
+        void btn.offsetWidth;
+        btn.classList.add('is-pop');
+        setTimeout(function () { btn.classList.remove('is-pop'); }, 480);
+      }
+
       try {
         var res = await fetchAPI('/api/user/follow.php', {
           method: 'POST',
           body: 'action=' + action + '&target_id=' + userId
         });
         if (res.success) {
-          if (isFollowing) {
-            btn.classList.remove('following');
-            btn.innerHTML = svgIcon('userPlus', 14) + ' 关注';
-          } else {
-            btn.classList.add('following');
-            btn.innerHTML = svgIcon('check', 14) + ' 已关注';
-          }
+          /* 用服务端真实状态校准 */
+          applyFollowState(!isFollowing);
           var countEl = btn.querySelector('.follow-count');
           if (countEl) {
             countEl.textContent = res.follower_count || '';
           }
           showToast(res.message || (isFollowing ? '已取消关注' : '关注成功'), 'success');
         } else {
+          applyFollowState(isFollowing);
           showToast(res.message || '操作失败', 'error');
         }
       } catch (e) {
+        applyFollowState(isFollowing);
         showToast('网络错误，请稍后重试', 'error');
       }
     },

@@ -3881,6 +3881,23 @@
           showToast('请先登录', 'warning');
           return;
         }
+        /* 乐观更新：评论点赞同样是高频操作，不能等 2 秒才变色 */
+        const wasLiked = likeBtn.classList.contains('liked');
+        const clCountEl = likeBtn.querySelector('.cl-count');
+        const clOld = clCountEl ? (parseInt(clCountEl.textContent, 10) || 0) : 0;
+
+        if (wasLiked) {
+          likeBtn.classList.remove('liked');
+          likeBtn.innerHTML = svgIcon('heartOutline', 12) + ' <span class="cl-count">' + Math.max(0, clOld - 1) + '</span>';
+        } else {
+          likeBtn.classList.add('liked');
+          likeBtn.innerHTML = svgIcon('heart', 12) + ' <span class="cl-count">' + (clOld + 1) + '</span>';
+          likeBtn.classList.remove('is-pop');
+          void likeBtn.offsetWidth;
+          likeBtn.classList.add('is-pop');
+          setTimeout(function () { likeBtn.classList.remove('is-pop'); }, 480);
+        }
+
         try {
           const res = await fetchAPI('/api/posts/comment_like.php', {
             method: 'POST',
@@ -3897,6 +3914,14 @@
             }
           }
         } catch (err) {
+          /* 回滚 */
+          if (wasLiked) {
+            likeBtn.classList.add('liked');
+            likeBtn.innerHTML = svgIcon('heart', 12) + ' <span class="cl-count">' + clOld + '</span>';
+          } else {
+            likeBtn.classList.remove('liked');
+            likeBtn.innerHTML = svgIcon('heartOutline', 12) + ' <span class="cl-count">' + clOld + '</span>';
+          }
           showToast(err.message || '点赞失败，请重试', 'error');
         }
       });
