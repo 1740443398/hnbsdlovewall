@@ -6245,6 +6245,15 @@
       });
     },
     _submitVote: async function (poll, postId, optionIdx) {
+      /* 投票期间给出明确反馈：这台主机每请求约 2 秒，
+       * 按钮毫无变化会让用户以为没点上、反复点。 */
+      var vbtn = poll.querySelector('.poll-vote-btn');
+      var vOrig = vbtn ? vbtn.textContent : '';
+      if (vbtn && vbtn.disabled) { return; }
+      if (vbtn) {
+        vbtn.disabled = true;
+        vbtn.textContent = '投票中…';
+      }
       try {
         var res = await fetchAPI('/api/posts/vote.php', { method: 'POST', body: 'post_id=' + postId + '&option=' + optionIdx });
         if (res.success) {

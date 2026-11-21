@@ -1839,6 +1839,8 @@
       if (!voteBtn) return;
       voteBtn.addEventListener('click', async () => {
         if (poll.classList.contains('poll-voted')) return;
+        /* 防重入：请求期间按钮已禁用，但仍可能被键盘/连点触发 */
+        if (voteBtn.disabled) return;
         if (!IS_LOGGED_IN) {
           showToast('请先登录后投票', 'warning');
           return;
@@ -1850,12 +1852,28 @@
         }
         const postId = poll.getAttribute('data-post-id');
         const option = sel.getAttribute('data-index');
+
+        /* 这个主机每个请求固定约 2 秒。原来点完按钮毫无变化，
+         * 用户会以为没点上、反复点（还会连发多个请求）。
+         * 现在立刻禁用 + 改文案，给出「已经收到了」的明确信号。 */
+        const voteOrigText = voteBtn.textContent;
+        voteBtn.disabled = true;
+        voteBtn.textContent = '投票中…';
+        voteBtn.classList.add('is-busy');
+
+        const restoreVoteBtn = function () {
+          voteBtn.disabled = false;
+          voteBtn.textContent = voteOrigText;
+          voteBtn.classList.remove('is-busy');
+        };
+
         try {
           const res = await fetchAPI('/api/posts/vote.php', {
             method: 'POST',
             body: 'post_id=' + postId + '&option=' + encodeURIComponent(option),
           });
           if (!res.success) {
+            restoreVoteBtn();
             showToast(res.message || '投票失败', 'error');
             return;
           }
@@ -1882,6 +1900,8 @@
           if (totalEl) totalEl.textContent = total + ' 人参与';
           showToast('投票成功', 'success');
         } catch (err) {
+          /* 请求失败：松开按钮，让用户能重试（原来失败后按钮仍是禁用状态） */
+          if (voteBtn.isConnected) restoreVoteBtn();
           showToast('网络错误，请重试', 'error');
         }
       });

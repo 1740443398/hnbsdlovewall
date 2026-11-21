@@ -1994,6 +1994,31 @@ html.dark-theme .post-card-actions .action-btn.favorited {
     }
 }
 
+/* ==========================================================================
+ * 七、异步操作进行中的视觉（区别于「永久禁用」）
+ * ==========================================================================
+ *
+ * 站内全局已经有 button:disabled { opacity: .5; pointer-events: none }。
+ * 但 .5 的透明度看起来像「这个按钮不能点」，而实际是「正在处理，稍等」。
+ * 两者语义不同，视觉也该不同：
+ *
+ *   永久禁用 → 很淡（.5），表示无权限/条件不满足
+ *   处理中   → 略淡（.72）+ 进度光标，表示已经在等你
+ *
+ * 用法：请求期间同时加 disabled 和 .is-busy，结束后一起移除。
+ * 已在投票（main.js / enhancements.js）上使用。
+ * ========================================================================== */
+
+button.is-busy:disabled,
+button.is-busy[disabled],
+.btn.is-busy:disabled,
+.action-btn.is-busy:disabled {
+    opacity: 0.72;
+    cursor: progress;
+    /* 处理中的按钮不要有按压缩放，避免和「禁用」语义冲突 */
+    transform: none !important;
+}
+
 /* ==== motion-liquid-tab.css ==== */
 /* ==========================================================================
  * 液态 Tab 指示器  motion-liquid-tab.css
