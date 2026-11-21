@@ -755,6 +755,14 @@ body > .main-content {
   display: flex;
   gap: var(--space-xl);
   white-space: nowrap;
+  /* 【不要在 CSS 里默认开滚动】
+   * 原来这里直接写着 animation，而 main.js 要等 DOM 就绪后
+   * 才判断「内容是否真的超宽」，再决定复制一份 + 滚动。
+   * 于是刷新瞬间：单份内容已经在按 -50% 位移滚动、并且没有副本，
+   * 用户看到的就是「文字错位/突然跳一下」，等 JS 跑完才恢复正常。
+   * 现在改成默认静止，由 JS 在复制好内容后再加 .is-scrolling。 */
+}
+.announcement-scroll.is-scrolling {
   animation: announcementScroll 26s linear infinite;
 }
 .announcement-scroll:hover { animation-play-state: paused; }

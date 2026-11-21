@@ -175,81 +175,104 @@ if (!function_exists('lwQzoneQrPoll')) {
     }
 }
 
+if (!function_exists('lwQzoneReadJar')) {
+    /** 读 Netscape 格式的 cookie jar（curl COOKIEJAR 产物），返回 name=>value */
+    function lwQzoneReadJar(string $file): array
+    {
+        $out = [];
+        if (!is_file($file)) { return $out; }
+        foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            if ($line === '' || $line[0] === '#' || strpos($line, "\t") === false) { continue; }
+            $parts = explode("\t", $line);
+            if (count($parts) < 7) { continue; }
+            $name = trim($parts[5]);
+            $val  = trim($parts[6]);
+            if ($name !== '') { $out[$name] = $val; }
+        }
+        return $out;
+    }
+}
+
 if (!function_exists('lwQzoneQrComplete')) {
     /**
      * 扫码成功后走完登录链，收集 uin / skey / p_skey 并写入配置。
-     * $cbUrl 是 ptuiCB 第 3 个参数（check_sig 地址，含 ptsigx）。
+     *
+     * 【为什么重写这一版】
+     *   上一版用「手工解析 Set-Cookie + 手工拼 Cookie 头」跟进重定向，
+     *   站长实测扫码后失败：登录链走完但拿不到 p_skey/skey。
+     *   原因很可能是：
+     *     · QQ 的 Set-Cookie 带 Domain/Path（.qq.com / .qzone.qq.com），
+     *       手工按名字拼回去，域作用域就错了；
+     *     · check_sig 之后的重定向链里有的环节靠 JS/meta 跳转，
+     *       手工读 Location 会断在半路，p_skey 是在**最后访问 qzone 首页**时下发。
+     *   现在交给 curl 的 COOKIEFILE/COOKIEJAR 处理域名与重定向，
+     *   再显式访问一次 user.qzone.qq.com/<uin> 让 p_skey 落地。
      */
     function lwQzoneQrComplete(string $cbUrl): array
     {
         if ($cbUrl === '' || stripos($cbUrl, 'http') !== 0) {
             return ['ok' => false, 'err' => '回调地址无效'];
         }
-        $jar = [];
-        $fetch = function (string $u) use (&$jar): string {
-            $setc = [];
-            $ch = curl_init($u);
+        /* uin：优先从回调地址的参数里取（o1740443398 / 1740443398 都要能认） */
+        $uin = '';
+        if (preg_match('/[?&]uin=([^&]+)/', $cbUrl, $m)) {
+            $uin = preg_replace('/\D/', '', urldecode($m[1]));
+        }
+        if ($uin === '') {
+            return ['ok' => false, 'err' => '回调地址里没有 uin，无法确定登录账号'];
+        }
+
+        $jar = tempnam(sys_get_temp_dir(), 'qzjar');
+        if ($jar === false) {
+            return ['ok' => false, 'err' => '无法创建临时 cookie 文件'];
+        }
+        $fetch = function (string $url) use ($jar): array {
+            $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 15,
-                CURLOPT_FOLLOWLOCATION => false,
-                CURLOPT_COOKIE         => implode('; ', $jar),
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 10,
+                CURLOPT_TIMEOUT        => 20,
+                CURLOPT_CONNECTTIMEOUT => 8,
+                CURLOPT_COOKIEFILE     => $jar,
+                CURLOPT_COOKIEJAR      => $jar,
                 CURLOPT_REFERER        => 'https://qzone.qq.com/',
                 CURLOPT_HTTPHEADER     => [
                     'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 ],
-                CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$setc) {
-                    if (stripos($line, 'set-cookie:') === 0) {
-                        $setc[] = trim(substr($line, 11));
-                    }
-                    return strlen($line);
-                },
             ]);
             $body = curl_exec($ch);
             $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $loc  = (string) curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+            $eff  = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
             curl_close($ch);
-            foreach ($setc as $c) {
-                if (preg_match('/^([^=]+)=([^;]*)/', $c, $mm)) {
-                    $jar[trim($mm[1])] = trim($mm[2]);
-                }
-            }
-            return $loc !== '' ? $loc : (is_string($body) ? $body : '');
+            return ['code' => $code, 'url' => $eff, 'body' => is_string($body) ? $body : ''];
         };
 
-        /* 1) 走 check_sig（可能多级重定向） */
-        $next = $cbUrl;
-        for ($i = 0; $i < 6; $i++) {
-            $r = $fetch($next);
-            if (stripos($r, 'http') === 0) { $next = $r; continue; }
-            break;
-        }
+        $r1 = $fetch($cbUrl);
+        /* 显式访问空间首页：p_skey 通常在这里下发 */
+        $r2 = $fetch('https://user.qzone.qq.com/' . $uin);
+        /* 再补一次 qzone 主域，覆盖 .qzone.qq.com 作用域 */
+        $r3 = $fetch('https://qzone.qq.com/');
 
-        /* 2) 用 uin 访问空间首页，拿 p_skey */
-        $uin = '';
-        foreach (['uin', 'p_uin'] as $k) {
-            if (!empty($jar[$k])) {
-                $uin = preg_replace('/\D/', '', (string) $jar[$k]);
-                if ($uin !== '') { break; }
-            }
-        }
-        if ($uin === '') {
-            /* 从回调地址里兜底取 uin */
-            if (preg_match('/[?&]uin=([^&]+)/', $cbUrl, $m)) {
-                $uin = preg_replace('/\D/', '', urldecode($m[1]));
-            }
-        }
-        if ($uin === '') {
-            return ['ok' => false, 'err' => '没能确定登录的 QQ 号'];
-        }
-        $fetch('https://user.qzone.qq.com/' . $uin);
+        $ck = lwQzoneReadJar($jar);
+        @unlink($jar);
 
-        $pSkey = (string) ($jar['p_skey'] ?? '');
-        $skey  = (string) ($jar['skey'] ?? '');
+        $pSkey = (string) ($ck['p_skey'] ?? '');
+        $skey  = (string) ($ck['skey'] ?? '');
+        $names = array_keys($ck);
+        $nameStr = $names ? implode(', ', array_slice($names, 0, 12)) : '（无）';
+
         if ($pSkey === '' || $skey === '') {
-            return ['ok' => false, 'err' => '登录链走完但没拿到 p_skey/skey（可能被风控拦截）'];
+            return [
+                'ok' => false,
+                'err' => '登录链走完但没拿到 p_skey/skey（可能被风控拦截）。'
+                       . '本次拿到的 cookie 名：' . $nameStr . '。'
+                       . '可直接用手动粘贴 Cookie 的方式（更稳）。',
+            ];
         }
-        $cookie = 'uin=o' . str_pad($uin, 10, '0', STR_PAD_LEFT) . '; skey=' . $skey . '; p_skey=' . $pSkey;
+        /* uin 用实际登录号，o0 前缀补足 10 位（QQ 的 uin=o + 10 位数字） */
+        $cookie = 'uin=o' . str_pad($uin, 10, '0', STR_PAD_LEFT)
+                . '; skey=' . $skey . '; p_skey=' . $pSkey;
         lwQzoneSetCookie($cookie);
         lwQzoneSaveConfig(['uin' => $uin, 'cookie_updated_at' => time(), 'last_state' => 'idle', 'last_error' => '']);
         return ['ok' => true, 'err' => ''];

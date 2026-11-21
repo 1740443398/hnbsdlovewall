@@ -40,11 +40,16 @@ if (!function_exists('lwQzoneDefaults')) {
             'comments_per'   => 30,     // 每条说说取多少评论
             'sync_likes'     => 1,      // 1=同步点赞数（只读展示）
             'show_home'      => 0,      // 1=把最新几条也混进首页
-            'home_count'     => 3,      // 混进首页的条数
+            /* 混进首页的条数：-1 = 全部，0 = 不在首页显示，1..100 = 指定条数 */
+            'home_count'     => 3,
             'auto_sync'      => 1,      // 1=允许访问触发自动同步
             'sync_interval'  => 86400,  // 自动同步最小间隔（秒）：默认 24 小时
             /* 失败告警：同步失败或 Cookie 失效时给站长发邮件。
              * 冷却时间是为了防止「Cookie 一直失效 + 有人不停访问」把信箱刷爆。 */
+            /* 图片：抓下来存本地并按宽度压缩，避免每次回源 QQ（版权/防盗链/流量三重考虑） */
+            'image_max_width' => 1080,  // 压缩后最大宽度（px）
+            'image_quality'   => 82,    // JPEG 质量 60-92
+            'prefetch_per_run'=> 8,     // 每次同步最多预热多少张图（避免单次请求太久）
             'notify_email'    => '',
             'notify_on_error' => 1,
             'notify_cooldown' => 21600, // 同一类失败最多每 6 小时提醒一次
@@ -55,6 +60,7 @@ if (!function_exists('lwQzoneDefaults')) {
             'last_error'     => '',     // 最近一次错误
             'last_state'     => 'idle', // idle / ok / cookie_expired / error
             'last_count'     => 0,      // 上次同步新增条数
+            'last_images'    => 0,      // 上次同步预热的图片数
             'cookie_updated_at' => 0,
         ];
     }
@@ -144,7 +150,19 @@ if (!function_exists('lwQzoneSetCookie')) {
     function lwQzoneSetCookie(string $raw): void
     {
         $raw = trim($raw);
-        /* 兼容整段 header 粘贴：'Cookie: a=b; c=d' → 'a=b; c=d' */
+        /* 兼容三种粘贴形态：
+         *   1) 'a=b; c=d'                        —— 纯 Cookie 串
+         *   2) 'Cookie: a=b; c=d'                —— 整段请求头
+         *   3) '{"cookie": "a=b; c=d"}'          —— 浏览器插件/脚本导出的 JSON
+         * 站长实际给的就是第 3 种，必须支持，否则粘贴后字段全缺。 */
+        if ($raw !== '' && ($raw[0] === '{' || $raw[0] === '[')) {
+            $j = json_decode($raw, true);
+            if (is_array($j)) {
+                $raw = (string) ($j['cookie'] ?? ($j['Cookie'] ?? ($j['value'] ?? '')));
+            }
+        }
+        /* 容忍 JSON 被引号包一层或带转义 */
+        $raw = trim($raw, " \t\n\r\"\'");
         if (stripos($raw, 'cookie:') === 0) {
             $raw = trim(substr($raw, 7));
         }
@@ -511,13 +529,22 @@ if (!function_exists('lwQzoneSync')) {
             }
         }
 
+        /* 预热图片（爬过来 + 压缩存本地）。失败不影响同步结果。 */
+        $imgCached = 0;
+        try {
+            $imgCached = lwQzonePrefetchImages();
+        } catch (Throwable $e) {
+            $imgCached = 0;
+        }
+
         lwQzoneSaveConfig([
             'last_state'   => 'ok',
             'last_error'   => '',
             'last_sync_at' => $now,
             'last_count'   => $added,
+            'last_images'  => $imgCached,
         ]);
-        return ['ok' => true, 'state' => 'ok', 'err' => '', 'added' => $added, 'updated' => $updated];
+        return ['ok' => true, 'state' => 'ok', 'err' => '', 'added' => $added, 'updated' => $updated, 'images' => $imgCached];
     }
 }
 
@@ -554,9 +581,10 @@ if (!function_exists('lwQzoneHomeStrip')) {
         if ((int) $cfg['enabled'] !== 1 || (int) $cfg['show_home'] !== 1) {
             return [];
         }
-        $n = max(0, min(10, (int) $cfg['home_count']));
-        if ($n <= 0) { return []; }
-        return lwQzoneListItems($n, 0);
+        $n = (int) $cfg['home_count'];
+        if ($n === 0) { return []; }                 /* 0 = 不在首页显示 */
+        if ($n < 0)   { return lwQzoneListItems(1000, 0); } /* -1 = 全部 */
+        return lwQzoneListItems(min(100, $n), 0);
     }
 }
 
@@ -728,5 +756,168 @@ if (!function_exists('lwQzoneImportData')) {
         /* 导入也算一次同步，更新状态 */
         lwQzoneSaveConfig(['last_sync_at' => $now, 'last_state' => 'ok', 'last_error' => '', 'last_count' => $added]);
         return ['ok' => true, 'added' => $added, 'updated' => $updated, 'err' => ''];
+    }
+}
+
+
+/* ============================================================================
+ * 图片：抓取 + 压缩 + 本地缓存
+ * ============================================================================
+ * 为什么要存本地而不是直接引用 QQ 地址：
+ *   1) 防盗链：带本站 Referer 直连 QQ 图片拿到的是占位图（实测 3.7KB PNG）
+ *   2) 体积：原图动辄 892x1969、单张 ~100KB，一天 20 张就是 2MB，
+ *      手机上流量和首屏都不友好 —— 压到宽度 1080 / q82 通常只剩 1/3
+ *   3) 稳定：QQ 的图片地址带签名，会过期；本地有一份才不会被对方改动牵着走
+ */
+
+if (!function_exists('lwQzoneMediaDir')) {
+    function lwQzoneMediaDir(): string
+    {
+        $dir = dirname(__DIR__) . '/data/qzone_media';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        return $dir;
+    }
+}
+
+if (!function_exists('lwQzoneMediaFile')) {
+    function lwQzoneMediaFile(string $url): string
+    {
+        return lwQzoneMediaDir() . '/' . sha1($url) . '.jpg';
+    }
+}
+
+if (!function_exists('lwQzoneDownloadImage')) {
+    function lwQzoneDownloadImage(string $url): ?string
+    {
+        $r = lwQzoneHttp($url, lwQzoneGetCookie(), 15);
+        if (!$r['ok'] || $r['code'] !== 200 || strlen($r['body']) < 512) {
+            return null;
+        }
+        return $r['body'];
+    }
+}
+
+if (!function_exists('lwQzoneCompressImage')) {
+    /**
+     * 用 GD 缩到指定宽度并转 JPEG。失败返回 null（调用方退回原图）。
+     * 像素上限保护：超大图（>40MP）不处理，避免共享主机上 GD 吃爆内存。
+     */
+    function lwQzoneCompressImage(string $bytes, int $maxW = 1080, int $quality = 82): ?string
+    {
+        if (!function_exists('imagecreatefromstring')) {
+            return null; /* 没装 GD 就退回原图 */
+        }
+        $info = @getimagesizefromstring($bytes);
+        if (!$info || empty($info[0]) || empty($info[1])) {
+            return null;
+        }
+        $w = (int) $info[0];
+        $h = (int) $info[1];
+        if ($w <= 0 || $h <= 0 || ($w * $h) > 40000000) {
+            return null;
+        }
+        $src = @imagecreatefromstring($bytes);
+        if (!$src) {
+            return null;
+        }
+        $maxW = max(320, min(2400, $maxW));
+        $newW = $w;
+        $newH = $h;
+        if ($w > $maxW) {
+            $newW = $maxW;
+            $newH = (int) round($h * ($maxW / $w));
+        }
+        $dst = @imagecreatetruecolor($newW, $newH);
+        if (!$dst) {
+            imagedestroy($src);
+            return null;
+        }
+        /* JPEG 没有透明通道：先铺白底，避免 PNG 透明区域变黑 */
+        $white = imagecolorallocate($dst, 255, 255, 255);
+        imagefilledrectangle($dst, 0, 0, $newW, $newH, $white);
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
+        ob_start();
+        imagejpeg($dst, null, max(50, min(95, $quality)));
+        $out = ob_get_clean();
+        imagedestroy($src);
+        imagedestroy($dst);
+        return is_string($out) && strlen($out) > 256 ? $out : null;
+    }
+}
+
+if (!function_exists('lwQzoneCacheImage')) {
+    /**
+     * 抓取并压缩一张图，落盘。已存在直接返回路径。
+     * 返回本地文件路径，失败返回 ''。
+     */
+    function lwQzoneCacheImage(string $url): string
+    {
+        if ($url === '' || strpos($url, 'https://') !== 0) {
+            return '';
+        }
+        $file = lwQzoneMediaFile($url);
+        if (is_file($file) && filesize($file) > 1024) {
+            return $file;
+        }
+        $raw = lwQzoneDownloadImage($url);
+        if ($raw === null) {
+            return '';
+        }
+        $cfg = lwQzoneConfig();
+        $jpeg = lwQzoneCompressImage($raw, (int) $cfg['image_max_width'], (int) $cfg['image_quality']);
+        /* 【取较小者】QQ 的原图本身已经压过一轮，重新编码不一定更小：
+         *   实测 892x1969 47.7KB → q82 重编码 59.4KB（反而大 24%）
+         *   只有「宽度超标需要缩放」时才真正划算（1170→1080 省 14%）
+         * 所以：两个都算出来，谁小存谁。绝不能默认用重编码结果。 */
+        $data = ($jpeg !== null && strlen($jpeg) < strlen($raw)) ? $jpeg : $raw;
+        $tmp = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        if (@file_put_contents($tmp, $data) === false) {
+            return '';
+        }
+        if (!@rename($tmp, $file)) {
+            @unlink($tmp);
+            return '';
+        }
+        return $file;
+    }
+}
+
+if (!function_exists('lwQzonePrefetchImages')) {
+    /**
+     * 同步时预热图片（每次最多 prefetch_per_run 张）。
+     * 优先处理最新、且还没缓存过的条目 —— 这样首页横滑条和第一页能立刻有图。
+     * 返回本轮成功缓存的数量。
+     */
+    function lwQzonePrefetchImages(): int
+    {
+        $cfg = lwQzoneConfig();
+        $limit = max(0, min(30, (int) $cfg['prefetch_per_run']));
+        if ($limit <= 0) {
+            return 0;
+        }
+        $fs = getFS();
+        $all = $fs->read('qzone_items');
+        if (!is_array($all) || !$all) {
+            return 0;
+        }
+        usort($all, function ($a, $b) { return ((int) ($b['posted_ts'] ?? 0)) <=> ((int) ($a['posted_ts'] ?? 0)); });
+        $done = 0;
+        foreach ($all as $it) {
+            if ($done >= $limit) { break; }
+            $imgs = json_decode((string) ($it['images'] ?? '[]'), true);
+            if (!is_array($imgs)) { continue; }
+            foreach ($imgs as $u) {
+                if ($done >= $limit) { break; }
+                $u = (string) $u;
+                if ($u === '') { continue; }
+                $file = lwQzoneMediaFile($u);
+                if (is_file($file) && filesize($file) > 1024) { continue; }
+                if (lwQzoneCacheImage($u) !== '') { $done++; }
+                usleep(60000); /* 60ms：别把 QQ 图片服务器打太急 */
+            }
+        }
+        return $done;
     }
 }

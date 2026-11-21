@@ -3306,6 +3306,30 @@
         keep[path] = window.pageYOffset || document.documentElement.scrollTop;
         self._set(keep);
       };
+      /* 【滚动过程中也保存】原来只在 pagehide/beforeunload/visibilitychange 保存。
+       * 安卓 WebView 与部分 iOS 场景下这些事件可能缺失（或页面被直接销毁），
+       * 结果「返回后回到顶部」。这里再加一条：滚动停下 300ms 后记一次位置。
+       * 只是往 sessionStorage 写一个数字，开销可以忽略。 */
+      var idleTimer = null;
+      window.addEventListener('scroll', function () {
+        if (idleTimer) { clearTimeout(idleTimer); }
+        idleTimer = setTimeout(remember, 300);
+      }, { passive: true });
+
+      /* 【bfcache 返回时兜底恢复】
+       * 命中 bfcache 的返回不会重新执行 init()，浏览器自己会还原滚动；
+       * 但只要页面里任何脚本设置过 history.scrollRestoration='manual'，
+       * 浏览器就不再还原 —— 此时需要我们自己来。 */
+      window.addEventListener('pageshow', function (ev) {
+        if (!ev.persisted) { return; }
+        var st = self._get();
+        var k = window.location.pathname + window.location.search;
+        if (st[k]) {
+          try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+          self._restoreWhenReady(st[k]);
+        }
+      });
+
       // pagehide 比 beforeunload 可靠：进入 bfcache、移动端切后台都不会漏记。
       window.addEventListener('pagehide', remember);
       window.addEventListener('beforeunload', remember);
@@ -8725,10 +8749,17 @@
         if (!a) return;
         var href = a.getAttribute('href');
         if (!href || href === '#' || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-        if (href.startsWith('/') || href.indexOf(window.location.hostname) !== -1) return;
         if (a.classList.contains('elc-trusted')) return;
+        /* 【原来这里只认「以 / 开头」或「含域名」为站内链接】——
+         * 于是 ?tab=stats 这种同页查询参数被当成外链，切个标签就弹「即将离开本站」。
+         * 现在统一用 URL 解析后比 origin：站内的（含 ?tab=、#hash、相对路径）直接放行，
+         * 只有真正跨域才拦。 */
+        var targetUrl;
+        try { targetUrl = new URL(href, window.location.href); } catch (err) { return; }
+        if (targetUrl.origin === window.location.origin) return;
+        if (targetUrl.protocol !== 'http:' && targetUrl.protocol !== 'https:') return;
         e.preventDefault();
-        self._show(href, a);
+        self._show(targetUrl.href, a);
       });
     },
     _injectStyles: function () {

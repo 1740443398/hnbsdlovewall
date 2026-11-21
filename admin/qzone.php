@@ -45,9 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'comments_per'   => max(0, min(50, (int) ($_POST['comments_per'] ?? 30))),
             'sync_likes'     => isset($_POST['sync_likes']) ? 1 : 0,
             'show_home'      => isset($_POST['show_home']) ? 1 : 0,
-            'home_count'     => max(0, min(10, (int) ($_POST['home_count'] ?? 3))),
+            'home_count'     => max(-1, min(100, (int) ($_POST['home_count'] ?? 3))),
             'auto_sync'      => isset($_POST['auto_sync']) ? 1 : 0,
             'sync_interval'  => max(60, min(86400, (int) ($_POST['sync_interval'] ?? 600))),
+            'image_max_width'  => max(320, min(2400, (int) ($_POST['image_max_width'] ?? 1080))),
+            'image_quality'    => max(50, min(95, (int) ($_POST['image_quality'] ?? 82))),
+            'prefetch_per_run' => max(0, min(30, (int) ($_POST['prefetch_per_run'] ?? 8))),
         ]);
         $redirect('msg=' . urlencode('配置已保存'));
     }
@@ -176,6 +179,7 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
             <div>状态：<span class="qz-badge qz-badge-<?= xss_clean($st[1]) ?>"><?= xss_clean($st[0]) ?></span></div>
             <div>上次成功同步：<strong><?= $cfg['last_sync_at'] ? date('Y-m-d H:i:s', (int) $cfg['last_sync_at']) : '—' ?></strong></div>
             <div>上次新增：<strong><?= (int) $cfg['last_count'] ?></strong> 条</div>
+            <div>上次预热图片：<strong><?= (int) $cfg['last_images'] ?></strong> 张</div>
             <div>Cookie：<strong><?= $hint['present'] ? ($hint['p_skey'] && $hint['skey'] && $hint['uin'] ? '关键字段齐全' : '字段不全') : '未配置' ?></strong>
                 <?php if ($hint['present']): ?><span class="qz-hint">（长度 <?= (int) $hint['len'] ?>，更新于 <?= $hint['updated'] ? date('m-d H:i', (int) $hint['updated']) : '—' ?>）</span><?php endif; ?>
             </div>
@@ -223,7 +227,8 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
         <p class="qz-hint" style="margin-bottom:10px;">
             获取方法：电脑浏览器登录 QQ 空间 → 打开 <code>user.qzone.qq.com/<?= xss_clean((string) $cfg['uin'] ?: '<对方QQ>') ?></code>
             → F12 打开开发者工具 → Network 里点任意请求 → 复制请求头 <code>Cookie</code> 整行 →
-            粘贴到下面（可以直接粘 <code>Cookie: ...</code> 开头的那整行）。
+            粘贴到下面。支持三种：纯 <code>a=b; c=d</code>、整行 <code>Cookie: ...</code>、或
+            插件导出的 <code>{"cookie": "..."}</code> JSON。
         </p>
         <form method="post">
             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
@@ -290,8 +295,8 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
             <div class="qz-row">
                 <label class="qz-label">混入首页</label>
                 <label style="width:auto;"><input type="checkbox" name="show_home" <?= $cfg['show_home'] ? 'checked' : '' ?>></label>
-                <input class="qz-input" type="number" name="home_count" value="<?= (int) $cfg['home_count'] ?>" min="0" max="10">
-                <span class="qz-hint">把最新 N 条也展示在首页（0 = 只在「空间动态」页显示）</span>
+                <input class="qz-input" type="number" name="home_count" value="<?= (int) $cfg['home_count'] ?>" min="-1" max="100">
+                <span class="qz-hint"><b>-1</b> = 全部显示；<b>0</b> = 不在首页显示；<b>1~100</b> = 显示最新 N 条</span>
             </div>
 
             <div class="qz-row">

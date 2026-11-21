@@ -2814,6 +2814,7 @@
     const overflowing = scroll.scrollWidth > scroll.clientWidth + 2;
 
     if (!overflowing) {
+      scroll.classList.remove('is-scrolling');
       const forceStill = (prop, val) => scroll.style.setProperty(prop, val, 'important');
       forceStill('animation', 'none');
       forceStill('justify-content', 'center');
@@ -2828,6 +2829,9 @@
     // 它是给装饰动效用的，但公告条承载的是信息 —— 被它一压，滚动直接停住，
     // 长公告停在左边看不见。行内 !important 的层叠优先级最高，
     // 不用再和那条通配规则比特异性（试过 .announcement-bar .announcement-scroll 仍然被压）。
+    /* 先标上类再写行内 !important：类是给没开行内样式的场景兜底，
+       行内 !important 用来压过 prefers-reduced-motion 的通配规则 */
+    scroll.classList.add('is-scrolling');
     const force = (prop, val) => scroll.style.setProperty(prop, val, 'important');
     force('animation-name', 'announcementScroll');
     force('animation-duration', '26s');

@@ -908,7 +908,8 @@ if ($inviteEnabled && $tab === 'invite') {
         /* ---- 顶部横幅 ---- */
         .uc-banner {
             position: relative;
-            height: 11rem;
+            /* 只是一层装饰渐变，没有必要占掉 176px —— 站长反馈「顶部大量空白」。 */
+            height: 6rem;
             margin: 0 -1rem 0;
             border-radius: 0 0 18px 18px;
             overflow: hidden;
@@ -933,7 +934,7 @@ if ($inviteEnabled && $tab === 'invite') {
         .uc-layout {
             display: block;
             min-height: 0;
-            margin-top: -3.2rem;
+            margin-top: -2rem;
             position: relative;
             z-index: 2;
         }
@@ -960,6 +961,8 @@ if ($inviteEnabled && $tab === 'invite') {
             z-index: 10;
         }
         .uc-sidebar::-webkit-scrollbar { display: none; }
+        /* 可滚动时右侧渐隐，提示还有标签没露出来 */
+        .uc-sidebar.uc-can-right { -webkit-mask-image: linear-gradient(90deg, #000 86%, transparent 100%); mask-image: linear-gradient(90deg, #000 86%, transparent 100%); }
 
         .uc-sidebar .uc-nav-item {
             display: inline-flex;
@@ -1015,8 +1018,8 @@ if ($inviteEnabled && $tab === 'invite') {
         /* ---- 移动端 ---- */
         @media (max-width: 768px) {
             .user-center-page { padding: 0 .6rem 2.5rem; }
-            .uc-banner { height: 8rem; margin: 0 -.6rem 0; border-radius: 0 0 14px 14px; }
-            .uc-layout { margin-top: -2.4rem; }
+            .uc-banner { height: 4.5rem; margin: 0 -.6rem 0; border-radius: 0 0 14px 14px; }
+            .uc-layout { margin-top: -1.6rem; }
             .uc-sidebar {
                 top: 3.9rem;
                 padding: .4rem .45rem;
@@ -2562,6 +2565,59 @@ if ($inviteEnabled && $tab === 'invite') {
     })();
 
     </script>
+
+<script>
+/* ── 个人中心横向标签条：让它真的能滚 ──────────────────────────────
+ * 这条栏是 overflow-x:auto，但滚动条被隐藏；桌面上鼠标滚轮只竖向滚页面，
+ * 用户看到右边被截断却「滚不动」。这里补三种操作：
+ *   1) 竖向滚轮 → 横向滚（指针在标签条上时）
+ *   2) 按住拖动
+ *   3) 右侧渐隐提示还有内容 */
+(function () {
+    var bar = document.querySelector('.uc-sidebar');
+    if (!bar) return;
+
+    bar.addEventListener('wheel', function (e) {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            var before = bar.scrollLeft;
+            bar.scrollLeft = before + e.deltaY;
+            if (bar.scrollLeft !== before) { e.preventDefault(); }
+        }
+    }, { passive: false });
+
+    var down = false, startX = 0, startLeft = 0, moved = false;
+    bar.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        down = true; moved = false;
+        startX = e.pageX; startLeft = bar.scrollLeft;
+        bar.style.cursor = 'grabbing';
+        bar.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', function (e) {
+        if (!down) return;
+        var dx = e.pageX - startX;
+        if (Math.abs(dx) > 4) { moved = true; }
+        bar.scrollLeft = startLeft - dx;
+    });
+    window.addEventListener('mouseup', function () {
+        if (!down) return;
+        down = false; bar.style.cursor = ''; bar.style.userSelect = '';
+    });
+    /* 拖动后紧跟的 click 会误触标签跳转，拦掉这一次 */
+    bar.addEventListener('click', function (e) {
+        if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; }
+    }, true);
+
+    var updateFade = function () {
+        var max = bar.scrollWidth - bar.clientWidth;
+        bar.classList.toggle('uc-can-right', max > 4 && bar.scrollLeft < max - 4);
+    };
+    bar.addEventListener('scroll', updateFade);
+    window.addEventListener('resize', updateFade);
+    updateFade();
+})();
+</script>
+
     <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
     <?php if (!empty($__bundleOffForPage)): ?>
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>

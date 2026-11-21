@@ -174,21 +174,16 @@ body.show-ms .clk-ms {
     margin-top: clamp(14px, 2.4vh, 30px);
     width: min(390px, 78vw);
     min-height: clamp(96px, 15vh, 122px);
-    border: 2px solid var(--c-ring);
-    border-radius: 3px;   /* 图里是接近方角的细边 */
+    /* 【去掉橙色边框】站长要求：这一圈 #E4501C 细框像「限制框」，
+       和整页极简黑底不搭。现在只保留文字本身，不加框、不加内发光。 */
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 14px 20px;
-    /* 极淡的内发光，让框「贴着」黑底 */
-    box-shadow: 0 0 0 0 rgba(228, 80, 28, 0), inset 0 0 24px rgba(228, 80, 28, 0.05);
-    transition: border-color 300ms var(--ease-out-soft),
-                box-shadow 300ms var(--ease-out-soft);
+    transition: opacity 300ms var(--ease-out-soft);
 }
-/* 拿到一言后轻轻亮一下，替代「加载中…」这种 AI 腔提示 */
-.clk-quote.is-loaded {
-    box-shadow: 0 0 0 0 rgba(228, 80, 28, 0), inset 0 0 30px rgba(228, 80, 28, 0.09);
-}
+/* 一言可以整体关掉：按钮 + 记住选择（见下方 JS 的 applyQuote） */
+body.hide-quote .clk-quote { display: none; }
 
 .clk-quote-text {
     font-size: clamp(14px, 1.35vw, 17px);
@@ -432,6 +427,7 @@ body.show-ms .clk-ms {
 <div class="clk-actions">
     <button type="button" class="clk-btn is-on" data-act="sec">精确到秒</button>
     <button type="button" class="clk-btn" data-act="ms">精确到毫秒</button>
+    <button type="button" class="clk-btn is-on" data-act="quote">隐藏一言</button>
     <button type="button" class="clk-btn" data-act="date">隐藏日期</button>
     <button type="button" class="clk-btn" data-act="fs">进入全屏</button>
 </div>
@@ -732,6 +728,28 @@ body.show-ms .clk-ms {
         startLoop();
     }
 
+    /* ── 一言开关 ──────────────────────────────────────────────
+     * 有些人只想看时间，不想被随机句子打扰；关掉后连请求也不再发。
+     * 选择记在 localStorage，下次打开保持。 */
+    var btnQuote = document.querySelector('[data-act="quote"]');
+    var quoteOn = true;
+    try { quoteOn = localStorage.getItem("clkQuote") !== "0"; } catch (e) {}
+
+    function applyQuote(on, fromInit) {
+        quoteOn = !!on;
+        document.body.classList.toggle("hide-quote", !quoteOn);
+        if (btnQuote) {
+            btnQuote.textContent = quoteOn ? "隐藏一言" : "显示一言";
+            btnQuote.classList.toggle("is-on", quoteOn);
+        }
+        try { localStorage.setItem("clkQuote", quoteOn ? "1" : "0"); } catch (e) {}
+        if (quoteOn && !fromInit) { loadQuote(); }
+    }
+    if (btnQuote) {
+        btnQuote.addEventListener("click", function () { applyQuote(!quoteOn); });
+    }
+    applyQuote(quoteOn, true);
+
     btnSec.addEventListener("click", function () { setMsMode(false); });
     btnMs.addEventListener("click", function () { setMsMode(true); });
 
@@ -822,6 +840,7 @@ body.show-ms .clk-ms {
         if (e.key === "f" || e.key === "F") { toggleFs(); }
         if (e.key === "m" || e.key === "M") { setMsMode(!showMs); }
         if (e.key === "d" || e.key === "D") { btnDate.click(); }
+        if ((e.key === "q" || e.key === "Q") && btnQuote) { btnQuote.click(); }
     });
 
     /* 点空白处进入全屏（桌面常见操作），但避开按钮/红框/状态栏 */
@@ -836,7 +855,7 @@ body.show-ms .clk-ms {
 
     render(Date.now(), false);
     syncTime("ntsc");
-    loadQuote();
+    if (quoteOn) { loadQuote(); }
     startLoop();
 
     setInterval(function () {
