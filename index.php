@@ -295,15 +295,15 @@ if (is_file($__ahJs)) {
     <div class="modal-overlay" id="guideModal" style="display:none;">
         <div class="modal" style="max-width:520px;">
             <div class="modal-header">
-                <h3 class="modal-title">👋 <?= t('guide.title') ?></h3>
+                <h3 class="modal-title"><?= t('guide.title') ?></h3>
             </div>
             <div class="modal-body" style="font-size:0.9rem;color:var(--text);line-height:1.9;">
                 <p style="margin-bottom:4px;"><?= t('guide.p1') ?></p>
                 <ul style="padding-left:18px;margin:8px 0 4px;">
-                    <li>📝 <?= t('guide.l1') ?></li>
-                    <li>🎯 <?= t('guide.l2') ?></li>
-                    <li>✉️ <?= t('guide.l3') ?></li>
-                    <li>⭐ <?= t('guide.l4') ?></li>
+                    <li><?= t('guide.l1') ?></li>
+                    <li><?= t('guide.l2') ?></li>
+                    <li><?= t('guide.l3') ?></li>
+                    <li><?= t('guide.l4') ?></li>
                 </ul>
                 <p style="font-size:0.82rem;color:var(--text-muted);"><?= t('guide.p2') ?></p>
             </div>

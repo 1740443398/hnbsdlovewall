@@ -2258,7 +2258,9 @@
       var btn = document.createElement('button');
       btn.className = 'checkin-btn';
       btn.id = 'checkinBtn';
-      btn.innerHTML = '<span class="checkin-icon">🎯</span><span class="checkin-text">签到</span>';
+      /* 用站内 SVG 图标，不用 emoji：顶栏里出现「🎯 签到」这种彩色 emoji，
+       * 和旁边同一行的 SVG 图标混在一起，一眼就是「拼的」。 */
+      btn.innerHTML = '<span class="checkin-icon">' + svgIcon('calendar', 15) + '</span><span class="checkin-text">签到</span>';
       this._btn = btn;
       // 手机端收进用户面板弹层的「快捷操作」区，桌面端仍在顶栏
       if (!mountSecondary(btn, 'me-panel')) return;
@@ -2288,7 +2290,7 @@
       var text = btn.querySelector('.checkin-text');
       btn.classList.toggle('checked', checked);
       btn.title = '已连续签到 ' + (d.streak || 0) + ' 天，累计 ' + (d.total || 0) + ' 次';
-      if (icon) icon.textContent = checked ? '✅' : '🎯';
+      if (icon) icon.innerHTML = checked ? svgIcon('check', 15) : svgIcon('calendar', 15);
       if (text) text.textContent = checked ? '已签到' : '签到';
     },
 
@@ -2334,7 +2336,7 @@
     init: function () {
       var btn = document.createElement('button');
       btn.className = 'btn btn-outline btn-sm random-post-btn';
-      btn.innerHTML = '🎲 随便看看';
+      btn.innerHTML = svgIcon('refresh', 15) + ' 随便看看';
       btn.title = '随机查看一篇帖子 (快捷键: R)';
       if (!mountSecondary(btn, 'me-panel')) return;
       var self = this;
@@ -3943,7 +3945,7 @@
       var self = this;
       var btn = document.createElement('button');
       btn.className = 'bookmark-position-btn';
-      btn.innerHTML = '🔖 标记阅读位置';
+      btn.innerHTML = svgIcon('tag', 15) + ' 标记阅读位置';
       btn.title = '保存当前阅读位置';
       var content = document.querySelector('.post-detail-content');
       if (content) {
@@ -3952,7 +3954,7 @@
         if (saved !== null) {
           var restore = document.createElement('button');
           restore.className = 'bookmark-position-btn restore';
-          restore.innerHTML = '📍 恢复阅读位置 (' + Math.round(saved / (content.scrollHeight || 1) * 100) + '%)';
+          restore.innerHTML = svgIcon('refresh', 15) + ' 恢复阅读位置 (' + Math.round(saved / (content.scrollHeight || 1) * 100) + '%)';
           restore.addEventListener('click', function () {
             content.scrollTo({ top: saved, behavior: 'smooth' });
           });
@@ -5098,7 +5100,7 @@
     init: function () {
       var btn = document.createElement('button');
       btn.className = 'feature-vote-btn';
-      btn.innerHTML = '<span class="fv-emoji">✨</span><span class="fv-label">功能投票</span>';
+      btn.innerHTML = '<span class="fv-emoji">' + svgIcon('star', 14) + '</span><span class="fv-label">功能投票</span>';
       btn.title = '给功能建议投票，或提出你的建议';
       // 手机端收进用户面板弹层；桌面端仍按原有位置插进顶栏
       if (!mountSecondary(btn, 'me-panel')) return;
@@ -5219,7 +5221,7 @@
     init: function () {
       var btn = document.createElement('button');
       btn.className = 'pm-btn';
-      btn.innerHTML = '<span class="pm-emoji">✉️</span><span class="pm-label">私信</span>';
+      btn.innerHTML = '<span class="pm-emoji">' + svgIcon('message', 15) + '</span><span class="pm-label">私信</span>';
       btn.title = '站内私信';
       btn.addEventListener('click', function (self) {
         return function () { self.open(); };
@@ -5464,7 +5466,7 @@
       modal.innerHTML =
         '<div class="modal pm-modal">' +
           '<div class="modal-header">' +
-            '<h3>✉️ 站内私信</h3>' +
+            '<h3>站内私信</h3>' +
             '<button type="button" class="pm-refresh" title="立即同步" aria-label="立即同步">' + svgIcon('refresh', 16) + '</button>' +
             '<button type="button" class="modal-close pm-close" aria-label="关闭">×</button>' +
           '</div>' +
@@ -5541,7 +5543,7 @@
       modal.innerHTML =
         '<div class="modal pm-modal">' +
           '<div class="modal-header">' +
-            '<h3>✉️ 站内私信</h3>' +
+            '<h3>站内私信</h3>' +
             '<button type="button" class="pm-refresh" title="立即同步" aria-label="立即同步">' + svgIcon('refresh', 16) + '</button>' +
             '<button type="button" class="modal-close pm-close" aria-label="关闭">×</button>' +
           '</div>' +
@@ -10246,11 +10248,11 @@
           btn.className = 'action-btn save-later-btn';
           btn.title = '稍后再看';
           btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:1rem;padding:4px;';
-          btn.textContent = isSaved(id) ? '🔖' : '📑';
+          btn.innerHTML = isSaved(id) ? svgIcon('check', 16) : svgIcon('tag', 16);
           btn.addEventListener('click', function (e) {
             e.preventDefault(); e.stopPropagation();
             var saved = toggle(id);
-            btn.textContent = saved ? '🔖' : '📑';
+            btn.innerHTML = saved ? svgIcon('check', 16) : svgIcon('tag', 16);
             if (typeof showToast === 'function') showToast(saved ? '已加入稍后再看' : '已移出稍后再看', saved ? 'success' : 'info');
           });
           actions.insertBefore(btn, actions.firstChild);
