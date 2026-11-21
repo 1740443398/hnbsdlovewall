@@ -378,7 +378,40 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             .comment-children { margin-left: 1rem; }
             .post-detail-actions { gap: .25rem; padding: .5rem; }
         }
-    </style>
+    
+        /* ---- QQ 空间爬取来源标注 ---- */
+        .qz-source {
+            display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .6rem;
+            margin: .5rem 0 .9rem; padding: .5rem .7rem;
+            background: var(--bg-secondary); border: 1px solid var(--border-glass);
+            border-radius: 10px; font-size: .78rem; color: var(--text-secondary);
+        }
+        .qz-source-badge {
+            background: var(--primary); color: #fff; border-radius: 999px;
+            padding: 1px .5rem; font-size: .7rem; font-weight: 600;
+        }
+        .qz-source-link { margin-left: auto; color: var(--primary); text-decoration: none; font-weight: 600; }
+        .qz-source-link:hover { text-decoration: underline; }
+        .qz-origin-comments, .qz-ocr-box {
+            margin: .9rem 0; border: 1px solid var(--border-glass); border-radius: 10px;
+            background: var(--bg-secondary); overflow: hidden;
+        }
+        .qz-origin-comments > summary, .qz-ocr-box > summary {
+            cursor: pointer; padding: .6rem .8rem; font-size: .84rem; font-weight: 600;
+            color: var(--text); list-style: none;
+        }
+        .qz-origin-comments > summary::-webkit-details-marker, .qz-ocr-box > summary::-webkit-details-marker { display: none; }
+        .qz-origin-comments[open] > summary, .qz-ocr-box[open] > summary { border-bottom: 1px solid var(--border-glass); }
+        .qz-origin-list { padding: .5rem .8rem .7rem; display: flex; flex-direction: column; gap: .5rem; }
+        .qz-origin-item { font-size: .84rem; line-height: 1.6; }
+        .qz-origin-name { color: var(--primary); font-weight: 600; margin-right: .4rem; }
+        .qz-origin-content { color: var(--text); }
+        .qz-ocr-text {
+            margin: 0; padding: .7rem .8rem; font-size: .82rem; line-height: 1.7;
+            white-space: pre-wrap; word-break: break-word; color: var(--text);
+            font-family: inherit; max-height: 40vh; overflow: auto;
+        }
+</style>
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
@@ -410,6 +443,21 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             <div class="post-detail-header">
                 <span class="category-badge cat-<?= $post['category'] === 'announcement' ? 'announcement' : htmlspecialchars($cat['icon']) ?>"><?= htmlspecialchars($cat['name']) ?></span>
                 <h1 class="post-detail-title"><?= htmlspecialchars($post['title']) ?></h1>
+                <?php
+                /* QQ 空间自动爬取来源说明：站长要求「像普通帖子，但详情页写明来源并给原链接」 */
+                require_once __DIR__ . '/../includes/qzone_posts.php';
+                $qzMeta = lwQzonePostMeta($post);
+                if ($qzMeta):
+                ?>
+                <div class="qz-source">
+                    <span class="qz-source-badge">自动爬取</span>
+                    <span class="qz-source-text">本内容自动同步自 QQ 空间「表白墙」</span>
+                    <?php if ($qzMeta['likes'] > 0 || $qzMeta['comments']): ?>
+                    <span class="qz-source-stat">原动态 ♥<?= (int) $qzMeta['likes'] ?> · 评论 <?= count($qzMeta['comments']) ?></span>
+                    <?php endif; ?>
+                    <a class="qz-source-link" href="<?= htmlspecialchars($qzMeta['url']) ?>" target="_blank" rel="noopener noreferrer">查看原动态 →</a>
+                </div>
+                <?php endif; ?>
                 <div class="post-detail-meta">
                     <?php
                     // 作者头像走全站唯一复合件（头像框 + 等级环 + 勋章），匿名时自动降级为默认头像
@@ -518,6 +566,39 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                     <div class="empty-tip"><?= t('pd.poll_empty_tip') ?></div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php
+            /* 原空间评论：只读镜像。站内评论是另一套（下面），两者都保留，
+               但明确标注来源，避免用户以为墙墙本人在本站回复过。 */
+            if ($qzMeta && !empty($qzMeta['comments'])):
+            ?>
+            <details class="qz-origin-comments">
+                <summary>原空间评论（<?= count($qzMeta['comments']) ?>）· 只读镜像</summary>
+                <div class="qz-origin-list">
+                    <?php foreach (array_slice($qzMeta['comments'], 0, 50) as $qc): ?>
+                    <div class="qz-origin-item">
+                        <span class="qz-origin-name"><?= htmlspecialchars((string) ($qc['name'] ?? '')) ?></span>
+                        <span class="qz-origin-content"><?= nl2br(htmlspecialchars((string) ($qc['content'] ?? ''))) ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </details>
+            <?php endif; ?>
+            <?php
+            /* 图片文字 OCR：聊天截图里的文字。自动识别，可能不准，所以默认折叠并注明。 */
+            $qzOcrText = '';
+            $qzOcrInc = __DIR__ . '/../includes/qzone_ocr.php';
+            if ($qzMeta && file_exists($qzOcrInc)) {
+                require_once $qzOcrInc;
+                if (function_exists('lwQzoneOcrText')) { $qzOcrText = (string) lwQzoneOcrText($qzMeta['tid']); }
+            }
+            if ($qzOcrText !== ''):
+            ?>
+            <details class="qz-ocr-box">
+                <summary>图片文字（自动识别，可能有误）</summary>
+                <pre class="qz-ocr-text"><?= htmlspecialchars($qzOcrText) ?></pre>
+            </details>
             <?php endif; ?>
 
             <div class="post-detail-actions">

@@ -41,7 +41,7 @@ if (!function_exists('lwQzoneDefaults')) {
             'sync_likes'     => 1,      // 1=同步点赞数（只读展示）
             'show_home'      => 0,      // 1=把最新几条也混进首页
             /* 混进首页的条数：-1 = 全部，0 = 不在首页显示，1..100 = 指定条数 */
-            'home_count'     => 3,
+            'home_count'     => -1,
             'auto_sync'      => 1,      // 1=允许访问触发自动同步
             'sync_interval'  => 86400,  // 自动同步最小间隔（秒）：默认 24 小时
             /* 失败告警：同步失败或 Cookie 失效时给站长发邮件。
@@ -50,6 +50,10 @@ if (!function_exists('lwQzoneDefaults')) {
             'image_max_width' => 1080,  // 压缩后最大宽度（px）
             'image_quality'   => 82,    // JPEG 质量 60-92
             'prefetch_per_run'=> 8,     // 每次同步最多预热多少张图（避免单次请求太久）
+            /* OCR：站长要求「线上自动识别」，所以走云端 API（OCR.space 免费档支持中文） */
+            'ocr_enabled'     => 1,     // 是否自动识别图片文字（默认开）
+            'ocr_api_key'     => 'helloworld', // OCR.space 的 key；'helloworld' 是官方公开测试 key，建议换成自己免费申请的
+            'ocr_per_run'     => 3,     // 每次同步最多识别几张图
             'notify_email'    => '',
             'notify_on_error' => 1,
             'notify_cooldown' => 21600, // 同一类失败最多每 6 小时提醒一次
@@ -61,6 +65,7 @@ if (!function_exists('lwQzoneDefaults')) {
             'last_state'     => 'idle', // idle / ok / cookie_expired / error
             'last_count'     => 0,      // 上次同步新增条数
             'last_images'    => 0,      // 上次同步预热的图片数
+            'last_ocr'       => 0,      // 上次同步自动识别的图片数
             'cookie_updated_at' => 0,
         ];
     }
@@ -644,12 +649,29 @@ if (!function_exists('lwQzoneSync')) {
             $imgCached = 0;
         }
 
+        /* 线上自动 OCR：对还没识别过的说说调云端 API，结果落 data/qzone_ocr.json。
+           失败/未配置都只是跳过，不影响同步本身。 */
+        $ocrDone = 0;
+        try {
+            $ocrInc = __DIR__ . '/qzone_ocr.php';
+            if (is_file($ocrInc)) {
+                require_once $ocrInc;
+                if (function_exists('lwQzoneOcrAutoRun')) {
+                    $ocrRes = lwQzoneOcrAutoRun();
+                    $ocrDone = (int) ($ocrRes['done'] ?? 0);
+                }
+            }
+        } catch (Throwable $e) {
+            $ocrDone = 0;
+        }
+
         lwQzoneSaveConfig([
             'last_state'   => 'ok',
             'last_error'   => '',
             'last_sync_at' => $now,
             'last_count'   => $added,
             'last_images'  => $imgCached,
+            'last_ocr'     => $ocrDone,
         ]);
         return ['ok' => true, 'state' => 'ok', 'err' => '', 'added' => $added, 'updated' => $updated, 'images' => $imgCached];
     }
@@ -987,6 +1009,43 @@ if (!function_exists('lwQzoneCacheImage')) {
             @unlink($tmp);
             return '';
         }
+        return $file;
+    }
+}
+
+
+if (!function_exists('lwQzoneCacheImageVariant')) {
+    /**
+     * 按目标宽度生成/取一张缓存变体（例如首页卡片只要 420px 宽）。
+     *
+     * 为什么要变体：实测线上首页 4 张 QQ 图就占了 475 KB，
+     * 而手机卡片渲染宽度只有 ~350px —— 传 1080px 原图是纯浪费。
+     * 变体按 sha1(url)_w<宽度>.jpg 缓存，同一张图可同时存在多档尺寸。
+     */
+    function lwQzoneCacheImageVariant(string $url, int $w = 0, int $quality = 0): string
+    {
+        if ($url === '' || strpos($url, 'https://') !== 0) { return ''; }
+        $cfg = lwQzoneConfig();
+        $maxW = (int) $cfg['image_max_width'];
+        $q    = (int) $cfg['image_quality'];
+        /* w<=0 或已经不小于上限 → 直接用全尺寸缓存 */
+        if ($w <= 0 || $w >= $maxW) {
+            return lwQzoneCacheImage($url);
+        }
+        $w = max(160, min(1200, $w));
+        if ($q <= 0) { $q = $cfg['image_quality']; }
+        $file = lwQzoneMediaDir() . '/' . sha1($url) . '_w' . $w . '.jpg';
+        if (is_file($file) && filesize($file) > 512) { return $file; }
+
+        $full = lwQzoneCacheImage($url);
+        if ($full === '') { return ''; }
+        $bytes = (string) @file_get_contents($full);
+        if ($bytes === '') { return ''; }
+        $variant = lwQzoneCompressImage($bytes, $w, max(60, min(88, $q)));
+        if ($variant === null) { return $full; }
+        $tmp = $file . '.' . bin2hex(random_bytes(3)) . '.tmp';
+        if (@file_put_contents($tmp, $variant) === false) { return $full; }
+        if (!@rename($tmp, $file)) { @unlink($tmp); return $full; }
         return $file;
     }
 }
