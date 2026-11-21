@@ -121,7 +121,7 @@ if (is_file($__ahJs)) {
         <div class="container">
             <span class="guest-bar-text">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <?= t('guest.banner') ?><span class="guest-bar-limit">（仅显示前 <?= (int) GUEST_VISIBLE_POSTS ?> 条）</span>
+                <?= t('guest.banner') ?><span class="guest-bar-limit">（前 <?= (int) GUEST_VISIBLE_POSTS ?> 条）</span>
             </span>
             <a href="<?= SITE_URL ?>/pages/register.php" class="guest-bar-btn"><?= t('guest.register_cta') ?></a>
         </div>
