@@ -94,9 +94,22 @@ $uMeLinks = [
     .site-header .header-actions .btn-new-post,
     .site-header .header-actions .lang-switch { display: none !important; }
 
+    /* 【隐藏顶栏的汉堡】手机端顶栏是两层：
+     *   ① .site-header  站点名
+     *   ② .u-appbar     当前页标题 + 搜索 + 菜单
+     * 两个都有汉堡：① 打开桌面版的 .main-sidebar，② 打开移动端的 .u-drawer。
+     * 抽屉本身就包含侧边栏里的全部入口（首页/聊天室/商城/排行/成长/文件…），
+     * 所以 ① 在手机上是纯重复 —— 截图里能看到两个 ☰ 图标并排，
+     * 用户不知道该点哪个。隐藏 ①，只留抽屉那个。
+     * 桌面端不受影响（这段在手机断点内）。 */
+    .site-header .mobile-menu-btn { display: none !important; }
+
     /* 站点 logo 在 U 端只留文字，避免与页面标题抢位置 */
     .site-header .header-inner { justify-content: flex-start; }
-    .site-header .site-logo .logo-text { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* 【放宽到 58vw】原来 42vw 太窄，「淮南市北师大实验中学高中部交流墙」被截成
+     * 「淮南市北师…」—— 剩下的三个点比信息本身还显眼。汉堡键隐藏后左侧多出
+     * 约 44px 空间，放宽到 58vw 后能显示到「淮南市北师大实验中学…」。 */
+    .site-header .site-logo .logo-text { max-width: 58vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* 顶栏下方的「当前页标题」条 */
     .u-appbar {

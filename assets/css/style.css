@@ -785,6 +785,15 @@ body > .main-content {
   transition: background var(--transition);
 }
 .guest-bar-btn:hover { background: var(--primary-hover); color: var(--on-solid, #fff); }
+/* guest-bar 里的「（仅显示前 N 条）」补充说明：
+ * 原来首页在横幅下面还挂了一张 .guest-feed-note 大卡片讲同一件事，
+ * 两层提示叠在一起，首屏被占掉近 300px。
+ * 改成把这条信息并进横幅，用更淡的字重跟在主文案后面。 */
+.guest-bar-limit {
+    font-weight: 400;
+    opacity: 0.82;
+    margin-left: 0.25rem;
+}
 
 .guest-feed-note {
   padding: 0.75rem 1rem;
