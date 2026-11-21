@@ -151,26 +151,41 @@ if (!function_exists('lwQzoneGetCookie')) {
     }
 }
 
-if (!function_exists('lwQzoneSetCookie')) {
-    function lwQzoneSetCookie(string $raw): void
+if (!function_exists('lwQzoneNormalizeCookieInput')) {
+    /**
+     * 把用户粘贴的 Cookie 原文规范化成 `a=b; c=d` 形态。
+     *
+     * 站长/后台可能粘贴三种形态（实际粘贴过第 1 与第 3 种）：
+     *   1) 'a=b; c=d'                 —— 纯 Cookie 串
+     *   2) 'Cookie: a=b; c=d'         —— 浏览器 Network 里整行请求头
+     *   3) '{"cookie": "a=b; c=d"}'   —— 插件/脚本导出的 JSON
+     *
+     * 原来只有 lwQzoneSetCookie() 做了规范化，lwQzoneCookieValue() 没有，
+     * 于是「整行 Cookie:」形态下取 uin 会失败（首段键名被解析成 "Cookie: uin"）。
+     * 现在两处共用这一个函数，行为一致。函数是幂等的，重复调用不会改坏。
+     */
+    function lwQzoneNormalizeCookieInput(string $raw): string
     {
         $raw = trim($raw);
-        /* 兼容三种粘贴形态：
-         *   1) 'a=b; c=d'                        —— 纯 Cookie 串
-         *   2) 'Cookie: a=b; c=d'                —— 整段请求头
-         *   3) '{"cookie": "a=b; c=d"}'          —— 浏览器插件/脚本导出的 JSON
-         * 站长实际给的就是第 3 种，必须支持，否则粘贴后字段全缺。 */
         if ($raw !== '' && ($raw[0] === '{' || $raw[0] === '[')) {
             $j = json_decode($raw, true);
             if (is_array($j)) {
                 $raw = (string) ($j['cookie'] ?? ($j['Cookie'] ?? ($j['value'] ?? '')));
             }
         }
-        /* 容忍 JSON 被引号包一层或带转义 */
         $raw = trim($raw, " \t\n\r\"\'");
         if (stripos($raw, 'cookie:') === 0) {
             $raw = trim(substr($raw, 7));
         }
+        return $raw;
+    }
+}
+
+if (!function_exists('lwQzoneSetCookie')) {
+    function lwQzoneSetCookie(string $raw): void
+    {
+        /* 三种粘贴形态（纯串 / 整行 Cookie: / JSON {"cookie":...}）统一在这里规范化 */
+        $raw = lwQzoneNormalizeCookieInput($raw);
         lwQzoneSaveConfig([
             'cookie_enc' => $raw === '' ? '' : lwQzoneEncrypt($raw),
             'cookie_updated_at' => $raw === '' ? 0 : time(),
@@ -218,6 +233,8 @@ if (!function_exists('lwQzoneGtk')) {
 if (!function_exists('lwQzoneCookieValue')) {
     function lwQzoneCookieValue(string $raw, string $key): string
     {
+        /* 先规范化：避免调用方直接把「Cookie: 整行」或 JSON 形态传进来时取不到值 */
+        $raw = lwQzoneNormalizeCookieInput($raw);
         if (preg_match('/(?:^|;\s*)' . preg_quote($key, '/') . '=([^;]*)/', $raw, $m)) {
             return trim($m[1]);
         }
