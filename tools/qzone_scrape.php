@@ -86,6 +86,20 @@ for ($p = 0; $p < $pages; $p++) {
     if (count($r['items']) < 20) { break; }
 }
 
+/* 点赞数：msglist 里没有，逐条查 qz_opcnt2（和同步引擎同一套做法）。
+ * 抓全量时条数多，这里给足预算但加 40ms 间隔，别把对方接口打太急。 */
+$rawCk = lwQzoneGetCookie();
+$gtk   = lwQzoneGtk(lwQzoneCookieValue($rawCk, 'p_skey'));
+$enriched = 0;
+foreach ($items as &$itx) {
+    $n = lwQzoneFetchLikes($uin, (string) $itx['tid'], $rawCk, $gtk);
+    if ($n > 0) { $itx['likes'] = $n; }
+    if ($n >= 0) { $enriched++; }
+    usleep(40000);
+}
+unset($itx);
+fwrite(STDERR, "  已补点赞数：{$enriched} 条\n");
+
 /* 组装成与后台「数据导入」一致的格式 */
 $bundle = ['version' => 1, 'exported_at' => date('Y-m-d H:i:s'), 'uin' => $uin, 'items' => [], 'comments' => []];
 foreach ($items as $it) {

@@ -285,6 +285,53 @@ if (!function_exists('lwQzoneFetchFeeds')) {
     }
 }
 
+if (!function_exists('lwQzoneFetchLikes')) {
+    /**
+     * 查一条说说的点赞数。
+     *
+     * 为什么不在 msglist 里拿：
+     *   实测对方接口的 msglist_v6 **完全不含点赞字段**（19 条里 like* 字段 0 个），
+     *   点赞数要走独立的计数接口 qz_opcnt2。
+     *
+     * 为什么需要容错解析：
+     *   这个接口返回的不是标准 JSON —— 键名没引号：
+     *     {"ret":0,"data":[{current:{"key":"...","cntdata":{act:0,like:184,...}}}]}
+     *   所以先给裸露的键名补引号，再 json_decode；失败就退回正则直接抽 like。
+     */
+    function lwQzoneFetchLikes(string $uin, string $tid, string $cookie, int $gtk): int
+    {
+        if ($uin === '' || $tid === '' || $cookie === '') { return 0; }
+        $unikey = 'http://user.qzone.qq.com/' . $uin . '/mood/' . $tid;
+        $url = 'https://user.qzone.qq.com/proxy/domain/r.qzone.qq.com/cgi-bin/user/qz_opcnt2'
+             . '?unikey=' . urlencode($unikey) . '&g_tk=' . $gtk . '&callback=_Callback';
+        $r = lwQzoneHttp($url, $cookie, 8);
+        if (!$r['ok']) { return 0; }
+        $body = trim($r['body']);
+        if (preg_match('/^[A-Za-z_$][\w$]*\((.*)\)\s*;?$/s', $body, $m)) {
+            $body = $m[1];
+        }
+        /* 补引号：{current: → {"current": ，只处理对象键名，不碰值里的冒号 */
+        $body = preg_replace('/([{,])\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/', '$1"$2":', $body);
+        $json = json_decode($body, true);
+        if (is_array($json) && isset($json['data']) && is_array($json['data'])) {
+            foreach ($json['data'] as $row) {
+                $cur = $row['current'] ?? null;
+                if (!is_array($cur)) { continue; }
+                if ((string) ($cur['key'] ?? '') !== $unikey) { continue; }
+                $cnt = $cur['cntdata'] ?? [];
+                if (is_array($cnt) && isset($cnt['like'])) {
+                    return max(0, (int) $cnt['like']);
+                }
+            }
+        }
+        /* 兜底：直接从文本里抠 like */
+        if (preg_match('/like:(\d+)/', $body, $mm)) {
+            return max(0, (int) $mm[1]);
+        }
+        return 0;
+    }
+}
+
 if (!function_exists('lwQzoneNormalizeList')) {
     /** 把对方接口的原始 list 规范化成本站字段；字段缺失一律容错。 */
     function lwQzoneNormalizeList(array $list): array
@@ -317,7 +364,11 @@ if (!function_exists('lwQzoneNormalizeList')) {
                         continue;
                     }
                     $cid = (string) ($c['tid'] ?? ($c['id'] ?? ''));
+                    /* 评论里会夹 [em]e10087[/em] 这种 QQ 表情码。
+                     * 直接显示是噪声，这里剥掉；表情本身信息量低，
+                     * 保留文字比留下「[em]e401236[/em]」更像人话。 */
                     $ctext = trim((string) ($c['content'] ?? ''));
+                    $ctext = trim(preg_replace('/\[em\]e\d+\[\/em\]/i', '', $ctext));
                     if ($cid === '' || $ctext === '') {
                         continue;
                     }
@@ -379,6 +430,22 @@ if (!function_exists('lwQzoneSync')) {
             if (count($r['items']) < $num) {
                 break; /* 没有下一页 */
             }
+        }
+
+        /* 点赞数：msglist 里没有，需要逐条查 qz_opcnt2。
+         * 每次最多补 30 条，避免免费主机上单个请求拖太久；其余下一轮再补。 */
+        if ((int) $cfg['sync_likes'] === 1 && $items) {
+            $rawCk = lwQzoneGetCookie();
+            $gtk   = lwQzoneGtk(lwQzoneCookieValue($rawCk, 'p_skey'));
+            $uinN  = preg_replace('/\D/', '', (string) $cfg['uin']);
+            $budget = 30;
+            foreach ($items as &$itx) {
+                if ($budget-- <= 0) { break; }
+                $fetched = lwQzoneFetchLikes((string) $uinN, (string) $itx['tid'], $rawCk, $gtk);
+                if ($fetched > 0) { $itx['likes'] = $fetched; }
+                usleep(40000); /* 40ms：别把对方接口打太急 */
+            }
+            unset($itx);
         }
 
         foreach ($items as $it) {
