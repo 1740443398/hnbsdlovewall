@@ -166,9 +166,19 @@ if (!function_exists('lwQzoneQrPoll')) {
                 $ck = lwQzoneQrComplete($cbUrl);
                 if ($ck['ok']) {
                     unset($_SESSION['lw_qzone_qr']);
-                    return ['ok' => true, 'state' => 'success', 'msg' => '扫码成功，Cookie 已自动保存', 'cookieSaved' => true];
+                    $probeN = (int) ($ck['probe'] ?? 0);
+                    $msg = '扫码成功，Cookie 已自动保存';
+                    if ($probeN > 0) { $msg .= '（已验证：能读到 ' . $probeN . ' 条动态）'; }
+                    return ['ok' => true, 'state' => 'success', 'msg' => $msg, 'cookieSaved' => true];
                 }
-                return ['ok' => false, 'state' => 'error', 'msg' => '扫码成功但取 Cookie 失败：' . $ck['err'], 'cookieSaved' => false];
+                /* 「已保存但读不到」与「根本没取到」是两回事，提示必须区分开，
+                   否则站长会重复扫码而其实该走手动粘贴。 */
+                $err = (string) ($ck['err'] ?? '');
+                if (strpos($err, 'COOKIE_SAVED:') === 0) {
+                    return ['ok' => false, 'state' => 'error', 'cookieSaved' => true,
+                            'msg' => '扫码成功，Cookie 已自动保存，但' . substr($err, 13)];
+                }
+                return ['ok' => false, 'state' => 'error', 'msg' => '扫码成功但取 Cookie 失败：' . $err, 'cookieSaved' => false];
             default:
                 return ['ok' => false, 'state' => 'error', 'msg' => '未知状态：' . $cbMsg . '（code=' . $cbCode . '）', 'cookieSaved' => false];
         }
@@ -319,6 +329,29 @@ if (!function_exists('lwQzoneQrComplete')) {
         $cookie = lwQzoneCookieFromJar($ck, $uin);
         lwQzoneSetCookie($cookie);
         lwQzoneSaveConfig(['uin' => $uin, 'cookie_updated_at' => time(), 'last_state' => 'idle', 'last_error' => '']);
-        return ['ok' => true, 'err' => ''];
+
+        /* 【拿到 Cookie ≠ 能用】必须当场验证一次能不能读到说说。
+         * 否则会出现「后台显示扫码成功、但同步一直失败」的猜谜局面：
+         * 用户以为已经好了，实际接口被风控/降级，还要人工排查。
+         * 验证失败也**保留已保存的 Cookie**（可能只是临时风控），
+         * 但如实回报，让站长知道该走手动粘贴。 */
+        if (!function_exists('lwQzoneFetchFeeds')) {
+            $syncInc = __DIR__ . '/qzone_sync.php';
+            if (is_file($syncInc)) { require_once $syncInc; }
+        }
+        $probeCount = 0;
+        if (function_exists('lwQzoneFetchFeeds')) {
+            $probe = lwQzoneFetchFeeds(0, 3);
+            if (!empty($probe['ok'])) { $probeCount = count($probe['items'] ?? []); }
+            if (empty($probe['ok']) || empty($probe['items'])) {
+                $why = (string) ($probe['err'] ?? '');
+                if ($why === '') { $why = '接口返回 0 条（可能被风控或账号无权限）'; }
+                return [
+                    'ok' => false,
+                    'err' => 'COOKIE_SAVED:读动态失败：' . $why,
+                ];
+            }
+        }
+        return ['ok' => true, 'err' => '', 'probe' => $probeCount];
     }
 }
