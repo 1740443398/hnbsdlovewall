@@ -2097,6 +2097,32 @@ button.is-busy[disabled],
     transform: none !important;
 }
 
+/* ==========================================================================
+ * 八、链接点击后的「离开态」
+ * ==========================================================================
+ *
+ * 站点每请求约 2 秒，点链接后到新画面出现之间是空窗。
+ * 给源元素一个轻微的「正在离开」状态，让用户知道点击已被接收。
+ *
+ * 只变淡 + 极轻缩放，不做位移 —— 位移会让用户以为页面已经在动了，
+ * 但实际还要等 2 秒，反而更焦躁。
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion a.mp-leaving {
+        opacity: 0.55;
+        transform: scale(0.985);
+        transition: opacity 150ms ease-out, transform 150ms ease-out;
+    }
+    /* 卡片式链接（整块可点）用更明显的反馈 */
+    html.js-motion .post-card.mp-leaving,
+    html.js-motion .tool-card.mp-leaving,
+    html.js-motion .disc-card.mp-leaving {
+        opacity: 0.7;
+        transform: scale(0.99);
+    }
+}
+
 /* ==== motion-liquid-tab.css ==== */
 /* ==========================================================================
  * 液态 Tab 指示器  motion-liquid-tab.css

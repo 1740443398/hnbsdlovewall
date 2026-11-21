@@ -129,6 +129,57 @@
         }
     }
 
+
+    /* ======================================================================
+     * 四、链接点击后的「离开态」
+     * ======================================================================
+     *
+     * 这个站点每次请求约 2 秒。点一个链接（或一张卡片）之后，浏览器要等
+     * 新页面到达才会换画面 —— 这 2 秒里**没有任何视觉反馈**。
+     *
+     * 用户的第一反应是「我点到了吗」，于是反复点。
+     *
+     * 这里在点击的瞬间给源元素一个轻微的「正在离开」状态（变淡 + 微缩），
+     * 直到新页面接管。这和点赞的乐观更新是同一个道理：
+     * 先把「收到了」这件事告诉用户，别让他等得心里没底。
+     *
+     * 只处理「会真的导航走」的链接：
+     *   · 排除 # 锚点、javascript:、mailto:、tel:
+     *   · 排除 target="_blank" 和带 download 的（它们不会替换当前页）
+     *   · 排除外站链接
+     * 外部导航被取消（比如弹了确认框）时，1.6 秒后自动撤销，
+     * 避免元素一直半透明。
+     */
+
+    function isRealNavigation(link) {
+        if (!link || !link.getAttribute) { return false; }
+        if (link.target === "_blank" || link.hasAttribute("download")) { return false; }
+        var href = link.getAttribute("href");
+        if (!href) { return false; }
+        var h = href.trim().toLowerCase();
+        if (h.charAt(0) === "#") { return false; }
+        if (h.indexOf("javascript:") === 0) { return false; }
+        if (h.indexOf("mailto:") === 0 || h.indexOf("tel:") === 0) { return false; }
+        try {
+            var u = new URL(link.href, location.href);
+            if (u.origin !== location.origin) { return false; }
+        } catch (e) { return false; }
+        return true;
+    }
+
+    document.addEventListener("click", function (e) {
+        if (e.defaultPrevented) { return; }
+        var link = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+        if (!link || !isRealNavigation(link)) { return; }
+
+        link.classList.add("mp-leaving");
+
+        /* 兜底撤销：如果导航被阻止（弹窗确认、脚本拦截），1.6 秒后恢复 */
+        setTimeout(function () {
+            link.classList.remove("mp-leaving");
+        }, 1600);
+    }, false);
+
     /* 对外暴露，方便其他模块在替换内容后主动触发 */
     window.LWInteract = {
         flashContent: flashContent
