@@ -105,16 +105,50 @@
                 /* 新加入的内容里如果有骨架，说明还在加载，不动 */
                 if (parent.querySelector && parent.querySelector(SKELETON_SEL)) { continue; }
 
-                /* 只有「明显是列表容器」才做淡入，避免全站乱闪 */
+                /* 只有「明显是列表容器」才做动画，避免全站乱闪 */
                 if (!parent.matches(TARGET_SEL) && !parent.closest(TARGET_SEL)) { continue; }
 
-                parent.classList.remove("mp-tab-in");
-                void parent.offsetWidth;
-                parent.classList.add("mp-tab-in");
-                (function (el) {
-                    setTimeout(function () { el.classList.remove("mp-tab-in"); }, 340);
-                })(parent);
-                break;
+                /* ── 区分「整块替换」和「纯追加」─────────────────────────────
+                 *
+                 * 原来不分情况，一律给**容器**加 mp-tab-in（opacity 0→1 + 上移 6px）。
+                 * 对「切标签 / 换筛选 / 骨架换内容」这类整块替换是对的。
+                 * 但无限滚动加载下一页时只是**追加**几张大卡片，
+                 * 结果整条已经读完的列表跟着整体淡入再上移 6px ——
+                 * 用户正在读的内容突然闪一下，这是纯负面效果。
+                 *
+                 * 所以：有节点被移除 → 整块替换 → 容器淡入（原行为）；
+                 *       没有移除、只是追加 → 只让新节点逐个入场。
+                 */
+                var replaced = rec.removedNodes && rec.removedNodes.length > 0;
+
+                if (replaced) {
+                    parent.classList.remove("mp-tab-in");
+                    void parent.offsetWidth;
+                    parent.classList.add("mp-tab-in");
+                    (function (el) {
+                        setTimeout(function () { el.classList.remove("mp-tab-in"); }, 340);
+                    })(parent);
+                    break;
+                }
+
+                /* 纯追加：只动新加进来的元素节点，错峰一点点 */
+                var added = rec.addedNodes;
+                var seq = 0;
+                for (var k = 0; k < added.length; k++) {
+                    var node = added[k];
+                    if (node.nodeType !== 1) { continue; }
+                    if (node.classList && node.classList.contains("mp-item-in")) { continue; }
+                    var delay = Math.min(seq * 40, 240);
+                    seq++;
+                    node.classList.add("mp-item-in");
+                    node.style.animationDelay = delay + "ms";
+                    (function (el, d) {
+                        setTimeout(function () {
+                            el.classList.remove("mp-item-in");
+                            el.style.animationDelay = "";
+                        }, d + 420);
+                    })(node, delay);
+                }
             }
         });
 
