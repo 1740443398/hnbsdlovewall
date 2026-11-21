@@ -1159,7 +1159,10 @@
     toast.classList.add('toast-dismissing');
     toast.addEventListener(
       'animationend',
-      () => {
+      (e) => {
+        /* 只认退出动画。进入动画（toastSlideIn 0.28s）结束时也会冒泡一次 animationend，
+         * 如果 toast 在 280ms 内就被关掉，那个事件会把节点提前删掉、退出动画只播一半。 */
+        if (e.animationName !== 'toastSlideOut') return;
         if (toast.parentNode) toast.parentNode.removeChild(toast);
       },
       { once: true },

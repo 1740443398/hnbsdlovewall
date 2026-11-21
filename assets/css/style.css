@@ -1534,6 +1534,25 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
 .toast-progress { position: absolute; bottom: 0; left: 0; height: 0.1875rem; background: currentColor; opacity: 0.35; animation: toastProgress 3s linear forwards; }
 @keyframes toastProgress { from { width: 100%; } to { width: 0%; } }
 
+/* 【退出动画】dismissToast() 会给 toast 加 .toast-dismissing，然后等 animationend 再移除节点
+ * （350ms 兜底定时器）。但这里原来**没有对应的 keyframes** ——
+ * 动画根本不存在，animationend 永远不会触发，于是每次都走兜底定时器：
+ * toast 站着不动 350ms，然后「啪」地凭空消失。
+ *
+ * 这是最容易被感知成「生硬」的一种：不是没动画，而是代码按有动画写、
+ * 样式没跟上，用户看到的是「延迟一下然后瞬移消失」。
+ *
+ * 补上退出（向右淡出，和进入的 translateX(40px) 同方向），
+ * animationend 就能正常触发，移除时机也准确了。 */
+.toast-dismissing {
+    animation: toastSlideOut 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+    pointer-events: none;
+}
+@keyframes toastSlideOut {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(32px); }
+}
+
 /* ---------- 徽章 ---------- */
 .badge { display: inline-block; padding: 0.1875rem 0.625rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
 .badge-success { background: var(--success-light); color: var(--success); }
