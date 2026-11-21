@@ -14,6 +14,8 @@ require_once __DIR__ . '/../../includes/qzone_sync.php';
 
 $tid = preg_replace('/[^a-f0-9]/i', '', (string) ($_GET['tid'] ?? ''));
 $idx = max(0, min(8, (int) ($_GET['i'] ?? 0)));
+/* 宽度变体：首页卡片传 w=420，详情/原图不传。0 表示用全尺寸。 */
+$wantW = (int) ($_GET['w'] ?? 0);
 if ($tid === '' || strlen($tid) < 8) {
     http_response_code(400);
     exit;
@@ -45,7 +47,7 @@ if (!$hostOk || strpos($url, 'https://') !== 0) {
 }
 
 /* 命中缓存直接出；没命中则现场抓取+压缩（同步时已尽量预热，这里只是兜底） */
-$file = lwQzoneCacheImage($url);
+$file = $wantW > 0 ? lwQzoneCacheImageVariant($url, $wantW) : lwQzoneCacheImage($url);
 if ($file !== '' && is_file($file) && filesize($file) > 1024) {
     /* 缓存里可能存的是原图（原图更小时会保留原样），
        所以类型必须按文件头判断，不能一律当 JPEG 输出。 */

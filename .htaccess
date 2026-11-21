@@ -111,3 +111,34 @@ Options -Indexes
 <IfModule mod_headers.c>
     Header always set Timing-Allow-Origin "*"
 </IfModule>
+# ─────────────────────────────────────────────────────────────────────────────
+# 静态资源缓存（2026-11-21 补）
+#   【为什么必须加】实测线上首页 828 KB / 27 请求，**全部资源都没有 Cache-Control**
+#   （CDP 抓到的 cache-control 全是空），等于每次刷新都重新下载：
+#   119KB 的 JS + 39KB 的 CSS + 几百 KB 的 QQ 图片。
+#   加上长缓存后，回访只需要一次 HTML 请求。
+#   带 ?v=<hash> 的资源（asset_url/asset_ver 已自动加）内容变了 URL 就变，可以放心 immutable。
+# ─────────────────────────────────────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                "access plus 1 year"
+    ExpiresByType application/javascript  "access plus 1 year"
+    ExpiresByType text/javascript         "access plus 1 year"
+    ExpiresByType image/png               "access plus 1 month"
+    ExpiresByType image/jpeg              "access plus 1 month"
+    ExpiresByType image/webp              "access plus 1 month"
+    ExpiresByType image/gif               "access plus 1 month"
+    ExpiresByType image/svg+xml           "access plus 1 month"
+    ExpiresByType image/x-icon            "access plus 1 month"
+    ExpiresByType font/woff2              "access plus 1 year"
+    ExpiresByType application/json        "access plus 1 hour"
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|png|jpe?g|webp|gif|ico|svg|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+    # 用户上传的东西可能被替换，别给一年
+    <FilesMatch "^/uploads/">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>
