@@ -51,12 +51,80 @@ if (!EDGE) {
 const PORT = 9361 + Math.floor(Math.random() * 40);
 const profile = path.join(os.tmpdir(), "lw-motion-verify-" + Date.now());
 const mockPath = path.join(ROOT, "_lw_mock_verify.html");
+let liveFile = null;
 
 const outside = Array.from({ length: 10 }, (_, i) => `
       <div class="post-card" data-post-id="${10 + i}">
         <div class="post-card-title">首屏外第 ${i + 1} 张</div>
         <div class="post-card-content">用于验证滚动渐显</div>
       </div>`).join("");
+
+
+/* ==========================================================================
+ * --live 模式：抓线上真实 HTML，在本地加载真实 bundle 验证
+ * ==========================================================================
+ *
+ * mock 只能验证「动效栈本身」。真实页面的 DOM 结构、插件初始化顺序、
+ * 服务端渲染出来的弹窗（比如社区规范）都可能和 mock 不同。
+ *
+ * InfinityFree 的反爬挑战是一个 AES-128-CBC 的 __test cookie：
+ * 页面里有 toNumbers 的三段密文，第三段是密文、第一段是 key、第二段是 iv，
+ * 解密后 hex 化即为 cookie。Node 的 crypto 就能算，不需要 PHP。
+ *
+ * 抓到 HTML 后把 /assets/ 绝对路径改成相对的，就能用 file:// 加载本地 bundle。
+ */
+async function fetchLiveHtml(page = "/index.php") {
+  const crypto = await import("node:crypto");
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  const BASE = "https://hnbsd.ct.ws";
+  const jar = new Map();
+
+  function cookieHeader() {
+    return [...jar.entries()].map(([k, v]) => k + "=" + v).join("; ");
+  }
+
+  async function req(url) {
+    const r = await fetch(url, {
+      headers: {
+        "User-Agent": UA,
+        "Accept-Encoding": "gzip",
+        ...(jar.size ? { Cookie: cookieHeader() } : {}),
+      },
+      redirect: "follow",
+    });
+    for (const c of r.headers.getSetCookie ? r.headers.getSetCookie() : []) {
+      const m = c.match(/^([^=]+)=([^;]*)/);
+      if (m) jar.set(m[1].trim(), m[2].trim());
+    }
+    return { status: r.status, text: await r.text() };
+  }
+
+  const first = await req(BASE + "/");
+  const nums = [...first.text.matchAll(/toNumbers\("([0-9a-f]{32})"\)/g)].map(m => m[1]);
+  if (nums.length >= 3) {
+    const d = crypto.createDecipheriv(
+      "aes-128-cbc",
+      Buffer.from(nums[0], "hex"),
+      Buffer.from(nums[1], "hex")
+    );
+    d.setAutoPadding(false);
+    const out = Buffer.concat([d.update(Buffer.from(nums[2], "hex")), d.final()]);
+    jar.set("__test", out.toString("hex"));
+  }
+  await req(BASE + "/pages/gateway.php?browse=1");
+  jar.set("lw_gate", "1");
+
+  const pageRes = await req(BASE + page);
+  if (pageRes.status !== 200 || pageRes.text.length < 5000) {
+    throw new Error("抓线上页面失败: HTTP " + pageRes.status + " / " + pageRes.text.length + "B");
+  }
+
+  /* 改相对路径，让 file:// 能加载本地 assets */
+  let html = pageRes.text
+    .replace(/(href|src)="\/assets\//gi, "$1=\"assets/")
+    .replace(/<link[^>]+rel="(preconnect|dns-prefetch|preload)"[^>]*>/gi, "");
+  return html;
+}
 
 const MOCK = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -161,8 +229,22 @@ async function main() {
 
   await send("Page.enable");
   await send("Runtime.enable");
-  await send("Page.navigate", { url: "file:///" + mockPath.replace(/\\/g, "/").replace(/^\//, "") });
-  await sleep(2600);
+  /* --live：用真实页面结构；默认：用 mock */
+  const isLive = process.argv.includes("--live");
+  let probe = null;
+  let targetUrl = "file:///" + mockPath.replace(/\\/g, "/").replace(/^\//, "");
+  if (process.argv.includes("--live")) {
+    console.log("抓取线上真实页面…");
+    const liveHtml = await fetchLiveHtml(process.argv.includes("--live-admin") ? "/admin/index.php" : "/index.php");
+    const livePath = path.join(ROOT, "_lw_live_verify.html");
+    fs.writeFileSync(livePath, liveHtml, "utf8");
+    targetUrl = "file:///" + livePath.replace(/\\/g, "/").replace(/^\//, "");
+    console.log("已保存 " + (liveHtml.length / 1024).toFixed(0) + " KB");
+    liveFile = livePath;
+  }
+
+  await send("Page.navigate", { url: targetUrl });
+  await sleep(process.argv.includes("--live") ? 4500 : 2600);
 
   const first = JSON.parse(await evaluate(`(function(){
     var out = {
@@ -195,6 +277,12 @@ async function main() {
         indicator: lt ? { left: lt.style.left, width: lt.style.width, height: lt.style.height } : null
       };
     }
+    out.counts = {
+      mpPress: document.querySelectorAll('.mp-press').length,
+      buttons: document.querySelectorAll('button').length,
+      mpReveal: document.querySelectorAll('.mp-reveal').length,
+      ssrCard: document.querySelectorAll('.ssr-card').length
+    };
     var lb = document.querySelector('.like-btn');
     var f = document.querySelector('.cat-filter');
     function hasPress(sel) {
@@ -212,6 +300,68 @@ async function main() {
     };
     return JSON.stringify(out);
   })()`));
+
+  /* --- live 模式：真实页面可能没有分类栏/卡片（未登录、API 不可用），
+   * 所以改用「动态探针」：往真实容器里插临时元素，测 CSS 规则是否匹配、
+   * 以及 MutationObserver 会不会自动接管。 --- */
+  if (isLive) {
+    probe = JSON.parse(await evaluate(`(function(){
+      var out = {};
+      /* 1. SSR 卡片动画 */
+      var pc = document.getElementById('postsContainer') || document.querySelector('.posts-container');
+      if (!pc) { pc = document.createElement('div'); pc.className = 'posts-container'; document.body.appendChild(pc); }
+      var c1 = document.createElement('div'); c1.className = 'post-card ssr-card';
+      var c2 = document.createElement('div'); c2.className = 'post-card ssr-card';
+      var c3 = document.createElement('div'); c3.className = 'post-card ssr-card';
+      [c1, c2, c3].forEach(function(c){ c.style.height = '30px'; pc.appendChild(c); });
+      var cs1 = getComputedStyle(c1);
+      out.cardAnim = cs1.animationName;
+      out.cardDelay3 = getComputedStyle(c3).animationDelay;
+      [c1, c2, c3].forEach(function(c){ c.remove(); });
+
+      /* 2. 液态 Tab */
+      var cf = document.createElement('div');
+      cf.className = 'category-filters';
+      ['全部','公告','学习','生活'].forEach(function(t, i){
+        var b = document.createElement('button');
+        b.className = 'cat-filter' + (i === 0 ? ' active' : '');
+        b.textContent = t;
+        cf.appendChild(b);
+      });
+      var host = document.querySelector('.site-main') || document.body;
+      host.insertBefore(cf, host.firstChild);
+
+      /* 3. 真实按钮类型 */
+      var wrap = document.createElement('div');
+      wrap.innerHTML = '<button class="t-btn t-btn-primary">A</button>' +
+        '<button class="calc-btn">B</button>' +
+        '<div class="u-drawer-item">C</div>' +
+        '<button class="btn-primary">D</button>';
+      host.appendChild(wrap);
+      return JSON.stringify(out);
+    })()`));
+
+    /* 等 MutationObserver 接管（节流 120~160ms） */
+    await sleep(900);
+
+    const probe2 = JSON.parse(await evaluate(`(function(){
+      var cf = document.querySelector('.category-filters');
+      var lt = cf ? cf.querySelector('.lw-liquid-tab') : null;
+      function has(sel) { var e = document.querySelector(sel); return e ? e.classList.contains('mp-press') : null; }
+      return JSON.stringify({
+        liquidClass: cf ? cf.classList.contains('has-liquid') : null,
+        indicator: !!lt,
+        indicatorLeft: lt ? lt.style.left : null,
+        flexWrap: cf ? getComputedStyle(cf).flexWrap : null,
+        pressT: has('.t-btn'),
+        pressCalc: has('.calc-btn'),
+        pressDrawer: has('.u-drawer-item'),
+        pressBtnPrimary: has('.btn-primary'),
+        revealCount: document.querySelectorAll('.mp-reveal').length
+      });
+    })()`));
+    probe = Object.assign(probe, probe2);
+  }
 
   await evaluate("window.scrollTo(0, 1500); 'ok'");
   await sleep(900);
@@ -238,19 +388,33 @@ async function main() {
 
   check("js-motion 已加上", first.jsMotion === true);
   check("三个动效模块都初始化", ["LWMotion", "LWInteract", "LWLiquidTab"].every(k => first.modules[k] === "object"), JSON.stringify(first.modules));
-  check("首屏卡片 CSS 动画在跑", first.cardAnim && first.cardAnim.name === "mp-card-in", first.cardAnim ? first.cardAnim.name + " / " + first.cardAnim.duration : "无");
-  check("卡片错峰生效", first.card2Delay && first.card2Delay !== "0s", first.card2Delay);
-  check("液态 Tab 已挂载", first.liquid && first.liquid.hasLiquidClass && first.liquid.indicatorExists, first.liquid ? "flexWrap=" + first.liquid.flexWrap : "无");
-  check("分类栏改单行横滑", first.liquid && first.liquid.flexWrap === "nowrap" && first.liquid.overflowX === "auto");
-  check("首屏外元素已标记隐藏", first.reveal.mpReveal > 0 && first.reveal.mpIn === 0, "reveal=" + first.reveal.mpReveal + " in=" + first.reveal.mpIn);
-  check("滚动后渐显元素已显示", after.mpIn > 0 && after.mpIn === first.reveal.mpReveal, "in=" + after.mpIn);
-  check("点赞按钮有按压回弹", first.press.likeBtn === true, "transition=" + first.press.transition);
-  check("分类按钮有按压回弹", first.press.catFilter === true);
-  check("工具页按钮(.t-btn)有按压回弹", first.press.tBtn === true);
-  check("计算器键(.calc-btn)有按压回弹", first.press.calcBtn === true);
-  check("抽屉菜单项有按压回弹", first.press.drawerItem === true);
-  check("btn-primary 有按压回弹", first.press.btnPrimary === true);
-  check("点击 Tab 后指示器移动", moved.left && moved.left !== "0.998573px", "left=" + moved.left + " width=" + moved.width);
+
+  if (isLive) {
+    /* live：真实页面可能未登录/无数据，用动态探针验证规则匹配与自动接管 */
+    check("SSR 卡片动画规则匹配", probe && probe.cardAnim === "mp-card-in", probe ? probe.cardAnim : "无");
+    check("卡片错峰延迟", probe && probe.cardDelay3 && probe.cardDelay3 !== "0s", probe ? probe.cardDelay3 : "-");
+    check("动态插入分类栏被 JS 接管", probe && probe.liquidClass === true && probe.indicator === true, probe ? "left=" + probe.indicatorLeft : "-");
+    check("分类栏单行横滑", probe && probe.flexWrap === "nowrap", probe ? probe.flexWrap : "-");
+    check("工具页按钮(.t-btn)有按压", probe && probe.pressT === true);
+    check("计算器键(.calc-btn)有按压", probe && probe.pressCalc === true);
+    check("抽屉菜单项有按压", probe && probe.pressDrawer === true);
+    check("btn-primary 有按压", probe && probe.pressBtnPrimary === true);
+    check("真实页面已有按压类", first.counts.mpPress > 0, "mp-press=" + first.counts.mpPress + " / buttons=" + first.counts.buttons);
+  } else {
+    check("首屏卡片 CSS 动画在跑", first.cardAnim && first.cardAnim.name === "mp-card-in", first.cardAnim ? first.cardAnim.name + " / " + first.cardAnim.duration : "无");
+    check("卡片错峰生效", first.card2Delay && first.card2Delay !== "0s", first.card2Delay);
+    check("液态 Tab 已挂载", first.liquid && first.liquid.hasLiquidClass && first.liquid.indicatorExists, first.liquid ? "flexWrap=" + first.liquid.flexWrap : "无");
+    check("分类栏改单行横滑", first.liquid && first.liquid.flexWrap === "nowrap" && first.liquid.overflowX === "auto");
+    check("首屏外元素已标记隐藏", first.reveal.mpReveal > 0 && first.reveal.mpIn === 0, "reveal=" + first.reveal.mpReveal + " in=" + first.reveal.mpIn);
+    check("滚动后渐显元素已显示", after.mpIn > 0 && after.mpIn === first.reveal.mpReveal, "in=" + after.mpIn);
+    check("点赞按钮有按压回弹", first.press.likeBtn === true, "transition=" + first.press.transition);
+    check("分类按钮有按压回弹", first.press.catFilter === true);
+    check("工具页按钮(.t-btn)有按压回弹", first.press.tBtn === true);
+    check("计算器键(.calc-btn)有按压回弹", first.press.calcBtn === true);
+    check("抽屉菜单项有按压回弹", first.press.drawerItem === true);
+    check("btn-primary 有按压回弹", first.press.btnPrimary === true);
+    check("点击 Tab 后指示器移动", moved.left && moved.left !== "0.998573px", "left=" + moved.left + " width=" + moved.width);
+  }
 
   console.log("\n========== 动效运行时验证 ==========\n");
   console.log("通过 " + PASS.length + " 项：");
@@ -274,4 +438,5 @@ main()
     try { proc.kill(); } catch (e) {}
     try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
     try { fs.rmSync(mockPath, { force: true }); } catch (e) {}
+    if (liveFile) { try { fs.rmSync(liveFile, { force: true }); } catch (e) {} }
   });
