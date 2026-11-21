@@ -86,7 +86,14 @@ const MOCK = `<!DOCTYPE html>
         <button class="action-btn favorite-btn"><span class="action-icon"></span></button>
       </div>
     </div>
-    <div class="post-card ssr-card" data-post-id="2"><div class="post-card-title">首屏帖子二</div></div>
+    <div class="post-card ssr-card" data-post-id="2">
+      <div class="post-card-title">首屏帖子二</div>
+      <button class="t-btn t-btn-primary">工具页主按钮</button>
+      <button class="t-btn t-btn-secondary">工具页次按钮</button>
+      <button class="calc-btn">计算器键</button>
+      <div class="u-drawer-item">抽屉菜单项</div>
+      <button class="btn-primary">btn-primary</button>
+    </div>
     <div class="post-card ssr-card" data-post-id="3"><div class="post-card-title">首屏帖子三</div></div>
     ${outside}
   </div>
@@ -190,10 +197,18 @@ async function main() {
     }
     var lb = document.querySelector('.like-btn');
     var f = document.querySelector('.cat-filter');
+    function hasPress(sel) {
+      var el = document.querySelector(sel);
+      return el ? el.classList.contains('mp-press') : null;
+    }
     out.press = {
       likeBtn: lb ? lb.classList.contains('mp-press') : null,
       catFilter: f ? f.classList.contains('mp-press') : null,
-      transition: lb ? getComputedStyle(lb).transitionProperty : null
+      transition: lb ? getComputedStyle(lb).transitionProperty : null,
+      tBtn: hasPress('.t-btn'),
+      calcBtn: hasPress('.calc-btn'),
+      drawerItem: hasPress('.u-drawer-item'),
+      btnPrimary: hasPress('.btn-primary')
     };
     return JSON.stringify(out);
   })()`));
@@ -231,6 +246,10 @@ async function main() {
   check("滚动后渐显元素已显示", after.mpIn > 0 && after.mpIn === first.reveal.mpReveal, "in=" + after.mpIn);
   check("点赞按钮有按压回弹", first.press.likeBtn === true, "transition=" + first.press.transition);
   check("分类按钮有按压回弹", first.press.catFilter === true);
+  check("工具页按钮(.t-btn)有按压回弹", first.press.tBtn === true);
+  check("计算器键(.calc-btn)有按压回弹", first.press.calcBtn === true);
+  check("抽屉菜单项有按压回弹", first.press.drawerItem === true);
+  check("btn-primary 有按压回弹", first.press.btnPrimary === true);
   check("点击 Tab 后指示器移动", moved.left && moved.left !== "0.998573px", "left=" + moved.left + " width=" + moved.width);
 
   console.log("\n========== 动效运行时验证 ==========\n");

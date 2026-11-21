@@ -228,26 +228,47 @@
      * 只选「真的会因为点击而跳转或提交」的元素，不给每个 div 都挂（省性能）。
      * ====================================================================== */
 
+    /* 【按压回弹的覆盖范围】
+     *
+     * 这张表是靠「抓线上 HTML、统计可点元素类名频次」查出来的。
+     * 之前只列了十来个具体类，结果漏掉一大批真实按钮：
+     *   .t-btn 45 次 / .u-drawer-item 28 次 / .t-btn-primary 27 次 / .calc-btn 19 次 …
+     * 也就是说工具页、用户中心抽屉、计算器的按钮**全部没有按下反馈** ——
+     * 这才是「很生硬」的大头，比少一个入场动画严重得多。
+     *
+     * 所以改成「元素类型 + 类名片段」的组合，避免再一个个补：
+     *   button            所有按钮元素
+     *   [class*='-btn']   t-btn / calc-btn / uc-btn / action-btn / filter-btn …
+     *   [class*='btn-']   btn-primary / btn-sm / btn-danger / btn-ghost …
+     *
+     * 属性选择器比类选择器慢一点，但只作用于查询结果集，
+     * 且 initPress 只在动态新增的子树里跑（见 initDynamicWatch），可接受。
+     */
     var PRESS_SEL = [
+        "button",
+        "[role='button']",
         ".btn",
+        "[class*='-btn']",
+        "[class*='btn-']",
         ".tool-card",
         ".post-card",
         ".notice-item",
         ".notification-item",
         ".comment-item",
-        ".filter-btn",
-        ".sr-tab",
         ".faq-q",
+        ".cat-filter",
+        ".sort-tab",
+        ".sr-tab",
         ".uc-nav-item",
         ".mobile-nav-item",
-        /* 【补】动作按钮：点赞/收藏/评论/分享。这是全站点击频率最高的一类。
-         * 之前漏在这里，所以点赞只有背景变色，没有按下的回弹感。
-         * 用无头浏览器实测发现 hasMpPress=false 才暴露出来。 */
-        ".action-btn",
-        /* 分类/排序标签：点下去也该有按压反馈 */
-        ".cat-filter",
-        ".sort-tab"
+        ".u-drawer-item",
+        ".disc-tab",
+        ".lang-btn",
+        ".site-logo"
     ].join(",");
+
+    /* 大块元素缩放要保守，否则边缘会露出底色 */
+    var PRESS_LG_SEL = ".post-card, .tool-card, .section, .notice-item, .u-drawer-item, .comment-item";
 
     function initPress(root) {
         var list = collect(root || document, PRESS_SEL);
@@ -256,7 +277,7 @@
             if (el.classList.contains("mp-press")) { continue; }
             el.classList.add("mp-press");
             /* 面积大的卡片用更保守的缩放，否则边缘会露出底色 */
-            if (el.matches(".post-card, .tool-card, .section")) {
+            if (el.matches && el.matches(PRESS_LG_SEL)) {
                 el.classList.add("mp-press-lg");
             }
         }
