@@ -2745,7 +2745,28 @@
     if (!bar) return;
     const scroll = bar.querySelector('.announcement-scroll');
     if (!scroll) return;
+    // 【2026-11-21】先判断「真的溢出」再决定要不要复制 + 滚动。
+    //
+    // 原来这里无条件 scroll.innerHTML = items + items。
+    // 复制一份是为了让 translateX(-50%) 的无缝循环成立 ——
+    // 但前提是「单份内容比可见区更宽」。
+    //
+    // 公告通常只有一句话（比如「欢迎来到…请遵守社区规范」），
+    // 单份宽 ~560px，而容器在 1280px 桌面下 ~1250px ——
+    // 复制出来的两份能**同时完整显示在一行里**，
+    // 用户看到的就是「同一段公告并排写了两遍」，第一眼像界面出了 bug。
+    //
+    // 所以：不溢出就保持单份、静止、居中；只有确实放不下才复制并滚动。
     const items = scroll.innerHTML;
+    const overflowing = scroll.scrollWidth > scroll.clientWidth + 2;
+
+    if (!overflowing) {
+      const forceStill = (prop, val) => scroll.style.setProperty(prop, val, 'important');
+      forceStill('animation', 'none');
+      forceStill('justify-content', 'center');
+      return;
+    }
+
     scroll.innerHTML = items + items;
 
     // 【2026-10-18】把滚动参数写成**行内 !important**。
