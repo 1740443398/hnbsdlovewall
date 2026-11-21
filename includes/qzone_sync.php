@@ -42,7 +42,14 @@ if (!function_exists('lwQzoneDefaults')) {
             'show_home'      => 0,      // 1=把最新几条也混进首页
             'home_count'     => 3,      // 混进首页的条数
             'auto_sync'      => 1,      // 1=允许访问触发自动同步
-            'sync_interval'  => 600,    // 自动同步最小间隔（秒）
+            'sync_interval'  => 86400,  // 自动同步最小间隔（秒）：默认 24 小时
+            /* 失败告警：同步失败或 Cookie 失效时给站长发邮件。
+             * 冷却时间是为了防止「Cookie 一直失效 + 有人不停访问」把信箱刷爆。 */
+            'notify_email'    => '',
+            'notify_on_error' => 1,
+            'notify_cooldown' => 21600, // 同一类失败最多每 6 小时提醒一次
+            'last_notify_at'  => 0,
+            'last_notify_kind'=> '',
             'last_sync_at'   => 0,      // 上次成功同步时间戳
             'last_attempt_at'=> 0,
             'last_error'     => '',     // 最近一次错误
@@ -364,6 +371,8 @@ if (!function_exists('lwQzoneSync')) {
                     'last_state' => $r['state'],
                     'last_error' => $r['err'],
                 ]);
+                /* 失败即告警（内部有冷却，不会刷屏） */
+                lwQzoneNotifyFailure((string) $r['state'], (string) $r['err']);
                 return ['ok' => false, 'state' => $r['state'], 'err' => $r['err'], 'added' => $added, 'updated' => $updated];
             }
             $items = array_merge($items, $r['items']);
@@ -490,5 +499,150 @@ if (!function_exists('lwQzoneListItems')) {
         }
         unset($it);
         return $page;
+    }
+}
+
+
+/* ============================================================================
+ * 失败告警：同步失败 / Cookie 失效时发邮件给站长
+ * ============================================================================
+ * 为什么需要冷却：
+ *   Cookie 失效后，只要有人访问就会不断命中失败分支。
+ *   若不冷却，站长的信箱会被同一封「Cookie 失效」刷满。
+ *   这里按「失败种类」（cookie_expired / error）分别计冷却。
+ */
+
+if (!function_exists('lwQzoneMailReady')) {
+    function lwQzoneMailReady(): bool
+    {
+        if (!class_exists('QQMailer')) {
+            $f = dirname(__DIR__) . '/includes/qqmail.php';
+            if (is_file($f)) { require_once $f; }
+        }
+        return class_exists('QQMailer') && QQMailer::isConfigured();
+    }
+}
+
+if (!function_exists('lwQzoneNotifyFailure')) {
+    function lwQzoneNotifyFailure(string $state, string $err): bool
+    {
+        $cfg = lwQzoneConfig();
+        if ((int) $cfg['notify_on_error'] !== 1) { return false; }
+        $to = trim((string) $cfg['notify_email']);
+        if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) { return false; }
+        if (!lwQzoneMailReady()) { return false; }
+
+        /* 同类失败冷却 */
+        $now = time();
+        if ((string) $cfg['last_notify_kind'] === $state
+            && $now - (int) $cfg['last_notify_at'] < max(300, (int) $cfg['notify_cooldown'])) {
+            return false;
+        }
+
+        $isCookie = $state === 'cookie_expired';
+        $subject = $isCookie ? '【空间转发】Cookie 已失效，需要重新粘贴' : '【空间转发】同步失败';
+        $detail = htmlspecialchars($err, ENT_QUOTES, 'UTF-8');
+        $body = '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;line-height:1.8;color:#1a2433">'
+              . '<p>站点：' . htmlspecialchars((defined('SITE_URL') ? SITE_URL : ''), ENT_QUOTES, 'UTF-8') . '</p>'
+              . '<p>目标 QQ：' . htmlspecialchars((string) $cfg['uin'], ENT_QUOTES, 'UTF-8') . '</p>'
+              . '<p>状态：' . ($isCookie ? 'Cookie 失效（QQ 空间需要重新登录）' : '同步出错') . '</p>'
+              . '<p>原因：' . $detail . '</p>'
+              . '<p>时间：' . date('Y-m-d H:i:s') . '</p>'
+              . '<p>处理：' . ($isCookie
+                    ? '打开后台「QQ 空间转发」页，重新粘贴 Cookie 后点「测试 Cookie」。'
+                    : '打开后台「QQ 空间转发」页查看状态，必要时手动同步一次。')
+              . '</p></div>';
+
+        $ok = false;
+        try {
+            $ok = (bool) QQMailer::send($to, $subject, $body);
+        } catch (Throwable $e) {
+            $ok = false;
+        }
+        lwQzoneSaveConfig(['last_notify_at' => $now, 'last_notify_kind' => $state]);
+        return $ok;
+    }
+}
+
+/* ============================================================================
+ * 导入 / 导出（支撑「本地先爬一遍，部署时导入，减轻服务器抓取压力」）
+ * ============================================================================
+ * 本地用 tools/qzone_scrape.php 抓一份 JSON，上传后由后台「导入」按钮灌进站内。
+ * 导入按 tid 合并：已有则更新点赞/评论数，没有则新增。
+ */
+
+if (!function_exists('lwQzoneExportData')) {
+    function lwQzoneExportData(): array
+    {
+        $fs = getFS();
+        $items = $fs->read('qzone_items');
+        if (!is_array($items)) { $items = []; }
+        usort($items, function ($a, $b) { return ((int) ($b['posted_ts'] ?? 0)) <=> ((int) ($a['posted_ts'] ?? 0)); });
+        $comments = [];
+        foreach ($items as $it) {
+            $comments[$it['tid']] = $fs->find('qzone_comments', ['item_tid' => $it['tid']]);
+        }
+        return ['version' => 1, 'exported_at' => date('Y-m-d H:i:s'), 'items' => $items, 'comments' => $comments];
+    }
+}
+
+if (!function_exists('lwQzoneImportData')) {
+    /** 返回 ['ok'=>bool,'added'=>int,'updated'=>int,'err'=>string] */
+    function lwQzoneImportData(array $bundle): array
+    {
+        if (!isset($bundle['items']) || !is_array($bundle['items'])) {
+            return ['ok' => false, 'added' => 0, 'updated' => 0, 'err' => 'JSON 结构不对：缺少 items'];
+        }
+        $fs  = getFS();
+        $now = time();
+        $added = 0;
+        $updated = 0;
+        foreach ($bundle['items'] as $it) {
+            $tid = (string) ($it['tid'] ?? '');
+            if ($tid === '') { continue; }
+            $rec = [
+                'tid'         => $tid,
+                'content'     => (string) ($it['content'] ?? ''),
+                'images'      => is_string($it['images'] ?? null) ? $it['images'] : json_encode($it['images'] ?? [], JSON_UNESCAPED_SLASHES),
+                'posted_ts'   => (int) ($it['posted_ts'] ?? 0),
+                'likes'       => (int) ($it['likes'] ?? 0),
+                'comment_num' => (int) ($it['comment_num'] ?? 0),
+                'synced_at'   => $now,
+            ];
+            $exist = $fs->findOne('qzone_items', ['tid' => $tid]);
+            if ($exist) {
+                $fs->update('qzone_items', $exist['id'], $rec);
+                $itemId = (int) $exist['id'];
+                $updated++;
+            } else {
+                $created = $fs->insert('qzone_items', $rec);
+                if (!$created) { continue; }
+                $itemId = (int) $created['id'];
+                $added++;
+            }
+            $cs = $bundle['comments'][$tid] ?? [];
+            if (is_array($cs)) {
+                foreach ($cs as $c) {
+                    $ctid = (string) ($c['tid'] ?? '');
+                    if ($ctid === '') { continue; }
+                    $crec = [
+                        'item_tid'   => $tid,
+                        'item_id'    => $itemId,
+                        'tid'        => $ctid,
+                        'author'     => (string) ($c['author'] ?? ''),
+                        'author_uin' => (string) ($c['author_uin'] ?? ''),
+                        'content'    => (string) ($c['content'] ?? ''),
+                        'posted_ts'  => (int) ($c['posted_ts'] ?? 0),
+                        'synced_at'  => $now,
+                    ];
+                    $hit = $fs->findOne('qzone_comments', ['item_tid' => $tid, 'tid' => $ctid]);
+                    if ($hit) { $fs->update('qzone_comments', $hit['id'], $crec); }
+                    else { $fs->insert('qzone_comments', $crec); }
+                }
+            }
+        }
+        /* 导入也算一次同步，更新状态 */
+        lwQzoneSaveConfig(['last_sync_at' => $now, 'last_state' => 'ok', 'last_error' => '', 'last_count' => $added]);
+        return ['ok' => true, 'added' => $added, 'updated' => $updated, 'err' => ''];
     }
 }
