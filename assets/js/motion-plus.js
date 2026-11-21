@@ -350,12 +350,67 @@
      * 启动
      * ====================================================================== */
 
+
+    /* ======================================================================
+     * 六、横向滚动条手感（磁吸 / 边缘渐隐 / 滚轮横滚）
+     * ======================================================================
+     * 选择器只挑「单行横滑」的容器；桌面端给鼠标用户把竖向滚轮转成横向，
+     * 否则他们看到右边被截断却滚不动（这是最容易被说「生硬」的一类）。
+     * ====================================================================== */
+    var HSCROLL_SEL = [
+        ".feed-sticky .category-filters",
+        ".sort-tabs",
+        ".qz-home-scroll"
+        /* 注意：不要加 .uc-sidebar —— 它已有自己的滚轮+拖拽处理（user_center 页内联），
+           两处都挂 wheel 会导致一次滚动跳两倍距离。 */
+    ].join(",");
+
+    function initHScroll(root) {
+        var list = collect(root || document, HSCROLL_SEL);
+        for (var i = 0; i < list.length; i++) {
+            var el = list[i];
+            if (el.dataset.hscrollBound) { updateHScroll(el); continue; }
+            el.dataset.hscrollBound = "1";
+            el.classList.add("hscroll");
+            updateHScroll(el);
+            el.addEventListener("scroll", function () { updateHScroll(this); }, { passive: true });
+            /* 竖向滚轮 → 横向滚动（只在指针悬停该条时） */
+            el.addEventListener("wheel", function (e) {
+                if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) { return; }
+                var before = this.scrollLeft;
+                this.scrollLeft = before + e.deltaY;
+                if (this.scrollLeft !== before) { e.preventDefault(); }
+            }, { passive: false });
+        }
+    }
+
+    function updateHScroll(el) {
+        var max = el.scrollWidth - el.clientWidth;
+        var scrollable = max > 6;
+        el.classList.toggle("is-scrollable", scrollable);
+        if (!scrollable) {
+            el.classList.remove("is-at-end", "is-at-mid");
+            return;
+        }
+        var atEnd = el.scrollLeft >= max - 2;
+        var atMid = el.scrollLeft > 6 && !atEnd;
+        el.classList.toggle("is-at-end", atEnd);
+        el.classList.toggle("is-at-mid", atMid);
+    }
+
+    function refreshHScroll() {
+        initHScroll(document);
+    }
+
     function boot() {
         pageEnter();
         initReveal();
+        initHScroll(document);
         initPress(document);
         initImages(document);
         initDynamicWatch();
+        window.addEventListener("resize", refreshHScroll, { passive: true });
+        setTimeout(refreshHScroll, 900);
 
         /* 兜底：万一 IntersectionObserver 失效（或元素在奇怪的位置），
          * 3 秒后把所有还没显示的渐显元素强制显示出来。

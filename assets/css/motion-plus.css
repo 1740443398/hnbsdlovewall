@@ -340,3 +340,50 @@ html.mp-lite .mp-page {
         animation: none !important;
     }
 }
+
+
+/* ==========================================================================
+ * 十一、横向滚动的系统级手感（ColorOS 式）
+ * ==========================================================================
+ * 站内有多处单行横滑列表（分类筛选、排序、空间动态缩略图等）。
+ * 默认的 overflow-x:auto 在手机上「滑到一半松开」会停在半个按钮上，
+ * 在桌面上则完全没有可滚动的暗示（滚动条被隐藏），用户根本不知道右边还有内容。
+ *
+ * 这里统一加三件事：
+ *   1) scroll-snap 磁吸：松手后停在完整按钮上，而不是半个
+ *   2) 边缘渐隐：右侧有内容时右侧淡出，滚到中间时两侧都淡出
+ *   3) 滚轮横滚（桌面）：竖向滚轮在横滑条上时转为横向滚动
+ * 都由 motion-plus.js 的 initHScroll() 打标，没 JS 时完全不影响使用。
+ * ========================================================================== */
+
+.hscroll {
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-padding-left: 4px;
+}
+.hscroll::-webkit-scrollbar { display: none; }
+.hscroll > * {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+}
+
+/* 右侧还有内容：右缘渐隐 */
+.hscroll.is-scrollable:not(.is-at-end) {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+}
+/* 已经滚到中间：两侧都渐隐，视觉上「两边都还有」 */
+.hscroll.is-scrollable.is-at-mid {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 26px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 26px), transparent 100%);
+}
+
+/* 横滑条上的按压反馈要更轻（否则一滑就整条跳动） */
+@media (prefers-reduced-motion: no-preference) {
+    html.js-motion .hscroll .cat-filter:active,
+    html.js-motion .hscroll .sort-tab:active {
+        transform: scale(0.97);
+    }
+}
