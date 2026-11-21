@@ -182,14 +182,57 @@ if (!function_exists('lwQzoneReadJar')) {
         $out = [];
         if (!is_file($file)) { return $out; }
         foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-            if ($line === '' || $line[0] === '#' || strpos($line, "\t") === false) { continue; }
+            if ($line === '') { continue; }
+
+            /* 【关键】curl 把 **HttpOnly** cookie 写成 `#HttpOnly_<domain>\t...` 开头。
+             * 而 QQ 空间的 p_skey / skey 正是 HttpOnly —— 原来这行代码把所有 '#' 开头的行
+             * 都当注释跳过，等于「登录成功也读不到 p_skey」，正是站长扫码后看到
+             * 「登录链走完但没拿到 p_skey/skey」的直接原因。
+             * 现在只跳过真正的注释（'# ' 或 '#'），HttpOnly 前缀剥掉后照常解析。 */
+            if (substr($line, 0, 10) === '#HttpOnly_') {
+                $line = substr($line, 10);
+            } elseif ($line[0] === '#') {
+                continue;
+            }
+
+            if (strpos($line, "\t") === false) { continue; }
             $parts = explode("\t", $line);
             if (count($parts) < 7) { continue; }
             $name = trim($parts[5]);
             $val  = trim($parts[6]);
-            if ($name !== '') { $out[$name] = $val; }
+            if ($name !== '' && $val !== '') { $out[$name] = $val; }
         }
         return $out;
+    }
+}
+
+if (!function_exists('lwQzoneCookieFromJar')) {
+    /**
+     * 把 jar 解析结果拼成可直接用的 Cookie 头。
+     *
+     * 关键点：
+     *   · uin 必须规范成 `o` + 10 位数字（QQ 认 `o1740443398` 这种形态）
+     *   · **保留全部拿到的字段**（pt4_token / p_uin / media_p_skey 等），
+     *     不只留 uin/skey/p_skey —— 点赞接口与部分页面校验会用到别的字段
+     *   · 空值字段丢弃，总长限制 3000 字（Cookie 头过长会被网关截断）
+     */
+    function lwQzoneCookieFromJar(array $ck, string $uin): string
+    {
+        $uin = preg_replace('/D/', '', $uin);
+        $parts = [];
+        if ($uin !== '') {
+            $parts[] = 'uin=o' . str_pad($uin, 10, '0', STR_PAD_LEFT);
+        }
+        $skip = ['uin'];
+        foreach ($ck as $k => $v) {
+            $k = (string) $k;
+            $v = (string) $v;
+            if ($k === '' || in_array($k, $skip, true)) { continue; }
+            if ($v === '') { continue; }
+            $parts[] = $k . '=' . $v;
+            if (strlen(implode('; ', $parts)) > 3000) { break; }
+        }
+        return implode('; ', $parts);
     }
 }
 
@@ -259,6 +302,8 @@ if (!function_exists('lwQzoneQrComplete')) {
 
         $pSkey = (string) ($ck['p_skey'] ?? '');
         $skey  = (string) ($ck['skey'] ?? '');
+        /* 只列「确实拿到了值」的 cookie —— 原来把键名列出来，
+           会让站长以为「明明有 p_skey 却说没拿到」，误导排查方向。 */
         $names = array_keys($ck);
         $nameStr = $names ? implode(', ', array_slice($names, 0, 12)) : '（无）';
 
@@ -270,9 +315,8 @@ if (!function_exists('lwQzoneQrComplete')) {
                        . '可直接用手动粘贴 Cookie 的方式（更稳）。',
             ];
         }
-        /* uin 用实际登录号，o0 前缀补足 10 位（QQ 的 uin=o + 10 位数字） */
-        $cookie = 'uin=o' . str_pad($uin, 10, '0', STR_PAD_LEFT)
-                . '; skey=' . $skey . '; p_skey=' . $pSkey;
+        /* 用全部拿到的 cookie 字段拼（不只三个），提高后续接口兼容性 */
+        $cookie = lwQzoneCookieFromJar($ck, $uin);
         lwQzoneSetCookie($cookie);
         lwQzoneSaveConfig(['uin' => $uin, 'cookie_updated_at' => time(), 'last_state' => 'idle', 'last_error' => '']);
         return ['ok' => true, 'err' => ''];
