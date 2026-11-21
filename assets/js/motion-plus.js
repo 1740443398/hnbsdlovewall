@@ -239,7 +239,14 @@
         ".sr-tab",
         ".faq-q",
         ".uc-nav-item",
-        ".mobile-nav-item"
+        ".mobile-nav-item",
+        /* 【补】动作按钮：点赞/收藏/评论/分享。这是全站点击频率最高的一类。
+         * 之前漏在这里，所以点赞只有背景变色，没有按下的回弹感。
+         * 用无头浏览器实测发现 hasMpPress=false 才暴露出来。 */
+        ".action-btn",
+        /* 分类/排序标签：点下去也该有按压反馈 */
+        ".cat-filter",
+        ".sort-tab"
     ].join(",");
 
     function initPress(root) {
