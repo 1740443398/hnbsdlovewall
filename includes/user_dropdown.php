@@ -65,6 +65,10 @@ $ddIsAdmin = in_array($user['role'] ?? '', ['admin', 'super_admin']);
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="12" r="9" opacity="0.4"/></svg>
             <?= t('nav.tools') ?>
         </a>
+        <a href="/pages/qzone.php" class="dropdown-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 13h8M8 9.5h5"/></svg>
+            空间动态
+        </a>
         <a href="/pages/ai_assistant.php" class="dropdown-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4m0 4a4 4 0 1 1 4 4h-4z"/><path d="M12 8v6m0 0a4 4 0 1 0 4-4"/><circle cx="12" cy="16" r="2"/></svg>
             <?= t('nav.ai_assistant') ?>

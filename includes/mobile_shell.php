@@ -76,6 +76,7 @@ $uLinks = [
     ['/pages/ranking.php', 'award', '排行榜'],
     ['/pages/growth.php', 'trend', '成长中心'],
     ['/pages/files.php', 'file', '文件共享'],
+    ['/pages/qzone.php', 'message', '空间动态'],
 ];
 $uMeLinks = [
     ['/pages/user_center.php', 'user', '个人中心'],
