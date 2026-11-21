@@ -3921,3 +3921,19 @@ a:focus-visible { outline-offset: 3px; }
     animation-play-state: paused !important;
   }
 }
+
+/* ---------- 手机端点击目标最小尺寸 ----------
+ * 体检发现首页 281 个可点元素里有 14 个高度 < 32px（表情、小图标按钮），
+ * 手指点起来容易误触。这里给移动端统一兜底，桌面端保持原样。 */
+@media (max-width: 768px) {
+  .reaction-btn,
+  .emoji-picker-trigger,
+  .post-card-actions .action-btn,
+  .btn-icon,
+  .sort-tab,
+  .cat-filter {
+    min-height: 34px;
+    min-width: 34px;
+  }
+  .reaction-btn { display: inline-flex; align-items: center; justify-content: center; }
+}

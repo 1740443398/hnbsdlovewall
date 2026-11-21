@@ -363,3 +363,23 @@ if (!in_array($lwServerTheme, ['light', 'dark', 'system'], true)) {
     ?>
     <?php endif; ?>
     <?php endif; ?>
+
+<!-- 站内链接预取：鼠标悬停/手机点按前就先把目标页资源下载好。
+     免费主机 TTFB 常在 1~2 秒，预取能把「点进去等半天」变成几乎瞬开。
+     只预取本站 HTML 页面，排除 API/admin/退出登录，避免无谓请求。 -->
+<script type="speculationrules">
+{
+  "prefetch": [{
+    "source": "document",
+    "where": {
+      "and": [
+        { "href_matches": "/*" },
+        { "not": { "href_matches": "/api/*" } },
+        { "not": { "href_matches": "/admin/*" } },
+        { "not": { "href_matches": "/*logout*" } }
+      ]
+    },
+    "eagerness": "moderate"
+  }]
+}
+</script>
