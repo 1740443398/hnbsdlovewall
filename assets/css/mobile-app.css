@@ -442,6 +442,10 @@
      * 居中对话框在 667px 屏幕上很容易被键盘顶掉。
      */
 
+    /* 站内有两种弹窗类：.modal（社区规范/赞助等）和 .modal-box（新建弹窗）。
+     * 之前只处理了 .modal-box，导致 .modal 在手机上仍是居中对话框、
+     * 且没有升起动画 —— 而它恰好是用户打开网站第一眼看到的东西。 */
+    .modal,
     .modal-box,
     .modal-content,
     .site-modal-box,

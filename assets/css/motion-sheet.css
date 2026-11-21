@@ -47,6 +47,7 @@
     }
 
     /* 手柄本体：绝对定位在顶部中央 */
+    .modal::before,
     .modal-box::before,
     .modal-content::before,
     .site-modal-box::before,
@@ -80,6 +81,7 @@
     }
 
     /* 关闭中的滑出动画 */
+    .modal.lw-sheet-closing,
     .modal-box.lw-sheet-closing,
     .modal-content.lw-sheet-closing,
     .site-modal-box.lw-sheet-closing,

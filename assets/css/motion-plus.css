@@ -259,3 +259,51 @@ html.mp-lite .mp-page {
         animation: none !important;
     }
 }
+
+/* ==========================================================================
+ * 十、普通弹窗的入场（桌面端）
+ * ==========================================================================
+ *
+ * 站内有两种弹窗：.modal（社区规范、赞助等，服务端渲染）和 .modal-box（JS 新建）。
+ * 手机端两者现在都由 mobile-app.css 做成底部抽屉并带 lwSheetIn 动画。
+ * 桌面端 .modal 之前是「display:flex 一开就直接出现」，完全没有过渡。
+ *
+ * 社区规范弹窗是**用户打开网站看到的第一样东西** ——
+ * 它「啪」地出现，第一印象就是生硬的。这里补上缩放淡入。
+ *
+ * 背景遮罩单独做一次淡入，否则会先看到一块纯黑再看到内容。
+ * ========================================================================== */
+
+@keyframes mp-overlay-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes mp-dialog-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
+    html.js-motion .modal-overlay.show {
+        animation: mp-overlay-fade 200ms ease-out both;
+    }
+    html.js-motion .modal-overlay.show > .modal {
+        animation: mp-dialog-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        transform-origin: center center;
+    }
+}
+
+/* 手机端由 mobile-app.css 的 lwSheetIn 负责升起，这里不要重复 */
+@media (max-width: 768px) and (prefers-reduced-motion: no-preference) {
+    html.js-motion .modal-overlay.show {
+        animation: mp-overlay-fade 200ms ease-out both;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.js-motion .modal-overlay.show,
+    html.js-motion .modal-overlay.show > .modal {
+        animation: none !important;
+    }
+}

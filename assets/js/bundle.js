@@ -1080,6 +1080,9 @@
     }
 
     var SHEET_SEL = [
+        /* .modal 是服务端渲染的弹窗（社区规范/赞助等），
+         * 手机端也已做成底部抽屉，所以同样支持下拖关闭。 */
+        ".modal",
         ".modal-box",
         ".modal-content",
         ".site-modal-box",
