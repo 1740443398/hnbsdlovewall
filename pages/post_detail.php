@@ -991,6 +991,18 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 }
                 targetContainer.appendChild(commentEl);
 
+                /* 刚发出的评论给一次入场动画。
+                 * 这是**用户自己操作的结果**，瞬现会让「发送成功」缺乏确认感
+                 * （尤其本站在免费主机上，请求要 2 秒，等完之后什么都没有发生更明显）。
+                 * 复用 motion-interact.css 的 mp-item-in —— 和无限滚动新增卡片同一套，
+                 * 时长/曲线一致，不会出现两种节奏。 */
+                try {
+                    if (document.documentElement.classList.contains('js-motion')) {
+                        commentEl.classList.add('mp-item-in');
+                        setTimeout(function () { commentEl.classList.remove('mp-item-in'); }, 460);
+                    }
+                } catch (e) { /* 动效失败不影响发送成功 */ }
+
                 // 回复子区懒加载：回复后即时亮出对应父评论的子区与「查看回复」切换钮
                 if (isReply) {
                     if (targetContainer.style) targetContainer.style.display = 'block';
