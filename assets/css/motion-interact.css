@@ -141,10 +141,24 @@ html.js-motion .mp-count-pop {
  * ========================================================================== */
 
 @media (prefers-reduced-motion: no-preference) {
+    /* 【.mp-press 的 transition 唯一真源】
+     * motion-plus.css 里原来还有一条同名规则，但那条排在前面、被这里覆盖，
+     * 等于一份声明写了两处、实际只按后一处生效 —— 已把那边清空。
+     *
+     * 属性清单为什么这么长：
+     *   transition 是**简写**，只要写在这里，元素自己写的 color / background
+     *   过渡就会被整条顶掉。原来只列了 transform / filter / box-shadow，
+     *   于是所有按压元素的颜色与背景变化都是**瞬变**的。
+     *   现在把常用视觉属性补回来，时长/曲线复用 --transition-fast
+     *   （0.16s cubic-bezier(0.2, 0, 0, 1)：起步立刻响应、收尾平缓）。 */
     html.js-motion .mp-press {
         transition: transform 260ms var(--mp-ease-back, cubic-bezier(0.34, 1.4, 0.64, 1)),
                     filter 260ms var(--mp-ease-back),
-                    box-shadow 220ms var(--mp-ease-out);
+                    box-shadow 220ms var(--mp-ease-out),
+                    color var(--transition-fast, 0.16s ease),
+                    background-color var(--transition-fast, 0.16s ease),
+                    border-color var(--transition-fast, 0.16s ease),
+                    opacity var(--transition-fast, 0.16s ease);
     }
     html.js-motion .mp-press:active {
         box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.045);

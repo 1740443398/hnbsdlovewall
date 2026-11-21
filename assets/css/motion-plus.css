@@ -125,9 +125,12 @@
  * ========================================================================== */
 
 @media (prefers-reduced-motion: no-preference) {
+    /* 【transition 不在这里定义】
+     * motion-interact.css 里的 html.js-motion .mp-press 排在后面，
+     * 会整条覆盖这里——两处各写一份只会漂移。
+     * 唯一定义已移到 motion-interact.css「四、按下时轻微抬起底色」一节。
+     * 这里只保留触屏相关的两条属性。 */
     html.js-motion .mp-press {
-        transition: transform 260ms var(--mp-ease-back),
-                    filter 260ms var(--mp-ease-back);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
     }

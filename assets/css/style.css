@@ -144,9 +144,21 @@
   --shadow-lg: 0 32px 64px -16px rgba(16, 24, 40, 0.14), 0 16px 32px -16px rgba(16, 24, 40, 0.07);
   --shadow-focus: 0 0 0 3px rgba(47, 91, 154, 0.16);
 
-  --transition-fast: 0.16s ease;
-  --transition: 0.24s ease;
-  --transition-slow: 0.35s ease;
+  /* ── 交互过渡的统一曲线 ────────────────────────────────────────────────
+   * 原来是浏览器默认的 ease = cubic-bezier(0.25, 0.1, 0.25, 1)：
+   * 起步慢、中段平、收尾也慢 —— 用它做 hover/颜色/透明度的变化，
+   * 体感是「按下去过一会儿才动」。
+   *
+   * 换成 Android / Material 的标准缓动 cubic-bezier(0.2, 0, 0, 1)：
+   * 起步立刻响应（用户按下的那一帧就开始动），收尾平缓不突兀。
+   * ColorOS、Material You 的「跟手」主要就来自这条曲线。
+   *
+   * 这两个 token 被引用 52 处（按钮、输入框、卡片、导航、下拉…），
+   * 改这里等于一次性统一全站交互节奏，不用逐条改声明。
+   */
+  --transition-fast: 0.16s cubic-bezier(0.2, 0, 0, 1);
+  --transition: 0.24s cubic-bezier(0.2, 0, 0, 1);
+  --transition-slow: 0.35s cubic-bezier(0.2, 0, 0, 1);
 
   --z-header: 100;
   --z-fab: 80;
