@@ -34,6 +34,14 @@
 .lw-reveal.is-done {
     will-change: auto;
 }
+/* 兜底：万一 JS 的 IntersectionObserver 没回调、连兜底定时器也没跑，
+   内容也不能永远透明 —— 2.4s 后强制显形（优先级低于 .is-in，不影响正常动画）。 */
+@keyframes lw-reveal-fallback {
+    to { opacity: 1; transform: none; }
+}
+.lw-reveal:not(.is-in) {
+    animation: lw-reveal-fallback 1ms linear 2.4s forwards;
+}
 
 /* 同组元素依次入场（卡片列表用） */
 .lw-reveal-stagger > * {

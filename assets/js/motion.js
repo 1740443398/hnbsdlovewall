@@ -244,6 +244,22 @@
     markReveal(document);
     initHeaderShadow();
 
+    /* 【兜底：任何情况下都不能让内容停留在透明】
+     *
+     * 实测首页有一个 .me-panel 卡在 opacity < 0.05：
+     * IntersectionObserver 有时不会给「刚插入又被布局挪动」的元素回调
+     * （例如 AJAX 渲染后又被 CSS 隐藏/移动），元素带着 lw-reveal 的 opacity:0
+     * 一直没人给它 is-in —— 用户看到的就是「这块内容是空的」。
+     *
+     * motion-plus 对 mp-reveal 有 3 秒兜底，本层也必须有一份，
+     * 否则本层独有的 .me-panel / .section 等就成了盲区。 */
+    window.setTimeout(function () {
+      var stuck = document.querySelectorAll('.lw-reveal:not(.is-in)');
+      for (var i = 0; i < stuck.length; i++) {
+        stuck[i].classList.add('is-in');
+      }
+    }, 2500);
+
     // 动态插入的内容（翻页、AJAX 渲染）也要能被观察到
     if ('MutationObserver' in window) {
       var mo = new MutationObserver(function (muts) {
