@@ -196,6 +196,28 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
 </div>
 
 <div class="section">
+    <div class="section-header"><h3>扫码登录（自动获取 Cookie）</h3></div>
+    <div class="section-body">
+        <p class="qz-hint" style="margin-bottom:10px;">
+            用手机 QQ 扫下面的码，授权后会自动把 Cookie 存进来，不用再去 F12 里复制。
+            <b>扫码也可能失败</b>（腾讯对服务器 IP 的风控、二次验证等），失败就回退到下面的「手动粘贴」。
+        </p>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+            <div id="qzQrBox" style="width:180px;height:180px;border:1px solid var(--border-glass);border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--bg-secondary);">
+                <span class="qz-hint">还没生成</span>
+            </div>
+            <div style="flex:1;min-width:220px;">
+                <button class="btn btn-primary" type="button" id="qzQrBtn">显示二维码</button>
+                <p class="qz-hint" id="qzQrMsg" style="margin-top:10px;">点按钮后出现二维码，用手机 QQ 扫。</p>
+            </div>
+        </div>
+        <p class="qz-hint" style="margin-top:10px;">
+            说明：扫码成功后 Cookie 会自动加密保存；二维码 5 分钟过期；本站不会保存你的 QQ 密码。
+        </p>
+    </div>
+</div>
+
+<div class="section">
     <div class="section-header"><h3>登录 Cookie</h3></div>
     <div class="section-body">
         <p class="qz-hint" style="margin-bottom:10px;">
@@ -332,5 +354,66 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    var btn = document.getElementById('qzQrBtn');
+    var box = document.getElementById('qzQrBox');
+    var msg = document.getElementById('qzQrMsg');
+    if (!btn) return;
+    var timer = null;
+    var CSRF = <?= json_encode($csrfToken) ?>;
+
+    function setMsg(t, color) {
+        msg.textContent = t;
+        msg.style.color = color || '';
+    }
+    function stop() {
+        if (timer) { clearInterval(timer); timer = null; }
+    }
+    function poll() {
+        fetch('/api/qzone/qr_poll.php', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.state === 'success') {
+                    stop();
+                    setMsg('已保存 Cookie，正在刷新…', 'var(--success,#1E7A4C)');
+                    setTimeout(function () { location.reload(); }, 800);
+                    return;
+                }
+                if (d.state === 'expired' || d.state === 'none' || d.state === 'error') {
+                    stop();
+                    setMsg(d.msg || '扫码失败，请重试或改用手动粘贴', 'var(--danger,#A9312B)');
+                    return;
+                }
+                setMsg(d.msg || '等待扫码…');
+            })
+            .catch(function () { stop(); setMsg('轮询失败，请重试', 'var(--danger,#A9312B)'); });
+    }
+    btn.addEventListener('click', function () {
+        stop();
+        btn.disabled = true;
+        setMsg('正在生成二维码…');
+        fetch('/api/qzone/qr_start.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrf_token=' + encodeURIComponent(CSRF)
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                btn.disabled = false;
+                if (!d.ok) { setMsg(d.err || '生成二维码失败', 'var(--danger,#A9312B)'); return; }
+                box.innerHTML = '<img alt="QQ 登录二维码" style="width:170px;height:170px;" src="data:image/png;base64,' + d.png + '">';
+                setMsg('等待扫码…');
+                timer = setInterval(poll, 2000);
+            })
+            .catch(function () {
+                btn.disabled = false;
+                setMsg('请求失败，请重试', 'var(--danger,#A9312B)');
+            });
+    });
+})();
+</script>
 
 <?php adminFooter(); ?>
