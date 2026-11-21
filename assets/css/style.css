@@ -2613,6 +2613,24 @@ input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset; -webkit
   transition: none !important;
   animation-duration: 0.001ms !important;
 }
+
+/* ── 主题圆形扩展（View Transitions）──────────────────────────────────────
+ * LWTheme.reveal() 会临时给 <html> 加 .theme-reveal，
+ * 然后让 ::view-transition-new(root) 用 WAAPI 的 clip-path 从点击位置扩散。
+ *
+ * 这里必须把两个快照的默认动画（含 motion-plus.css 里那条跨文档 mp-vt-*）
+ * 全部关掉：圆形扩展的前提是「旧帧静止、新帧被圆形裁出」，
+ * 一旦两个快照各自淡入淡出，就会变成叠影而不是扩展。
+ * 用 html 前缀 + !important，稳定压过后面的 mp-vt-* 规则。
+ *
+ * 注意：这段用了 ::view-transition-* 这类较新的伪元素，clean-css 可能不认，
+ * 所以构建后必须确认 bundle.min.css 里仍在（tools/lw_bundle_assets.py 的 VERIFY 会查）。
+ */
+html.theme-reveal::view-transition-old(root),
+html.theme-reveal::view-transition-new(root) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
 .dark-theme ::-webkit-scrollbar-thumb { background: #3A4A5F; }
 .dark-theme .site-header { background: var(--glass-bg-soft); border-bottom-color: rgba(255, 255, 255, 0.06); }
 .dark-theme .mobile-bottom-nav { background: rgba(20, 27, 38, 0.88); border-color: var(--glass-border); box-shadow: 0 14px 32px -14px rgba(0, 0, 0, 0.6); }
