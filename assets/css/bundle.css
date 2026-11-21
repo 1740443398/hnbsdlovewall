@@ -1682,19 +1682,49 @@ html.dark-theme * {
     navigation: auto;
 }
 
+/* ==========================================================================
+ * 页面切换：圆角收缩 + 缩放（ColorOS / Android 12+ 的转场手感）
+ * ==========================================================================
+ *
+ * 原来是「旧页上移淡出 + 新页上浮淡入」，本质上还是两页交叉淡化。
+ * 系统级的页面切换不是淡化 —— 是**新页面从一张略小的圆角卡片长满全屏**：
+ *
+ *   旧页：淡出 + 轻微缩小（缩到 0.98），像被推远了一层
+ *   新页：从 0.94 的圆角卡片（inset 6% + round 24px）扩散到全屏
+ *
+ * 用 clip-path: inset() 做圆角，因为 root 是全屏元素，
+ * border-radius 对 ::view-transition 伪元素不生效。
+ *
+ * 时长 360ms 比纯淡化的 260ms 长一点 —— 有形状变化的动画需要更多时间被看清，
+ * 太快反而像「闪了一下」。旧的退出只用 180ms，因为它不该抢戏。
+ *
+ * 不支持的浏览器完全忽略这几条（@view-transition 本身就会被忽略）。
+ * ========================================================================== */
+
 ::view-transition-old(root) {
-    animation: mp-vt-out 180ms cubic-bezier(0.4, 0, 1, 1);
+    animation: mp-vt-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
 }
+
 ::view-transition-new(root) {
-    animation: mp-vt-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    animation: mp-vt-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes mp-vt-out {
-    to { opacity: 0; transform: translateY(-4px); }
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.98); }
 }
+
 @keyframes mp-vt-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: scale(1.02);
+        clip-path: inset(4% 4% 4% 4% round 24px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+        clip-path: inset(0 0 0 0 round 0);
+    }
 }
 
 /* ==========================================================================
