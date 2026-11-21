@@ -105,6 +105,15 @@ if (is_file($__ahJs)) {
         const PAGE_LANG = '<?= $LANG_CODE ?>';
         const LANG_DICT = <?= json_encode($LANG, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     </script>
+<style>
+/* 空间动态卡片：复用 .post-card 结构，让它在信息流里就是一条普通帖子。 */
+.qz-post-card .post-card-images img { width: 100%; height: auto; max-height: 68vh; object-fit: contain; border-radius: 10px; display: block; }
+.qz-post-card .post-card-images { margin: 6px 0 8px; }
+.qz-av { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+         background: linear-gradient(135deg, #3B6FB6, #58A8D6); color: #fff; font-size: .72rem; font-weight: 600; }
+.qz-badge { font-size: .66rem; font-weight: 500; color: var(--text-muted); background: var(--bg-secondary);
+            border-radius: 999px; padding: 1px 6px; margin-left: 4px; vertical-align: 1px; }
+</style>
 </head>
 <body>
     <a class="skip-to-content" href="#main-content">跳到主内容</a>
@@ -143,62 +152,43 @@ if (is_file($__ahJs)) {
     <?php endif; ?>
 
     <?php
-    /* 空间动态横滑条：只在后台开启了「混入首页」时出现。
-       放在 main 之前而不是塞进信息流 —— 它是另一种来源的内容，
-       混进帖子列表会让人分不清哪些能点进去评论。 */
+    /* 空间动态：不再单独做横滑条，而是**并进首页信息流**，用和正常帖子同一套卡片样式。
+       技术上用 <template> 包着：main.js 拉完列表会整体替换 #postsContainer，
+       直接写进容器会被冲掉；由下面的注入器在每次渲染后插到最前面。 */
     $qzHome = function_exists('lwQzoneHomeStrip') ? lwQzoneHomeStrip() : [];
-    if ($qzHome):
     ?>
-    <div class="qz-home">
-        <div class="container">
-            <div class="qz-home-head">
-                <span>空间动态</span>
-                <a href="<?= SITE_URL ?>/pages/qzone.php">查看全部 ›</a>
+    <?php if ($qzHome): ?>
+    <template id="qzFeedTpl">
+        <?php foreach ($qzHome as $qit):
+            $qtid = (string) $qit['tid'];
+            $qimgs = $qit['images_arr'] ?? [];
+            $qtext = trim((string) $qit['content']);
+            $qts = (int) ($qit['posted_ts'] ?? 0);
+        ?>
+        <div class="post-card qz-post-card">
+            <div class="post-card-author">
+                <span class="lw-av qz-av" aria-hidden="true">墙</span>
+                <span class="post-card-author-name">表白墙 <span class="qz-badge">QQ 空间</span></span>
+                <span class="post-card-time"><?= $qts ? date('m-d H:i', $qts) : '' ?></span>
             </div>
-            <div class="qz-home-scroll">
-                <?php foreach ($qzHome as $qit): 
-                    $qtid = (string) $qit['tid'];
-                    $qimgs = $qit['images_arr'] ?? [];
-                ?>
-                <a class="qz-home-item" href="<?= SITE_URL ?>/pages/qzone.php">
-                    <?php if ($qimgs): ?>
-                    <img src="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($qtid) ?>&i=0" alt="" loading="lazy" decoding="async">
-                    <?php else: ?>
-                    <span class="qz-home-noimg"><?= nl2br(htmlspecialchars(mb_substr(trim((string) $qit['content']), 0, 60))) ?></span>
-                    <?php endif; ?>
-                    <span class="qz-home-like">♥ <?= (int) ($qit['likes'] ?? 0) ?></span>
-                </a>
-                <?php endforeach; ?>
+            <?php if ($qimgs): ?>
+            <div class="post-card-images">
+                <img src="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($qtid) ?>&i=0" alt="" loading="lazy" decoding="async">
+            </div>
+            <?php endif; ?>
+            <?php if ($qtext !== ''): ?>
+            <div class="post-card-content"><?= nl2br(htmlspecialchars(mb_substr($qtext, 0, 300))) ?></div>
+            <?php endif; ?>
+            <div class="post-card-actions" aria-hidden="true">
+                <span class="ssr-stat">♥ <?= (int) ($qit['likes'] ?? 0) ?></span>
+                <span class="ssr-stat">评论 <?= (int) ($qit['comment_num'] ?? 0) ?></span>
+                <a class="ssr-stat" href="<?= SITE_URL ?>/pages/qzone.php" style="margin-left:auto;color:var(--primary);">查看全部空间动态 ›</a>
             </div>
         </div>
-    </div>
+        <?php endforeach; ?>
+    </template>
     <?php endif; ?>
-    <script>
-    /* 首页也触发一次同步检查，但每个浏览器会话最多一次 ——
-       避免每刷一次首页就多一个请求（免费主机按请求数计）。
-       tick.php 自身还会判断「距上次尝试是否满 24 小时」，不会真的反复出网。 */
-    (function () {
-        try {
-            if (sessionStorage.getItem('lwQzTick')) { return; }
-            sessionStorage.setItem('lwQzTick', '1');
-        } catch (e) {}
-        setTimeout(function () {
-            fetch('/api/qzone/tick.php', { credentials: 'same-origin' }).catch(function () {});
-        }, 1500);
-    })();
-    </script>
-    <style>
-    .qz-home { padding: 10px 0 4px; }
-    .qz-home-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: .86rem; }
-    .qz-home-head span { font-weight: 600; color: var(--text); }
-    .qz-home-head a { color: var(--primary); text-decoration: none; font-size: .8rem; }
-    .qz-home-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-    .qz-home-scroll::-webkit-scrollbar { display: none; }
-    .qz-home-item { position: relative; flex: 0 0 auto; width: 108px; height: 144px; border-radius: 10px; overflow: hidden; background: var(--bg-secondary); display: block; }
-    .qz-home-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .qz-home-noimg { display: block; padding: 10px; font-size: .72rem; color: var(--text-secondary); line-height: 1.5; }
-    .qz-home-like { position: absolute; right: 6px; bottom: 6px; font-size: .68rem; color: #fff; background: rgba(0,0,0,.42); padding: 1px 6px; border-radius: 999px; backdrop-filter: blur(4px); }
-    </style>
+
     <main id="main-content" class="site-main">
         <div class="container">
             <div class="content-wrapper">
@@ -502,5 +492,39 @@ if (is_file($__ahJs)) {
     <script src="<?= asset_url('/assets/js/enhancements.js') ?>?v=<?= asset_ver('/assets/js/enhancements.js') ?>" defer></script>
     <?php endif; ?>
     <?php require_once __DIR__ . '/includes/lang_ui.php'; ?>
+
+<script>
+/* 首页每会话触发一次同步检查（tick.php 自身还会判断是否满 24h） */
+(function () {
+    try {
+        if (sessionStorage.getItem('lwQzTick')) { return; }
+        sessionStorage.setItem('lwQzTick', '1');
+    } catch (e) {}
+    setTimeout(function () {
+        fetch('/api/qzone/tick.php', { credentials: 'same-origin' }).catch(function () {});
+    }, 1500);
+})();
+
+/* 把空间动态卡片并进信息流。
+   main.js 每次渲染都会整体替换 #postsContainer 的内容，
+   所以用 MutationObserver：容器被重写就重新插回最前面。
+   没有 #qzFeedTpl（未开启混入首页）时整段是空操作。 */
+(function () {
+    var tpl = document.getElementById('qzFeedTpl');
+    var box = document.getElementById('postsContainer');
+    if (!tpl || !box) return;
+    function inject() {
+        if (document.getElementById('qzFeedPlaced')) return;
+        var wrap = document.createElement('div');
+        wrap.id = 'qzFeedPlaced';
+        wrap.innerHTML = tpl.innerHTML;
+        box.insertBefore(wrap, box.firstChild);
+    }
+    try {
+        new MutationObserver(inject).observe(box, { childList: true });
+    } catch (e) {}
+    setTimeout(inject, 700);
+})();
+</script>
 </body>
 </html>

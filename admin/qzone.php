@@ -296,7 +296,7 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
                 <label class="qz-label">混入首页</label>
                 <label style="width:auto;"><input type="checkbox" name="show_home" <?= $cfg['show_home'] ? 'checked' : '' ?>></label>
                 <input class="qz-input" type="number" name="home_count" value="<?= (int) $cfg['home_count'] ?>" min="-1" max="100">
-                <span class="qz-hint"><b>-1</b> = 全部显示；<b>0</b> = 不在首页显示；<b>1~100</b> = 显示最新 N 条</span>
+                <span class="qz-hint"><b>-1</b> = 全部并进首页信息流；<b>0</b> = 首页不显示；<b>1~100</b> = 并进最新 N 条</span>
             </div>
 
             <div class="qz-row">
