@@ -543,6 +543,23 @@ if (!function_exists('lwQzoneMaybeAutoSync')) {
     }
 }
 
+if (!function_exists('lwQzoneHomeStrip')) {
+    /**
+     * 首页「空间动态」横滑条的数据。
+     * 只有总开关打开、且配置了「混入首页」时才有内容，否则返回空数组。
+     */
+    function lwQzoneHomeStrip(): array
+    {
+        $cfg = lwQzoneConfig();
+        if ((int) $cfg['enabled'] !== 1 || (int) $cfg['show_home'] !== 1) {
+            return [];
+        }
+        $n = max(0, min(10, (int) $cfg['home_count']));
+        if ($n <= 0) { return []; }
+        return lwQzoneListItems($n, 0);
+    }
+}
+
 if (!function_exists('lwQzoneListItems')) {
     /** 取镜像列表（带评论），供前台展示。 */
     function lwQzoneListItems(int $limit = 20, int $offset = 0): array

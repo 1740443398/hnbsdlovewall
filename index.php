@@ -1,6 +1,10 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/site_footer.php';
+/* 空间动态横滑条要用到 lwQzoneHomeStrip()；
+   单独 require 而不是靠 function_exists 兜底 ——
+   否则依赖缺失时首页会「静默不显示」，排查起来很难。 */
+require_once __DIR__ . '/includes/qzone_sync.php';
 
 $fs = getFS();
 
@@ -138,6 +142,63 @@ if (is_file($__ahJs)) {
     </div>
     <?php endif; ?>
 
+    <?php
+    /* 空间动态横滑条：只在后台开启了「混入首页」时出现。
+       放在 main 之前而不是塞进信息流 —— 它是另一种来源的内容，
+       混进帖子列表会让人分不清哪些能点进去评论。 */
+    $qzHome = function_exists('lwQzoneHomeStrip') ? lwQzoneHomeStrip() : [];
+    if ($qzHome):
+    ?>
+    <div class="qz-home">
+        <div class="container">
+            <div class="qz-home-head">
+                <span>空间动态</span>
+                <a href="<?= SITE_URL ?>/pages/qzone.php">查看全部 ›</a>
+            </div>
+            <div class="qz-home-scroll">
+                <?php foreach ($qzHome as $qit): 
+                    $qtid = (string) $qit['tid'];
+                    $qimgs = $qit['images_arr'] ?? [];
+                ?>
+                <a class="qz-home-item" href="<?= SITE_URL ?>/pages/qzone.php">
+                    <?php if ($qimgs): ?>
+                    <img src="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($qtid) ?>&i=0" alt="" loading="lazy" decoding="async">
+                    <?php else: ?>
+                    <span class="qz-home-noimg"><?= nl2br(htmlspecialchars(mb_substr(trim((string) $qit['content']), 0, 60))) ?></span>
+                    <?php endif; ?>
+                    <span class="qz-home-like">♥ <?= (int) ($qit['likes'] ?? 0) ?></span>
+                </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+    <script>
+    /* 首页也触发一次同步检查，但每个浏览器会话最多一次 ——
+       避免每刷一次首页就多一个请求（免费主机按请求数计）。
+       tick.php 自身还会判断「距上次尝试是否满 24 小时」，不会真的反复出网。 */
+    (function () {
+        try {
+            if (sessionStorage.getItem('lwQzTick')) { return; }
+            sessionStorage.setItem('lwQzTick', '1');
+        } catch (e) {}
+        setTimeout(function () {
+            fetch('/api/qzone/tick.php', { credentials: 'same-origin' }).catch(function () {});
+        }, 1500);
+    })();
+    </script>
+    <style>
+    .qz-home { padding: 10px 0 4px; }
+    .qz-home-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: .86rem; }
+    .qz-home-head span { font-weight: 600; color: var(--text); }
+    .qz-home-head a { color: var(--primary); text-decoration: none; font-size: .8rem; }
+    .qz-home-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .qz-home-scroll::-webkit-scrollbar { display: none; }
+    .qz-home-item { position: relative; flex: 0 0 auto; width: 108px; height: 144px; border-radius: 10px; overflow: hidden; background: var(--bg-secondary); display: block; }
+    .qz-home-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .qz-home-noimg { display: block; padding: 10px; font-size: .72rem; color: var(--text-secondary); line-height: 1.5; }
+    .qz-home-like { position: absolute; right: 6px; bottom: 6px; font-size: .68rem; color: #fff; background: rgba(0,0,0,.42); padding: 1px 6px; border-radius: 999px; backdrop-filter: blur(4px); }
+    </style>
     <main id="main-content" class="site-main">
         <div class="container">
             <div class="content-wrapper">

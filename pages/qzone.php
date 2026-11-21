@@ -226,5 +226,14 @@ require __DIR__ . '/../includes/site_header.php';
 </main>
 
 <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
+<script>
+/* 页面渲染完再异步触发同步检查 —— 同步要出网十几次，
+   绝不能放在渲染路径上，否则首屏会被拖慢。 */
+(function () {
+    setTimeout(function () {
+        fetch('/api/qzone/tick.php', { credentials: 'same-origin' }).catch(function () {});
+    }, 1200);
+})();
+</script>
 </body>
 </html>
