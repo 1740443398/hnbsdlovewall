@@ -518,6 +518,53 @@
 
   let toastIdCounter = 0;
 
+  /* ── 数字滚动 ────────────────────────────────────────────────────────────
+   * 点赞数从 3 → 4 原本是瞬间跳变，和按钮的弹跳（is-pop）不同步：
+   * 图标在弹，数字在闪。这里让数字在 ~220ms 内数过去。
+   *
+   * 三个边界：
+   *   · 差值 > 9 不数（从 3 数到 52 会显得拖沓，直接落位更干净）
+   *   · 系统开了「减少动效」→ 直接落位
+   *   · 连续点击 → 取消上一帧的 rAF，从当前显示值接着数
+   * 暴露到 window.lwCountUp 方便其它脚本复用（也便于自动化验证）。
+   */
+  function animateCount(el, to) {
+    if (!el) { return; }
+    var target = parseInt(to, 10);
+    if (!isFinite(target)) { el.textContent = String(to); return; }
+    var from = parseInt(el.textContent, 10);
+    if (!isFinite(from)) { el.textContent = String(target); return; }
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || from === target || Math.abs(target - from) > 9) {
+      el.textContent = String(target);
+      return;
+    }
+
+    if (el.__lwCountRaf) { cancelAnimationFrame(el.__lwCountRaf); el.__lwCountRaf = 0; }
+    el.classList.remove('mp-count-pop');
+    void el.offsetWidth;
+    el.classList.add('mp-count-pop');
+    window.setTimeout(function () { el.classList.remove('mp-count-pop'); }, 340);
+
+    var t0 = 0;
+    var dur = 220;
+    var step = function (ts) {
+      if (!t0) { t0 = ts; }
+      var p = Math.min(1, (ts - t0) / dur);
+      /* easeOutCubic：起步快、收尾稳 */
+      var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(from + (target - from) * e));
+      if (p < 1) {
+        el.__lwCountRaf = requestAnimationFrame(step);
+      } else {
+        el.__lwCountRaf = 0;
+        el.textContent = String(target);
+      }
+    };
+    el.__lwCountRaf = requestAnimationFrame(step);
+  }
+  window.lwCountUp = animateCount;
+
   function renderUserTitle(author) {
     if (!author || !author.title_text) return '';
     let style =
@@ -1943,11 +1990,11 @@
           if (wasLiked) {
             likeBtn.classList.remove('liked');
             if (icon) icon.innerHTML = svgIcon('heartOutline', 16);
-            if (count) count.textContent = Math.max(0, oldCount - 1);
+            if (count) animateCount(count, Math.max(0, oldCount - 1));
           } else {
             likeBtn.classList.add('liked');
             if (icon) icon.innerHTML = svgIcon('heart', 16);
-            if (count) count.textContent = oldCount + 1;
+            if (count) animateCount(count, oldCount + 1);
             /* 一次性弹跳：先移除再强制重排，保证连点也能重播 */
             likeBtn.classList.remove('is-pop');
             void likeBtn.offsetWidth;
@@ -1965,7 +2012,7 @@
               likeBtn.classList.remove('liked');
               if (icon) icon.innerHTML = svgIcon('heartOutline', 16);
             }
-            if (count && data.data.like_count !== undefined) count.textContent = data.data.like_count;
+            if (count && data.data.like_count !== undefined) animateCount(count, data.data.like_count);
           } catch (err) {
             /* 回滚到点击前的状态 */
             if (wasLiked) {
@@ -1975,7 +2022,7 @@
               likeBtn.classList.remove('liked');
               if (icon) icon.innerHTML = svgIcon('heartOutline', 16);
             }
-            if (count) count.textContent = oldCount;
+            if (count) animateCount(count, oldCount);
             showToast(err.message || '点赞失败，请重试', 'error');
           }
         });

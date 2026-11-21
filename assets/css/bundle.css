@@ -1977,6 +1977,19 @@ html.mp-lite .mp-page {
     }
 }
 
+/* 数字滚动时的一次轻微放大（配 main.js 的 animateCount）。
+ * 幅度要小：数字本身在变，再叠大位移会显得吵。 */
+html.js-motion .mp-count-pop {
+    animation: mp-count-pop 260ms var(--mp-ease-out, cubic-bezier(0.33, 1, 0.68, 1));
+    display: inline-block;
+}
+
+@keyframes mp-count-pop {
+    0%   { transform: scale(1); }
+    38%  { transform: scale(1.22); }
+    100% { transform: scale(1); }
+}
+
 @keyframes mp-skel-out {
     to {
         opacity: 0;
