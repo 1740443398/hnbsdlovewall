@@ -2022,7 +2022,10 @@
       const imageSrcs = images.map((im) => im.dataset.full || im.src);
       images.forEach((img, i) => {
         img.addEventListener('click', () => {
-          Lightbox.openGroup(imageSrcs, i);
+          /* 第三参数是「源图元素」：查看器会从它当前的位置/尺寸展开过去，
+           * 关闭时再飞回它。这样点击缩略图 → 全屏不是「黑屏一闪」，而是
+           * 这张图连续长到满屏（SPT 的 Shared-element Image Expansion）。 */
+          Lightbox.openGroup(imageSrcs, i, img);
         });
       });
 
@@ -2225,9 +2228,9 @@
       this.nextBtn.style.display = (scale > 1 || this._srcs.length < 2) ? 'none' : 'flex';
     },
 
-    // 打开单张（保持旧签名可用）
-    open(src) {
-      this.openGroup([src], 0);
+    // 打开单张（保持旧签名可用）。第二个参数可选：源图元素，用于展开动画
+    open(src, originEl) {
+      this.openGroup([src], 0, originEl);
     },
 
     /* 打开一组图片，idx 为当前张。
@@ -2251,7 +2254,24 @@
      */
     _lastOpenAt: 0,
 
-    openGroup(srcs, idx) {
+    /* 【图片展开】记录源图，用于「从缩略图连续扩展到全屏」。
+     *
+     * 参考 SPT 的 Shared-element Image Expansion：
+     *   确认源图与目标图对应，记录源图在视口内的位置、尺寸。
+     *   将源区域连续过渡至目标区域，不拉伸图片主体。
+     *   关闭时回到仍存在的源图；源项消失时使用合理退场。
+     *
+     * 实现用 FLIP（First-Last-Invert-Play）：
+     *   先把 img 摆到最终位置（Last），
+     *   再用 transform 把它「倒推」回源图的位置和尺寸（Invert），
+     *   最后动画到 transform: none（Play）。
+     *   这样只动 transform，不触发重排，也没有拉伸失真
+     *   （因为 transform 的 scale 是等比视觉缩放，不是真的改宽高）。
+     */
+    _originEl: null,
+    _closing: false,
+
+    openGroup(srcs, idx, originEl) {
       // 同一 tick 内的重复调用直接忽略（120ms 足够覆盖同一次点击的所有同步监听）
       const now = Date.now();
       if (now - this._lastOpenAt < 120) {
@@ -2266,11 +2286,58 @@
 
       this._srcs = (srcs || []).filter(Boolean);
       if (!this._srcs.length) { return; }
+      this._closing = false;
+      this._originEl = (originEl && originEl.getBoundingClientRect) ? originEl : null;
+      this._originRect = this._originEl ? this._originEl.getBoundingClientRect() : null;
       this.overlay.style.display = 'flex';
       document.body.style.overflow = 'hidden';
       this._pendingTx = 0;
       this._pendingTy = 0;
       this.show(typeof idx === 'number' ? idx : 0);
+      this._expandIn();
+    },
+
+    /* 从源图位置展开到最终位置 */
+    _expandIn() {
+      const img = this.img;
+      const from = this._originRect;
+      /* 源图太小（图标级）时不做展开，否则会像「从一粒芝麻里蹦出来」 */
+      if (!img || !from || from.width < 40 || from.height < 40) { return; }
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+
+      const run = () => {
+        if (!img || !to) { return; }
+        const to = img.getBoundingClientRect();
+        if (!to.width || !to.height) { return; }
+
+        const sx = from.width / to.width;
+        const sy = from.height / to.height;
+        const dx = from.left - to.left;
+        const dy = from.top - to.top;
+
+        /* 等比缩放的「起点」取较大的那个比例，避免图片被拉扁 */
+        img.style.transform = 'none';
+        if (typeof img.animate !== 'function') { return; }
+        try {
+          img.animate([
+            {
+              transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')',
+              opacity: 0.6
+            },
+            { transform: 'none', opacity: 1 }
+          ], {
+            duration: 330,
+            easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)'
+          });
+        } catch (e) { /* 老浏览器：直接显示 */ }
+      };
+
+      if (img.complete && img.naturalWidth > 0) {
+        /* 已缓存：等一帧让布局落定 */
+        requestAnimationFrame(run);
+      } else {
+        img.addEventListener('load', function () { requestAnimationFrame(run); }, { once: true });
+      }
     },
 
     /** 关掉其它几套查看器留下的遮罩（如果它们被意外触发过）。 */
@@ -2297,13 +2364,58 @@
 
     close() {
       if (!this.overlay) return;
-      this.overlay.style.display = 'none';
-      this.img.src = '';
-      this._srcs = [];
-      this._applyTransform(1, 0, 0, false);
-      document.body.style.overflow = '';
-      // 一并清掉其它查看器，避免「关掉一层还剩一层」
-      this._closeForeignViewers();
+      if (this._closing) { return; }   /* 关门过程中重复触发（点遮罩+点按钮）不重入 */
+
+      const img = this.img;
+      const el = this._originEl;
+      const self = this;
+
+      const hide = function () {
+        self.overlay.style.display = 'none';
+        img.src = '';
+        self._srcs = [];
+        self._applyTransform(1, 0, 0, false);
+        document.body.style.overflow = '';
+        self._originEl = null;
+        self._originRect = null;
+        self._closing = false;
+        self._closeForeignViewers();
+      };
+
+      /* 源图还在、且还在视口内 —— 才飞回去。
+       * 如果源图已被移除（列表刷新）或滚出视口，飞向过期坐标会很怪，
+       * 所以那种情况直接淡出。 */
+      if (el && el.isConnected && img && img.complete && typeof img.animate === 'function' &&
+          !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const from = el.getBoundingClientRect();
+        const to = img.getBoundingClientRect();
+        const vh = window.innerHeight || 800;
+        const inView = from.width > 40 && from.bottom > 0 && from.top < vh && to.width > 0;
+
+        if (inView) {
+          const sx = from.width / to.width;
+          const sy = from.height / to.height;
+          const dx = from.left - to.left;
+          const dy = from.top - to.top;
+          this._closing = true;
+          try {
+            const anim = img.animate([
+              { transform: 'none', opacity: 1 },
+              {
+                transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')',
+                opacity: 0.35
+              }
+            ], { duration: 250, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
+            anim.onfinish = hide;
+            anim.oncancel = hide;
+            return;
+          } catch (e) {
+            this._closing = false;
+          }
+        }
+      }
+
+      hide();
     },
   };
 
