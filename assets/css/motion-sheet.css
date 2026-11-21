@@ -29,6 +29,7 @@
  * ========================================================================== */
 
 @media (max-width: 768px) {
+    .modal,
     .modal-box, 
     .modal-content,
     .site-modal-box,
@@ -116,6 +117,7 @@
  * ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
+    .modal,
     .modal-box,
     .modal-content,
     .site-modal-box,
@@ -124,6 +126,7 @@
     .sponsor-modal {
         transition: none !important;
     }
+    .modal.lw-sheet-closing,
     .modal-box.lw-sheet-closing,
     .site-modal-box.lw-sheet-closing {
         transition: none !important;
