@@ -13,6 +13,32 @@
  * 幂等：按 source_tid 去重，重复跑只更新（图片地址、QQ 原赞数、原评论），不会重复发帖。
  */
 
+if (!function_exists('lwQzonePostTitle')) {
+    /**
+     * 爬取帖的标题。
+     * 这些说说本身没有标题（正文也常为空），列表/详情页 h1 会空白很难看。
+     * 用 OCR 首行当标题（多为「墙墙投稿」「表白墙」这类开头），没有就退固定文案。
+     */
+    function lwQzonePostTitle(string $tid): string
+    {
+        $ocrInc = __DIR__ . '/qzone_ocr.php';
+        if (is_file($ocrInc)) {
+            require_once $ocrInc;
+            if (function_exists('lwQzoneOcrText')) {
+                $t = trim(lwQzoneOcrText($tid));
+                if ($t !== '') {
+                    $first = trim((string) strtok($t, "\n"));
+                    $first = preg_replace('/\s+/u', ' ', $first);
+                    if ($first !== '' && mb_strlen($first) >= 2) {
+                        return mb_substr($first, 0, 24);
+                    }
+                }
+            }
+        }
+        return '表白墙投稿';
+    }
+}
+
 if (!function_exists('lwQzoneBotUser')) {
     /** 取（或创建）机器人账号：A.淮南北师大最美墙墙 / 3893174881 的 QQ 头像。 */
     function lwQzoneBotUser(): ?array
@@ -121,6 +147,31 @@ if (!function_exists('lwQzoneSyncToPosts')) {
             $postedTs = (int) ($it['posted_ts'] ?? 0);
             $postedAt = $postedTs > 0 ? date('Y-m-d H:i:s', $postedTs) : date('Y-m-d H:i:s');
 
+            /* QQ 转发的也要过敏感词（站长要求）。文本取 OCR 识别结果 ——
+               这些说说正文为空，内容全在聊天截图里，只查 content 等于没查。 */
+            $profStatus = 'published';
+            $profFields = [];
+            if (function_exists('lwProfanityEnabled') || is_file(__DIR__ . '/profanity.php')) {
+                require_once __DIR__ . '/profanity.php';
+                if (lwProfanityEnabled()) {
+                    $scanText = lwQzonePostTitle($tid);
+                    $ocrInc = __DIR__ . '/qzone_ocr.php';
+                    if (is_file($ocrInc)) {
+                        require_once $ocrInc;
+                        if (function_exists('lwQzoneOcrText')) { $scanText .= "\n" . lwQzoneOcrText($tid); }
+                    }
+                    try {
+                        $pr = lwProfanityCheck($scanText);
+                        if (!empty($pr['forbidden'])) {
+                            $profStatus = 'pending';
+                            $profFields = lwProfanityModerationFields($pr);
+                        }
+                    } catch (Throwable $e) {
+                        /* fail-open：接口挂了照常发布 */
+                    }
+                }
+            }
+
             $meta = [
                 'source'      => 'qzone',
                 'source_tid'  => $tid,
@@ -133,23 +184,27 @@ if (!function_exists('lwQzoneSyncToPosts')) {
             $exist = $fs->findOne('posts', ['source_tid' => $tid]);
             if ($exist) {
                 $patch = $meta;
+                if (!empty($profFields)) { $patch = array_merge($patch, $profFields); $patch['status'] = 'pending'; }
+                if (trim((string) ($exist['title'] ?? '')) === '') {
+                    $patch['title'] = lwQzonePostTitle($tid);
+                }
                 $patch['images'] = json_encode(lwQzonePostImages($tid, $imgs), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 $fs->update('posts', (int) $exist['id'], $patch);
                 $updated++;
                 continue;
             }
 
-            $rec = array_merge($meta, [
+            $rec = array_merge($meta, $profFields, [
                 'user_id'     => (int) $bot['id'],
                 'category'    => 'confession',
-                'title'       => '',
+                'title'       => lwQzonePostTitle($tid),
                 'content'     => '',
                 'images'      => json_encode(lwQzonePostImages($tid, $imgs), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'is_anonymous' => 0,
                 'visibility'  => 'public',
                 'visible_to'  => '',
                 'exclude_to'  => '',
-                'status'      => 'published',
+                'status'      => $profStatus,
                 'likes'       => 0,      /* 站内点赞从 0 开始；QQ 原赞数在 qq_likes 里单独展示 */
                 'comments'    => 0,
                 'views'       => 0,

@@ -101,7 +101,20 @@ if (!defined('LW_CFG_REGISTRY_LOADED')) {
                         'min'   => 1, 'max' => 500,
                         'hint'  => '校园网全校共用一个出口 IP，这个值按「全校一天能进多少人」来设。',
                     ],
-                    'invite_enabled' => [
+                    /* 敏感词审查（uapis.cn profanitycheck）—— 站长要求替换原 AI 审查 */
+    'profanity_check_enabled' => [
+        'type'    => 'bool',
+        'default' => '1',
+        'label'   => '敏感词审查',
+        'desc'    => '发帖/评论/QQ 动态导入时调用敏感词接口，命中即转后台审核',
+    ],
+    'profanity_api_url' => [
+        'type'    => 'text',
+        'default' => 'https://uapis.cn/api/v1/text/profanitycheck',
+        'label'   => '敏感词接口地址',
+        'desc'    => '默认使用 uapis.cn 公开接口，可替换为自建服务',
+    ],
+    'invite_enabled' => [
                         'label' => '启用邀请码', 'type' => 'switch', 'default' => '1',
                         'hint'  => '关闭后邀请码不再免验证、也不再发奖励。',
                     ],

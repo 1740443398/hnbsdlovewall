@@ -277,6 +277,19 @@ adminHeader('站点设置', $adminUser, $csrfToken);
                 </label>
                 <span class="toggle-label" id="inviteStatus"><?= ($settingMap['invite_enabled'] ?? '1') == '1' ? '已开启' : '已关闭' ?></span>
             </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>敏感词审查</span>
+                    <span class="setting-desc">发帖 / 评论 / QQ 动态导入时调用敏感词接口，命中直接转后台审核（替换原 AI 审查）</span>
+                </div>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="profanityEnabled" <?= ($settingMap['profanity_check_enabled'] ?? '1') == '1' ? 'checked' : '' ?> onchange="updateSetting('profanity_check_enabled', this.checked ? '1' : '0')">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label" id="profanityStatus"><?= ($settingMap['profanity_check_enabled'] ?? '1') == '1' ? '已启用' : '已关闭' ?></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>

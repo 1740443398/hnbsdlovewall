@@ -161,6 +161,24 @@ if (!function_exists('lw_do_post_create')) {
          */
         $modResult = lwModerateContent($title, $content, $user, ['skip_ai' => true]);
 
+        /* 【敏感词 API 审查】站长要求用它替换原来的 AI 异步复核。
+         *
+         * 为什么能替换：AI 那套要 1~3 秒、要 key、给的是模糊分数，只能异步「捞漏网」；
+         * 这个接口实测 0.4 秒、无需 key、直接给命中词，可以当**同步门禁**用，
+         * 用户当场就知道「内容需要审核」，而不是发出去几秒后被悄悄下架。
+         *
+         * 命中 → pending（进后台审核队列）；未命中 → 保持原判定；
+         * 接口不可用 → fail-open（不能因为审核接口挂了就全站禁言）。 */
+        require_once __DIR__ . '/../profanity.php';
+        $prof = ['ok' => true, 'forbidden' => false, 'words' => [], 'err' => ''];
+        if (lwProfanityEnabled()) {
+            try {
+                $prof = lwProfanityCheck($title . "\n" . $content);
+            } catch (Throwable $e) {
+                $prof = ['ok' => false, 'forbidden' => false, 'words' => [], 'err' => $e->getMessage()];
+            }
+        }
+
         // 硬拒绝：直接返回错误，不写库
         if ($modResult['action'] === 'reject') {
             $labels = array_map(static function ($t) {
@@ -174,6 +192,10 @@ if (!function_exists('lw_do_post_create')) {
 
         $status = ($modResult['action'] === 'pending') ? 'pending' : 'published';
         $modFields = lwModerationFields($modResult);
+        if (!empty($prof['forbidden'])) {
+            $status = 'pending';
+            $modFields = array_merge($modFields, lwProfanityModerationFields($prof));
+        }
 
         $postData = [
             'user_id'      => $user['id'],
@@ -244,7 +266,7 @@ if (!function_exists('lw_do_post_create')) {
              * 只有 AI 给出 >=60 分才回滚成待审，避免误伤正常内容。 */
             if ($category !== 'announcement') {   // 公告是管理员发的，不必复核
                 require_once __DIR__ . '/../ai_review.php';
-                lwQueueAiReview((int)$post['id'], $title, $content);
+        /* 原来的异步 AI 复核已由同步敏感词 API 取代（见上方 $prof），不再排队 */
             }
         }
 
