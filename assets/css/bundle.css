@@ -1994,6 +1994,105 @@ html.dark-theme .post-card-actions .action-btn.favorited {
     }
 }
 
+/* ==== motion-liquid-tab.css ==== */
+/* ==========================================================================
+ * 液态 Tab 指示器  motion-liquid-tab.css
+ * ==========================================================================
+ *
+ * 参考 SPT「Liquid Tab Indicator」的标准：
+ *
+ *   保持标签文字、按钮位置和命中区域稳定，让独立的指示背景在标签之间移动。
+ *   用前后边缘的不同运动节奏形成「先拉长、再收拢」的轮廓。
+ *   不要仅将固定宽度背景匀速平移。
+ *
+ * --------------------------------------------------------------------------
+ * 【为什么本站要做这个】
+ * --------------------------------------------------------------------------
+ * 首页的分类筛选（全部 / 公告 / 学习求助 …）现在是这样切换的：
+ *   点一下 → 旧按钮背景瞬间消失、新按钮背景瞬间出现
+ * 这是「两个独立按钮各自变色」，不是「一个指示器移动过去」。
+ * ColorOS / iOS 的 Segmented Control 都是后者 —— 用户能看见「选中感」在流动。
+ *
+ * --------------------------------------------------------------------------
+ * 【为什么把容器改成横滑】
+ * --------------------------------------------------------------------------
+ * 原来是 flex-wrap: wrap。手机上一行放不下 7 个分类，会折成两行 ——
+ * 指示器一旦跨行就没法流动（总不能在两行之间连一条）。
+ *
+ * 所以改成单行横向滚动（App 的分类栏都是横滑的）。
+ * 桌面端内容不超宽时 overflow-x: auto 不产生滚动条，无副作用。
+ * ========================================================================== */
+
+.category-filters {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* 给指示器的阴影留出上下空间，否则会被 overflow 裁掉一半 */
+    padding: 5px 1px;
+    /* 让「点到的那个」自动滚进可视区 */
+    scroll-behavior: smooth;
+}
+
+.category-filters::-webkit-scrollbar {
+    display: none;
+}
+
+/* 按钮必须在指示器之上，否则文字会被盖住 */
+.category-filters .cat-filter {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+}
+
+/* 有指示器时，active 按钮不再自带背景 —— 背景由指示器提供，
+ * 否则会出现「按钮底色 + 指示器」两块色块重叠 */
+.category-filters.has-liquid .cat-filter.active {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--on-solid, #fff);
+}
+
+.lw-liquid-tab {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    height: 0;
+    border-radius: var(--radius-full);
+    background: var(--primary);
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+    z-index: 0;
+    /* 位移与尺寸都由 JS 的 Web Animations 驱动，这里不设 transition，
+     * 否则会和动画互相打架（双重缓动 = 手感发飘） */
+    will-change: transform, width;
+}
+
+/* 暗色模式下主色可能偏亮，指示器改用稍微收敛的色调 */
+html.dark-theme .lw-liquid-tab {
+    background: var(--primary);
+    opacity: 0.92;
+}
+
+/* 减动效：不做流动，直接定位；按钮保留自身底色更方便辨认 */
+@media (prefers-reduced-motion: reduce) {
+    .lw-liquid-tab {
+        display: none !important;
+    }
+    .category-filters.has-liquid .cat-filter.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        box-shadow: var(--shadow-sm);
+        color: var(--on-solid, #fff);
+    }
+}
+
 /* ==== mobile-app.css ==== */
 /* ==========================================================================
  * 手机端 App 化布局层  mobile-app.css

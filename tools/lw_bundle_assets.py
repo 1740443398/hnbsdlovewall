@@ -72,6 +72,7 @@ CSS_ORDER = [
     'assets/css/apple-design.css',
     'assets/css/motion-plus.css',
     'assets/css/motion-interact.css',
+    'assets/css/motion-liquid-tab.css',
     'assets/css/mobile-app.css',
     'assets/css/motion-sheet.css',
     'assets/css/dark-patch.css',
@@ -111,6 +112,7 @@ JS_ORDER = [
     'assets/js/motion-sheet.js',
     'assets/js/motion-lightbox.js',
     'assets/js/motion-pullrefresh.js',
+    'assets/js/motion-liquid-tab.js',
 ]
 
 
