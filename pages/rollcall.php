@@ -227,6 +227,10 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
     $headerGuestCta = 'login';
     $headerBackHref = SITE_URL . '/pages/tools.php';
     $headerBackText = t('rollcall.back_tools');
+    /* 【标题条】手机端顶栏下方的「当前页标题」取自 $pageTitle；
+     * 本页原先没有设置，于是回退成站名 → 又被「标题等于站名则显示首页」的规则
+     * 变成「首页」，与页面内容对不上。必须在 site_header 输出 .u-appbar 之前设好。 */
+    $pageTitle = '点名';
     require __DIR__ . '/../includes/site_header.php';
     ?>
 

@@ -212,12 +212,19 @@ body {
  * 不会因为换字体就失去层次。
  * ========================================================================== */
 @media (max-width: 768px) {
-  h1, h2, h3, h4,
-  .post-card-title,
-  .post-detail-title,
-  .auth-title,
-  .section-title,
-  .u-appbar-title {
+  /* 【必须用 html 前缀】下面 L228 还有一条 h1,h2,h3 { font-family: var(--font-display) }。
+   * 媒体查询不增加特异性，两条都是 (0,0,1)，同特异性时**后出现的赢** ——
+   * 所以不带前缀的覆盖会被后面那条衬线规则压掉，手机上看到的仍是宋体。
+   * html h1 的特异性是 (0,0,2)，稳定压过 (0,0,1)。
+   * 没有直接移动区块位置，是因为那条衬线规则还带着字号/字重/行高，
+   * 移动容易牵连别的页面。 */
+  html h1, html h2, html h3, html h4,
+  html .post-card-title,
+  html .post-detail-title,
+  html .auth-title,
+  html .section-title,
+  html .u-appbar-title,
+  html .tools-header h1 {
     font-family: var(--font-ui);
     /* 无衬线不需要衬线体那种负字距来「收紧」，收一点点就够 */
     letter-spacing: -0.01em;

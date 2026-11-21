@@ -794,7 +794,12 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
 
     <?php
     $headerGuestCta = 'login';
-    require __DIR__ . '/../includes/site_header.php';
+    /* 【标题条】手机端顶栏下方那条「当前页标题」取的是 $pageTitle。
+ * 本页没设过它，于是回退成站名 → 又被「标题等于站名就显示首页」的规则变成「首页」。
+ * 结果在工具页顶部看到的是「首页」，和页面内容（实用工具）完全对不上。
+ * 必须在这里、site_header 输出 .u-appbar 之前设好。 */
+$pageTitle = t('tools.page_title');
+require __DIR__ . '/../includes/site_header.php';
     ?>
 
     <?php require __DIR__ . '/../includes/ai_widget.php'; ?>
@@ -1423,7 +1428,11 @@ $siteName = getSetting('site_name', '淮南北师大实验中学高中部校园�
              发帖入口保留在顶栏与移动端底部导航中间键。 */ ?>
 
     <?php
-    $mobileNavActive = 'me';
+    /* 【不高亮任何标签】工具页不属于「首页/发现/发帖/消息/我的」这 5 个标签。
+     * 原来写的是 'me'，导致底部导航的「登录/我的」被点亮 —— 
+     * 用户在工具页会以为自己在「我的」栏目里。
+     * 和 ranking.php / topic.php 一样设为空串（都不高亮）。 */
+    $mobileNavActive = '';
     require __DIR__ . '/../includes/mobile_bottom_nav.php';
     ?>
 

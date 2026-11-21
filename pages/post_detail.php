@@ -396,6 +396,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
     <?php
     $headerBackHref = '/';
     $headerBackText = t('pd.back_home');
+    /* 【标题条】手机端顶栏下方的「当前页标题」取自 $pageTitle；
+     * 本页原先没有设置，于是回退成站名 → 又被「标题等于站名则显示首页」的规则
+     * 变成「首页」，与页面内容对不上。必须在 site_header 输出 .u-appbar 之前设好。 */
+    $pageTitle = '帖子详情';
     require __DIR__ . '/../includes/site_header.php';
     ?>
 

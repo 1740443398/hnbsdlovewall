@@ -475,6 +475,10 @@ if ($editPostId > 0) {
 <body>
     <?php
     $headerBackHref = SITE_URL . '/';
+    /* 【标题条】手机端顶栏下方的「当前页标题」取自 $pageTitle；
+     * 本页原先没有设置，于是回退成站名 → 又被「标题等于站名则显示首页」的规则
+     * 变成「首页」，与页面内容对不上。必须在 site_header 输出 .u-appbar 之前设好。 */
+    $pageTitle = '发帖';
     require __DIR__ . '/../includes/site_header.php';
     ?>
 
