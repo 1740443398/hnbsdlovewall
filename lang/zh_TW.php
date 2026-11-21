@@ -98,7 +98,7 @@ return [
     'guest.banner'         => '你正在以訪客身分瀏覽，功能受限',
     'guest.feed_note'      => '訪客僅可瀏覽前 {n} 條動態。註冊後可查看全部動態、發文互動、私訊聊天。',
     'guest.cta_title'      => '註冊後解鎖完整社群',
-    'guest.cta_desc'       => '註冊即可查看全部動態，並解鎖發文、留言、私訊、個人中心與 AI 助手。',
+    'guest.cta_desc'       => '註冊後可以發文、留言和私訊。',
     'guest.blocked_detail' => '貼文詳情需要註冊帳號後才能查看，正在前往註冊頁…',
 
     // ----- 以下为页面翻译新增键 -----
@@ -534,7 +534,7 @@ return [
     'user.self_tip' => '這是你自己的主頁，完整資料請到',
     'user.self_link' => '個人中心',
     'tools.page_title' => '實用工具',
-    'tools.page_desc' => '集時間管理、效率工具、計算工具、創意工具、娛樂工具、查詢工具、媒體工具於一體',
+    'tools.page_desc' => '常用的小工具，點開即用',
     'tools.cat_time' => '時間工具',
     'tools.cat_efficiency' => '效率工具',
     'tools.cat_calc' => '計算工具',

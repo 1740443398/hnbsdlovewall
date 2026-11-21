@@ -98,7 +98,7 @@ return [
     'guest.banner'         => 'You are browsing as a guest with limited features',
     'guest.feed_note'      => 'Guests can only browse the first {n} posts. Sign up to see every post and join the conversation.',
     'guest.cta_title'      => 'Sign up to unlock the full community',
-    'guest.cta_desc'       => 'Create an account to view all posts and unlock publishing, comments, private messages, your profile and the AI assistant.',
+    'guest.cta_desc'       => 'Sign up to post, comment and send messages.',
     'guest.blocked_detail' => 'Post details require a registered account. Taking you to the sign-up page…',
 
     // ----- 以下为页面翻译新增键 -----
@@ -534,7 +534,7 @@ return [
     'user.self_tip' => 'This is your own profile. Full settings are in',
     'user.self_link' => 'Account Center',
     'tools.page_title' => 'Utility Tools',
-    'tools.page_desc' => 'All-in-one toolbox: time, efficiency, calculation, creative, entertainment, query and media tools',
+    'tools.page_desc' => 'Handy little tools, ready when you need them',
     'tools.cat_time' => 'Time Tools',
     'tools.cat_efficiency' => 'Efficiency Tools',
     'tools.cat_calc' => 'Calculation Tools',

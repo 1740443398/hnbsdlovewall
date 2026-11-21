@@ -98,7 +98,7 @@ return [
     'guest.banner'         => '你正在以游客身份浏览，功能受限',
     'guest.feed_note'      => '游客仅可浏览前 {n} 条动态。注册后可查看全部动态、发帖互动、私信聊天。',
     'guest.cta_title'      => '注册后解锁完整社区',
-    'guest.cta_desc'       => '注册即可查看全部动态，并解锁发帖、评论、私信、个人中心与 AI 助手。',
+    'guest.cta_desc'       => '注册后可以发帖、评论和私信。',
     'guest.blocked_detail' => '帖子详情需要注册账号后才能查看，正在前往注册页…',
 
     // ----- 以下为页面翻译新增键 -----
@@ -534,7 +534,7 @@ return [
     'user.self_tip' => '这是你自己的主页，完整资料请到',
     'user.self_link' => '个人中心',
     'tools.page_title' => '实用工具',
-    'tools.page_desc' => '集时间管理、效率工具、计算工具、创意工具、娱乐工具、查询工具、媒体工具于一体',
+    'tools.page_desc' => '常用的小工具，点开即用',
     'tools.cat_time' => '时间工具',
     'tools.cat_efficiency' => '效率工具',
     'tools.cat_calc' => '计算工具',
