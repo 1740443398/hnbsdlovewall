@@ -2436,17 +2436,29 @@
 
   var NewCommentSlide = {
     init: function () {
+      /* 【原来这里是个空转】
+       * 原先给新评论写的是 node.style.animation = 'commentSlideIn 0.4s ease'，
+       * 但全站**没有 @keyframes commentSlideIn** ——
+       * 引用了不存在的动画名，浏览器不会报错，只是什么都不会发生。
+       * 而且它是**行内样式**，优先级最高，会把后来加上的 .mp-item-in 一起压掉，
+       * 所以新评论一直是「瞬现」。
+       *
+       * 现在统一走 motion-interact.css 的 .mp-item-in（无限滚动新增卡片用的同一套，
+       * 320ms、同一条缓动曲线，且受 prefers-reduced-motion 保护）。
+       * 观察范围加 subtree —— 原来只盯 .comments-list 的直接子节点，
+       * 回复是插到 .comment-children 里的，根本观察不到。 */
       var observer = new MutationObserver(function (mutations) {
         mutations.forEach(function (m) {
           m.addedNodes.forEach(function (node) {
-            if (node.nodeType === 1 && node.classList.contains('comment-item')) {
-              node.style.animation = 'commentSlideIn 0.4s ease';
-            }
+            if (node.nodeType !== 1 || !node.classList.contains('comment-item')) return;
+            if (node.classList.contains('mp-item-in')) return;
+            node.classList.add('mp-item-in');
+            window.setTimeout(function () { node.classList.remove('mp-item-in'); }, 460);
           });
         });
       });
       var list = document.querySelector('.comments-list');
-      if (list) observer.observe(list, { childList: true });
+      if (list) observer.observe(list, { childList: true, subtree: true });
     }
   };
 
