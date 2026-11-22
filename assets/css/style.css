@@ -3999,6 +3999,28 @@ a:focus-visible { outline-offset: 3px; }
   backdrop-filter: blur(6px);
 }
 .lw-zoom-close:active { transform: scale(0.92); }
+.lw-zoom-bar {
+  position: absolute;
+  bottom: calc(42px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+.lw-zoom-btn {
+  min-width: 84px;
+  height: 40px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lw-zoom-btn:active { transform: scale(0.95); }
+.lw-zoom-btn-close { background: rgba(255, 255, 255, 0.9); color: #111; }
 .lw-zoom-hint {
   position: absolute;
   bottom: calc(14px + env(safe-area-inset-bottom, 0px));

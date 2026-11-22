@@ -4588,13 +4588,14 @@
        · 打开的是原图（去掉卡片用的 w=420 缩略参数）
      ================================================================== */
   function initImageZoom() {
-    var overlay = null, imgEl = null, hintEl = null;
+    var overlay = null, imgEl = null, barEl = null;
     var zoomed = false, scale = 1, tx = 0, ty = 0;
-    var dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+    var dragging = false, moved = false;
+    var startX = 0, startY = 0, baseX = 0, baseY = 0;
 
     function fullSrc(src) {
-      // 卡片用的是 /api/qzone/image.php?...&w=420 缩略图；放大时去掉 w 拿原图
-      return src.replace(/([?&])w=\d+&?/, '$1').replace(/[?&]$/, '');
+      // 卡片用 /api/qzone/image.php?...&w=420 缩略图；放大时去掉 w 取原图
+      return src.replace(/([?&])w=\\d+&?/, '$1').replace(/[?&]$/, '');
     }
 
     function build() {
@@ -4605,45 +4606,59 @@
       overlay.innerHTML =
         '<img class="lw-zoom-img" alt="">' +
         '<button class="lw-zoom-close" aria-label="关闭">✕</button>' +
-        '<div class="lw-zoom-hint">点图片放大 · 拖动查看 · Esc 关闭</div>';
+        '<div class="lw-zoom-bar">' +
+        '  <button class="lw-zoom-btn" data-act="toggle">放大</button>' +
+        '  <button class="lw-zoom-btn lw-zoom-btn-close" data-act="close">关闭</button>' +
+        '</div>' +
+        '<div class="lw-zoom-hint">双击放大 · 单击图片退出 · 拖动查看</div>';
       document.body.appendChild(overlay);
       imgEl = overlay.querySelector('.lw-zoom-img');
+      barEl = overlay.querySelector('.lw-zoom-bar');
 
+      // 背景 / 按钮点击关闭
       overlay.addEventListener('click', function (e) {
-        if (e.target === overlay || e.target.classList.contains('lw-zoom-close')) { close(); }
+        var act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+        if (e.target === overlay || act === 'close' || e.target.classList.contains('lw-zoom-close')) {
+          close();
+        } else if (act === 'toggle') {
+          toggleZoom(overlay);
+        }
       });
 
+      // 图片：未放大时双击放大；已放大时单击退出（保证任何情况下都能退出来）
+      var lastTap = 0;
       imgEl.addEventListener('click', function (e) {
         e.stopPropagation();
-        zoomed = !zoomed;
-        if (zoomed) {
-          scale = 2.2;
-          // 以点击位置为焦点放大
-          var r = imgEl.getBoundingClientRect();
-          var px = (e.clientX - r.left) / r.width;
-          var py = (e.clientY - r.top) / r.height;
-          tx = (0.5 - px) * r.width * (scale - 1);
-          ty = (0.5 - py) * r.height * (scale - 1);
-          imgEl.style.transformOrigin = 'center center';
+        if (zoomed) { close(); return; }
+        var now = Date.now();
+        if (now - lastTap < 320) {
+          toggleZoom(e);
+          lastTap = 0;
         } else {
-          scale = 1; tx = 0; ty = 0;
+          lastTap = now;
         }
-        imgEl.classList.toggle('is-zoomed', zoomed);
-        applyTransform();
       });
 
       imgEl.addEventListener('pointerdown', function (e) {
-        if (!zoomed) return;
-        dragging = true; startX = e.clientX; startY = e.clientY; baseX = tx; baseY = ty;
-        imgEl.setPointerCapture(e.pointerId);
+        dragging = true; moved = false;
+        startX = e.clientX; startY = e.clientY; baseX = tx; baseY = ty;
       });
       imgEl.addEventListener('pointermove', function (e) {
         if (!dragging) return;
-        tx = baseX + (e.clientX - startX);
-        ty = baseY + (e.clientY - startY);
-        applyTransform();
+        var dx = e.clientX - startX, dy = e.clientY - startY;
+        if (Math.abs(dx) + Math.abs(dy) > 8) { moved = true; }
+        if (zoomed) {
+          tx = baseX + dx; ty = baseY + dy;
+          imgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+        }
       });
-      imgEl.addEventListener('pointerup', function () { dragging = false; });
+      imgEl.addEventListener('pointerup', function (e) {
+        if (!dragging) return;
+        dragging = false;
+        var dy = e.clientY - startY;
+        // 未放大时向下滑 80px 直接关闭（手机端的自然手势）
+        if (!zoomed && moved && dy > 80) { close(); }
+      });
       imgEl.addEventListener('pointercancel', function () { dragging = false; });
 
       document.addEventListener('keydown', function (e) {
@@ -4651,8 +4666,23 @@
       });
     }
 
-    function applyTransform() {
+    function toggleZoom(e) {
+      if (!overlay) return;
+      zoomed = !zoomed;
+      if (zoomed) {
+        scale = 2.2;
+        var r = imgEl.getBoundingClientRect();
+        var px = e && e.clientX ? (e.clientX - r.left) / r.width : 0.5;
+        var py = e && e.clientY ? (e.clientY - r.top) / r.height : 0.5;
+        tx = (0.5 - px) * r.width * (scale - 1);
+        ty = (0.5 - py) * r.height * (scale - 1);
+      } else {
+        scale = 1; tx = 0; ty = 0;
+      }
+      imgEl.classList.toggle('is-zoomed', zoomed);
       imgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+      var tb = overlay.querySelector('[data-act="toggle"]');
+      if (tb) { tb.textContent = zoomed ? '还原' : '放大'; }
     }
 
     function open(src) {
@@ -4661,11 +4691,14 @@
       imgEl.classList.remove('is-zoomed');
       imgEl.style.transform = '';
       imgEl.src = fullSrc(src);
+      var tb = overlay.querySelector('[data-act="toggle"]');
+      if (tb) { tb.textContent = '放大'; }
       overlay.classList.add('is-open');
       document.body.style.overflow = 'hidden';
     }
 
     function close() {
+      if (!overlay) return;
       overlay.classList.remove('is-open');
       zoomed = false; scale = 1; tx = 0; ty = 0;
       imgEl.style.transform = '';
@@ -4673,7 +4706,6 @@
       document.body.style.overflow = '';
     }
 
-    // 事件委托：站内所有帖子图片都可点开
     document.addEventListener('click', function (e) {
       var t = e.target;
       if (!t || t.tagName !== 'IMG') { return; }
@@ -4685,7 +4717,6 @@
       open(src);
     });
 
-    // 全局可用（后台待审核页也在用）
     window.openZoom = open;
   }
 

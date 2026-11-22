@@ -771,17 +771,34 @@ if (!function_exists('lwQzoneSync')) {
         /* 点赞数：msglist 里没有，需要逐条查 qz_opcnt2。
          * 每次最多补 30 条，避免免费主机上单个请求拖太久；其余下一轮再补。 */
         $likesSkipped = false;
-        if ((int) $cfg['sync_likes'] === 1 && $items && (microtime(true) < $deadline - 12)) {
+        /* 【点赞只补一次】
+         * 站长要求：同步时把点赞数抓一次即可，之后不需要持续同步（这台主机的
+         * qz_opcnt2 接口经常长时间挂住，硬跑会拖死整轮）。
+         * 所以只给「本地还没有赞数」的说说补：已经抓到过的（>0）直接跳过，
+         * 这样后续每轮同步根本不会发起点赞请求，速度快且不会超时。 */
+        $existingLikes = [];
+        foreach ((array) $fs->read('qzone_items') as $row) {
+            $existingLikes[(string) ($row['tid'] ?? '')] = (int) ($row['likes'] ?? 0);
+        }
+        $needLike = [];
+        foreach ($items as $itx) {
+            $t = (string) $itx['tid'];
+            if (($existingLikes[$t] ?? 0) <= 0 && (int) ($itx['likes'] ?? 0) <= 0) {
+                $needLike[] = $itx;
+            }
+        }
+        if ((int) $cfg['sync_likes'] === 1 && $needLike && (microtime(true) < $deadline - 12)) {
             $rawCk = lwQzoneGetCookie();
             $gtk   = lwQzoneGtk(lwQzoneCookieValue($rawCk, 'p_skey'));
             $uinN  = preg_replace('/\D/', '', (string) $cfg['uin']);
             /* 并发抓点赞：串行实测整轮 47 秒 → 并发 6 路后 2~4 秒。
                这直接决定「访问触发同步」时请求被拖多久。 */
             $targets = [];
-            /* 本轮拿到的条目都要补赞数：前 50 条模式下 30 条不够，
-               第二轮只会补到「新出现的」，旧的可能永远停在 0。 */
-            $budget = max(30, min(60, count($items)));
-            foreach ($items as $itx) {
+            /* 只补「还没有赞数」的说说：新出现的 + 以前没补上的。
+               已经有一次赞数的（包括站长导入时带的）永远不再请求 ——
+               满足「同步时同步一次点赞数就行，后面不需要再同步」。 */
+            $budget = max(10, min(30, count($needLike)));
+            foreach ($needLike as $itx) {
                 if ($budget-- <= 0) { break; }
                 $targets[] = ['tid' => (string) $itx['tid']];
             }
