@@ -108,8 +108,32 @@ if (isset($_FILES['images']) && is_array($_FILES['images']['name']) && !empty($_
 
 // ---- 落库与所有副作用（敏感词判定/@提醒/管理员提醒/审计）统一走内核 ----
 // AI 助手的「发布帖子」确认卡片调的是同一个 lw_do_post_create()，两边行为不会分叉。
+/* 校验引用目标：只允许引用「存在且可见」的帖子，避免引用已删除/隐藏内容。
+ * 注意：这段必须在传入数组之前执行 —— 放进数组字面量里会直接语法错误。 */
+$quoteId = max(0, (int) ($_POST['quote_post_id'] ?? 0));
+if ($quoteId > 0) {
+    $q = getFS()->findById('posts', $quoteId);
+    if (!$q || (($q['status'] ?? '') !== 'published')) { $quoteId = 0; }
+}
+
+/* 附带抽奖：字段来自发帖页「🎁 附带抽奖」块。这里只做搬运，
+ * 校验与落库统一在内核 lw_do_post_create 里（抽奖失败不会让发帖失败）。 */
+$lottery = [
+    'enabled'      => (($_POST['lottery_enabled'] ?? '0') === '1'),
+    'prize'        => $_POST['lottery_prize'] ?? '',
+    'prize_count'  => $_POST['lottery_prize_count'] ?? 1,
+    'draw_at'      => $_POST['lottery_draw_at'] ?? '',
+    'description'  => $_POST['lottery_description'] ?? '',
+    'rule_like'    => (($_POST['lottery_rule_like'] ?? '0') === '1'),
+    'rule_comment' => (($_POST['lottery_rule_comment'] ?? '0') === '1'),
+    'rule_repost'  => (($_POST['lottery_rule_repost'] ?? '0') === '1'),
+];
+
 $result = lw_do_post_create($user, [
     'category'      => $_POST['category'] ?? '',
+    /* 动态套动态：只存原帖 ID（不复制任何内容/图片），渲染时按 ID 关联展示，
+       这样转发一百次也只占一条记录的空间。 */
+    'quote_post_id' => $quoteId,
     'title'         => $_POST['title'] ?? '',
     'content'       => $_POST['content'] ?? '',
     'is_anonymous'  => (($_POST['is_anonymous'] ?? '0') === '1'),
@@ -119,6 +143,7 @@ $result = lw_do_post_create($user, [
     'images'        => $imageUrls,
     'poll_question' => $_POST['poll_question'] ?? '',
     'poll_options'  => $_POST['poll_options'] ?? '',
+    'lottery'       => $lottery,
 ]);
 
 if (empty($result['ok'])) {

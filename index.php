@@ -144,6 +144,37 @@ if (is_file($__ahJs)) {
     </div>
     <?php endif; ?>
 
+    <?php
+    /* 站内抽奖入口：有「进行中」的抽奖时在首页顶部给一条横幅，点进去参与 */
+    $__lotteryActive = [];
+    if (is_file(__DIR__ . '/includes/lottery.php')) {
+        require_once __DIR__ . '/includes/lottery.php';
+        foreach (lwLotteryAll() as $__l) {
+            if (($__l['status'] ?? '') === 'open' && strtotime((string)($__l['draw_at'] ?? '')) > time()) {
+                $__lotteryActive[] = $__l;
+            }
+        }
+    }
+    ?>
+    <?php if ($__lotteryActive): $__firstLot = $__lotteryActive[0]; ?>
+    <div class="lottery-banner">
+        <div class="container">
+            <a href="/pages/lottery.php?id=<?= (int) $__firstLot['id'] ?>">
+                🎁 抽奖进行中：<?= htmlspecialchars((string) $__firstLot['title']) ?>
+                <span class="lottery-banner-prize">奖品：<?= htmlspecialchars((string) $__firstLot['prize']) ?> × <?= (int) $__firstLot['prize_count'] ?></span>
+                <span class="lottery-banner-go">去参与 →</span>
+            </a>
+        </div>
+    </div>
+    <style>
+    .lottery-banner { background: linear-gradient(90deg, rgba(47,91,154,.10), rgba(47,91,154,.04)); border-bottom: 1px solid var(--border); }
+    .lottery-banner a { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13.5px; font-weight: 600; color: var(--primary); text-decoration: none; }
+    .lottery-banner-prize { font-weight: 400; color: var(--text-muted); font-size: 12.5px; }
+    .lottery-banner-go { margin-left: auto; font-size: 12.5px; }
+    @media (max-width: 640px) { .lottery-banner-prize { display: none; } }
+    </style>
+    <?php endif; ?>
+
     <?php if ($announcement): ?>
     <div class="announcement-bar">
         <div class="container">

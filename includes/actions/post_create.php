@@ -126,6 +126,51 @@ if (!function_exists('lw_do_post_create')) {
             ];
         }
 
+        /* ── 附带抽奖（B 站式：一条动态附带一个抽奖）─────────────────────
+         *
+         * 页面勾选「🎁 附带抽奖」后提交 lottery_* 字段，内核在这里做二次校验，
+         * 真正的落库放在帖子写入成功之后 —— 帖子是主产物，抽奖是附件：
+         * 抽奖参数不合法只跳过抽奖，绝不因此让用户的正文发不出去。
+         */
+        $lotteryReq = null;
+        $lotteryNote = '';   // 抽奖没建出来时给用户的一句话（不影响发帖成功）
+        $lotteryIn = is_array($in['lottery'] ?? null) ? $in['lottery'] : [];
+        if (!empty($lotteryIn['enabled'])) {
+            $lPrize  = trim((string)($lotteryIn['prize'] ?? ''));
+            $lCount  = max(1, min(100, (int)($lotteryIn['prize_count'] ?? 1)));
+            $lDrawAt = trim((string)($lotteryIn['draw_at'] ?? ''));
+            $lTs     = $lDrawAt !== '' ? strtotime(str_replace('T', ' ', $lDrawAt)) : 0;
+            $lTitle  = trim((string)($lotteryIn['title'] ?? ''));
+            if ($lTitle === '') {
+                // 没单独填抽奖标题时，用帖子标题；再没有就用正文前 40 字
+                $lTitle = trim($title);
+                if ($lTitle === '') { $lTitle = trim(mb_substr($content, 0, 40)); }
+                if ($lTitle === '') { $lTitle = '动态抽奖'; }
+            }
+            if ($lPrize === '') {
+                $lotteryNote = '未填写奖品，抽奖未创建';
+            } elseif (!$lTs) {
+                $lotteryNote = '开奖时间格式不对，抽奖未创建';
+            } elseif ($lTs <= time()) {
+                $lotteryNote = '开奖时间必须晚于现在，抽奖未创建';
+            } else {
+                $lotteryReq = [
+                    'title'        => $lTitle,
+                    'prize'        => $lPrize,
+                    'prize_count'  => $lCount,
+                    'draw_at'      => $lDrawAt,
+                    'description'  => trim((string)($lotteryIn['description'] ?? '')),
+                    'rule_like'    => !empty($lotteryIn['rule_like']) ? 1 : 0,
+                    'rule_comment' => !empty($lotteryIn['rule_comment']) ? 1 : 0,
+                    'rule_repost'  => !empty($lotteryIn['rule_repost']) ? 1 : 0,
+                ];
+                // 一个参与方式都没勾时默认「点赞参与」
+                if (!$lotteryReq['rule_like'] && !$lotteryReq['rule_comment'] && !$lotteryReq['rule_repost']) {
+                    $lotteryReq['rule_like'] = 1;
+                }
+            }
+        }
+
         /* ── 三层内容审核（2026-10-24）─────────────────────────────────
          *
          * 原来是「命中敏感词就 pending，否则 published」的二元判断。
@@ -247,6 +292,40 @@ if (!function_exists('lw_do_post_create')) {
 
         logUserActivity($user['id'], 'post_create', '发布帖子ID:' . $post['id']);
 
+        /* 抽奖落库：必须在帖子写成功之后，且只有「已发布」的帖子才建。
+         *
+         * 为什么待审核不建：/pages/lottery.php 列表是公开的，抽奖标题/奖品会
+         * 提前暴露待审内容，而帖子可能随后被驳回。等审核通过后单独创建更安全。
+         * 任何失败都只记录日志并给用户一句提示，绝不影响帖子创建结果。
+         */
+        $lotteryId = 0;
+        if ($lotteryReq !== null) {
+            if ($status !== 'published') {
+                $lotteryNote = '帖子待审核，抽奖暂未创建';
+            } else {
+                require_once __DIR__ . '/../lottery.php';
+                try {
+                    $lr = lwLotteryCreate((int)$user['id'], array_merge($lotteryReq, ['post_id' => (int)$post['id']]));
+                } catch (Throwable $e) {
+                    $lr = ['ok' => false, 'error' => $e->getMessage()];
+                }
+                if (!empty($lr['ok']) && (int)($lr['id'] ?? 0) > 0) {
+                    $lotteryId = (int)$lr['id'];
+                    /* 帖子侧只留 lottery_id 标记：信息流列表据此直接输出，
+                     * 不必为每条帖子回查 lotteries 表（与 quote 只存 ID 同理）。 */
+                    try {
+                        $fs->update('posts', (int)$post['id'], ['lottery_id' => $lotteryId]);
+                        $post['lottery_id'] = $lotteryId;
+                    } catch (Throwable $e) {
+                        error_log('post lottery link failed (post #' . $post['id'] . '): ' . $e->getMessage());
+                    }
+                } else {
+                    $lotteryNote = '抽奖未创建：' . (string)($lr['error'] ?? '未知原因');
+                    error_log('post lottery create failed (post #' . $post['id'] . '): ' . (string)($lr['error'] ?? ''));
+                }
+            }
+        }
+
         /* 静默翻译：响应发出后再跑，不阻塞用户。
          *
          * 只在「已发布」时翻译 —— 待审核的内容可能被驳回，
@@ -298,10 +377,26 @@ if (!function_exists('lw_do_post_create')) {
         // 成长体系：发帖得经验 + 顺带评估成就
         lwGrowthAward((int)$user['id'], 'post_create');
 
+        /* $hasSensitive 原本在本文件里没有定义（旧代码是从 api/posts/edit.php
+         * 复制过来忘了带变量），导致三处发帖路径都吃 Undefined variable 警告，
+         * 提示里也永远不会出现「内容需审核」。这里按最终状态补上定义。 */
+        $hasSensitive = ($status === 'pending');
+
+        // 抽奖没建出来时把原因并进提示（发帖本身仍然成功，不弹失败）
+        $okMessage = $hasSensitive ? '发布成功，内容需审核' : '发布成功';
+        if ($lotteryNote !== '') {
+            $okMessage .= '（' . $lotteryNote . '）';
+        }
+
         return lwActionResult(
             true,
-            $hasSensitive ? '发布成功，内容需审核' : '发布成功',
-            ['id' => $post['id'], 'status' => $status, 'category' => $category]
+            $okMessage,
+            [
+                'id'         => $post['id'],
+                'status'     => $status,
+                'category'   => $category,
+                'lottery_id' => $lotteryId,
+            ]
         );
     }
 }

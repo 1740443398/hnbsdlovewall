@@ -66,6 +66,40 @@ $postUser = $isAnonymous ? null : $fs->findById('users', $post['user_id']);
 
 $isAuthor = $user && $user['id'] == $post['user_id'];
 
+/* 引用转发：详情页同步展示被转发的动态摘要（与 api/posts/list.php 的 quote 口径一致）。
+ * 原帖不可见（删除 / 权限不匹配）时只显示「原动态已删除」，不泄露标题与正文。 */
+$quote = null;
+$quotePostId = (int)($post['quote_post_id'] ?? 0);
+if ($quotePostId > 0 && $quotePostId !== (int)$post['id']) {
+    $quoteSrc = $fs->findById('posts', $quotePostId);
+    $quoteVisible = $quoteSrc && ($quoteSrc['status'] ?? '') === 'published';
+    if ($quoteVisible && !$userIsAdmin) {
+        $qVis = $quoteSrc['visibility'] ?? 'public';
+        if ($qVis === 'visible_to') {
+            $qAllowedQQs = array_map('trim', explode(',', (string)($quoteSrc['visible_to'] ?? '')));
+            $quoteVisible = $user && in_array($user['qq'] ?? '', $qAllowedQQs, true);
+        } elseif ($qVis === 'exclude_to') {
+            $qExcludedQQs = array_map('trim', explode(',', (string)($quoteSrc['exclude_to'] ?? '')));
+            $quoteVisible = !($user && in_array($user['qq'] ?? '', $qExcludedQQs, true));
+        }
+    }
+    if ($quoteVisible) {
+        $quoteUserRow = !empty($quoteSrc['is_anonymous']) ? null : $fs->findById('users', (int)($quoteSrc['user_id'] ?? 0));
+        $quoteImgs = postImagesExisting($quoteSrc);
+        $quote = [
+            'id' => (int)$quoteSrc['id'],
+            'title' => (string)($quoteSrc['title'] ?? ''),
+            'content' => mb_substr((string)($quoteSrc['content'] ?? ''), 0, 120),
+            'image' => (string)($quoteImgs[0] ?? ''),
+            'nickname' => !empty($quoteSrc['is_anonymous']) ? '匿名用户' : (string)($quoteUserRow['nickname'] ?? ''),
+            'avatar' => (string)($quoteUserRow['avatar'] ?? '/assets/images/default-avatar.svg'),
+            'user_id' => (int)($quoteSrc['user_id'] ?? 0),
+        ];
+    } else {
+        $quote = ['id' => $quotePostId, 'deleted' => true];
+    }
+}
+
 $views = intval($post['views'] ?? 0);
 
 // 投票数据（与动态列表保持一致），供详情页内联渲染
@@ -90,6 +124,28 @@ if ($pollOptions) {
         'my_vote' => $pollMyVote,
         'has_voted' => $pollMyVote >= 0,
     ];
+}
+
+/* 附带抽奖：帖子里只存 lottery_id 标记，这里用 lwLotteryByPost 反查它那条抽奖。
+ * 只读展示入口（奖品/名额/开奖状态/参与人数），点击进 /pages/lottery.php?id=…。
+ * 找不到（帖子不带抽奖/抽奖被删）就完全不出这个块。 */
+$lotteryData = null;
+$lotteryId = (int)($post['lottery_id'] ?? 0);
+if ($lotteryId > 0) {
+    require_once __DIR__ . '/../includes/lottery.php';
+    $lotteryRow = lwLotteryByPost($postId);
+    if (!$lotteryRow) { $lotteryRow = lwLotteryGet($lotteryId); }  // 兼容 post_id 未落库的历史数据
+    if ($lotteryRow) {
+        $lotteryData = [
+            'id'          => (int)($lotteryRow['id'] ?? 0),
+            'title'       => (string)($lotteryRow['title'] ?? ''),
+            'prize'       => (string)($lotteryRow['prize'] ?? ''),
+            'prize_count' => (int)($lotteryRow['prize_count'] ?? 1),
+            'draw_at'     => (string)($lotteryRow['draw_at'] ?? ''),
+            'status'      => (string)($lotteryRow['status'] ?? 'open'),
+            'entry_count' => (int)($lotteryRow['entry_count'] ?? 0),
+        ];
+    }
 }
 
 $comments = $fs->find('comments', ['post_id' => $postId]);
@@ -460,15 +516,19 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 <?php endif; ?>
                 <div class="post-detail-meta">
                     <?php
-                    // 作者头像走全站唯一复合件（头像框 + 等级环 + 勋章），匿名时自动降级为默认头像
+                    // 作者头像走全站唯一复合件（头像框 + 等级环 + 勋章），匿名时自动降级为默认头像。
+                    // 头像与昵称都包 <a> 跳个人主页；复合件本身的结构（.lw-av / .lw-av-img）不动。
                     require_once __DIR__ . '/../includes/avatar.php';
-                    if (!$isAnonymous && $postUser) {
-                        echo lwAvatarComposite($postUser, 'md', ['extra' => 'pd-author-av']);
-                    } else {
-                        echo lwAvatarComposite([], 'md', ['anonymous' => true]);
-                    }
+                    if (!$isAnonymous && $postUser):
                     ?>
-                    <span class="author-name"><?= $isAnonymous ? t('pd.anonymous_user') : htmlspecialchars($postUser['nickname'] ?? t('pd.anonymous_user')) ?></span>
+                    <a class="post-author-link" href="/pages/u.php?id=<?= (int)$postUser['id'] ?>" aria-label="查看作者主页">
+                        <?= lwAvatarComposite($postUser, 'md', ['extra' => 'pd-author-av']) ?>
+                    </a>
+                    <a class="author-name author-name-link" href="/pages/u.php?id=<?= (int)$postUser['id'] ?>"><?= htmlspecialchars($postUser['nickname'] ?? t('pd.anonymous_user')) ?></a>
+                    <?php else: ?>
+                    <?= lwAvatarComposite([], 'md', ['anonymous' => true]) ?>
+                    <span class="author-name"><?= t('pd.anonymous_user') ?></span>
+                    <?php endif; ?>
                     <?php
                     if (!$isAnonymous && $postUser) {
                         echo renderUserTitleHTML($postUser);
@@ -507,6 +567,35 @@ require_once __DIR__ . '/../includes/text_linkify.php';
 
             <div class="post-detail-content">
                 <?= lwRichText($post['content']) ?>
+                <?php if ($quote): ?>
+                <?php if (!empty($quote['deleted'])): ?>
+                <div class="post-quote post-quote-deleted" role="note">
+                    <span class="post-quote-deleted-text">原动态已删除</span>
+                </div>
+                <?php else:
+                    $qTitle = trim((string)$quote['title']);
+                    $qContent = trim((string)$quote['content']);
+                    $qMain = $qTitle !== '' ? $qTitle : ($qContent !== '' ? $qContent : '查看原动态');
+                ?>
+                <a class="post-quote" href="/pages/post_detail.php?id=<?= (int)$quote['id'] ?>" title="查看被转发的动态">
+                    <span class="post-quote-avatar">
+                        <img src="<?= htmlspecialchars($quote['avatar']) ?>" alt="原动态作者头像" width="28" height="28" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/assets/images/default-avatar.svg'">
+                    </span>
+                    <span class="post-quote-main">
+                        <span class="post-quote-nick"><?= htmlspecialchars($quote['nickname'] !== '' ? $quote['nickname'] : '匿名用户') ?></span>
+                        <span class="post-quote-title"><?= htmlspecialchars($qMain) ?></span>
+                        <?php if ($qTitle !== '' && $qContent !== ''): ?>
+                        <span class="post-quote-desc"><?= htmlspecialchars($qContent) ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <?php if ($quote['image'] !== ''): ?>
+                    <span class="post-quote-thumb">
+                        <img src="<?= htmlspecialchars($quote['image']) ?>" alt="原动态图片" loading="lazy" decoding="async" onerror="this.parentNode.style.display='none'">
+                    </span>
+                    <?php endif; ?>
+                </a>
+                <?php endif; ?>
+                <?php endif; ?>
                 <?php
                 $images = postImagesExisting($post);
                 if (!empty($images)):
@@ -568,6 +657,16 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             </div>
             <?php endif; ?>
 
+            <?php if ($lotteryData): /* 附带抽奖入口：open 参与 / drawn 看名单 */ ?>
+            <div class="post-detail-lottery">
+                <a class="post-lottery-badge" href="/pages/lottery.php?id=<?= (int)$lotteryData['id'] ?>" title="查看这条动态附带的抽奖">
+                    <span class="post-lottery-tag">🎁 抽奖</span>
+                    <span class="post-lottery-prize"><?= htmlspecialchars($lotteryData['prize']) ?> × <?= (int)$lotteryData['prize_count'] ?></span>
+                    <span class="post-lottery-link"><?= $lotteryData['status'] === 'open' ? '参与抽奖 →' : '已开奖 · 看中奖名单' ?></span>
+                </a>
+            </div>
+            <?php endif; ?>
+
             <?php
             /* 原空间评论：只读镜像。站内评论是另一套（下面），两者都保留，
                但明确标注来源，避免用户以为墙墙本人在本站回复过。 */
@@ -618,6 +717,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                     <span class="action-icon" id="copyIcon"></span>
                     <span class="action-count"><?= t('pd.copy') ?></span>
                 </button>
+                <a class="action-btn quote-btn" href="/pages/post.php?quote=<?= (int)$postId ?>" aria-label="转发这条动态">
+                    <span class="action-icon" id="quoteIcon"></span>
+                    <span class="action-count">转发</span>
+                </a>
                 <span class="view-count" id="viewCount">
                     <span class="action-icon" id="viewIcon"></span>
                     <span><?= $views ?> <?= t('pd.views') ?></span>
@@ -667,15 +770,24 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                     ?>
                     <div class="comment-item" id="comment-<?= $c['id'] ?>" data-user-id="<?= (int)($c['user_id'] ?? 0) ?>" data-created-at="<?= htmlspecialchars((string)($c['created_at'] ?? '')) ?>" data-reply-count="<?= $replyCount ?>">
                         <?php
-                        // 评论头像同样走复合件；复用进程内用户缓存，避免逐条查库
-                        echo $cAnonymous || !$cUser
-                            ? lwAvatarComposite([], 'sm', ['anonymous' => true])
-                            : lwAvatarComposite($cUser, 'sm');
+                        // 评论头像同样走复合件；复用进程内用户缓存，避免逐条查库。
+                        // 非匿名评论的头像包 <a> 跳个人主页，复合件结构不动。
+                        if ($cAnonymous || !$cUser):
+                            echo lwAvatarComposite([], 'sm', ['anonymous' => true]);
+                        else:
                         ?>
+                        <a class="comment-avatar-link" href="/pages/u.php?id=<?= (int)$cUser['id'] ?>" aria-label="查看评论者主页">
+                            <?= lwAvatarComposite($cUser, 'sm') ?>
+                        </a>
+                        <?php endif; ?>
                         <div class="comment-body">
                             <div class="comment-header">
                                 <span class="comment-floor">#<?= $floor ?></span>
-                                <span class="comment-author"><?= $cAnonymous ? t('pd.anonymous_user') : htmlspecialchars($cUser['nickname'] ?? t('pd.anonymous_user')) ?></span>
+                                <?php if (!$cAnonymous && $cUser): ?>
+                                <a class="comment-author comment-author-link" href="/pages/u.php?id=<?= (int)$cUser['id'] ?>"><?= htmlspecialchars($cUser['nickname'] ?? t('pd.anonymous_user')) ?></a>
+                                <?php else: ?>
+                                <span class="comment-author"><?= t('pd.anonymous_user') ?></span>
+                                <?php endif; ?>
                                 <?php if (!$cAnonymous && $cUser) { echo renderUserTitleHTML($cUser); } ?>
                                 <span class="comment-time"><?= htmlspecialchars(timeAgo($c['created_at'])) ?></span>
                             </div>
@@ -853,12 +965,20 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             // 与 PHP 端 lwAvatarComposite 同构：.lw-av 槽位 + .lw-av-img 头像
             // 尺寸内联写死 —— 只靠外部 CSS 时，一旦 pwa_head 的 img{height:auto}
             // 或样式表未加载，头像就会按原图尺寸铺成大方块（线上真实发生过）
-            el.innerHTML = '<span class="lw-av' + (commentFrameHtml(rc) ? ' has-frame' : '') + '" style="--lw-av:26px;width:26px;height:26px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 26px">' +
+            var avatarUrl = (!rc.is_anonymous && rc.user_id)
+                ? '/pages/u.php?id=' + encodeURIComponent(rc.user_id)
+                : '';
+            var avatarHtml = '<span class="lw-av' + (commentFrameHtml(rc) ? ' has-frame' : '') + '" style="--lw-av:26px;width:26px;height:26px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 26px">' +
                 commentFrameHtml(rc) +
                 '<img src="' + App.escapeHtml(avatarSrc) + '" class="lw-av-img" width="23" height="23" alt="' + __t('pd.avatar') + '" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'" style="position:absolute;left:1.5px;top:1.5px;width:23px;height:23px;border-radius:50%;object-fit:cover;z-index:1">' +
-                '</span>' +
+                '</span>';
+            if (avatarUrl) avatarHtml = '<a class="comment-avatar-link" href="' + avatarUrl + '">' + avatarHtml + '</a>';
+            var authorNameHtml = avatarUrl
+                ? '<a class="comment-author comment-author-link" href="' + avatarUrl + '">' + authorName + '</a>'
+                : '<span class="comment-author">' + authorName + '</span>';
+            el.innerHTML = avatarHtml +
                 '<div class="comment-body"><div class="comment-header">' +
-                '<span class="comment-author">' + authorName + '</span>' + titleBadgeHtml(rc, 'author_') +
+                authorNameHtml + titleBadgeHtml(rc, 'author_') +
                 replyTag +
                 '<span class="comment-time">' + (rc.time_ago || '') + '</span></div>' +
                 '<p class="comment-text">' + App.escapeHtml(rc.content).replace(/\n/g, '<br>') + '</p>' +
@@ -912,6 +1032,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             var editIcon = document.getElementById('editIcon');
             var reportIcon = document.getElementById('reportIcon');
             var linkIcon = document.getElementById('linkIcon');
+            var quoteIcon = document.getElementById('quoteIcon');
             var viewIcon = document.getElementById('viewIcon');
             var commentIcon = document.getElementById('commentIcon');
             var sendIcon = document.getElementById('sendIcon');
@@ -926,6 +1047,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             if (editIcon) editIcon.innerHTML = App.svgIcon('edit', 18);
             if (reportIcon) reportIcon.innerHTML = App.svgIcon('alertCircle', 18);
             if (linkIcon) linkIcon.innerHTML = App.svgIcon('copy', 18);
+            if (quoteIcon) quoteIcon.innerHTML = App.svgIcon('share', 18);
             if (viewIcon) viewIcon.innerHTML = App.svgIcon('eye', 18);
             if (commentIcon) commentIcon.innerHTML = App.svgIcon('message', 18);
             if (sendIcon) sendIcon.innerHTML = App.svgIcon('send', 16);
@@ -1040,11 +1162,19 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 var titleHtml = titleBadgeHtml(comment, 'author_');
                 var replyTag = (isReply && replyName) ? '<span class="comment-replyto">' + __t('pd.reply_to_pre') + '<b>' + App.escapeHtml(replyName) + '</b></span>' : '';
                 var replyForBtn = isReply ? replyTarget.id : comment.id;
-                commentEl.innerHTML = '<span class="lw-av" style="--lw-av:32px;width:32px;height:32px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 32px">' +
+                var newAvatarUrl = (!comment.is_anonymous && comment.user_id)
+                    ? '/pages/u.php?id=' + encodeURIComponent(comment.user_id)
+                    : '';
+                var newAvatarHtml = '<span class="lw-av" style="--lw-av:32px;width:32px;height:32px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 32px">' +
                     '<img src="' + App.escapeHtml(avatarSrc) + '" class="lw-av-img" width="28" height="28" alt="' + __t('pd.comment_avatar') + '" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'" style="position:absolute;left:2px;top:2px;width:28px;height:28px;border-radius:50%;object-fit:cover">' +
-                    '</span>' +
+                    '</span>';
+                if (newAvatarUrl) newAvatarHtml = '<a class="comment-avatar-link" href="' + newAvatarUrl + '">' + newAvatarHtml + '</a>';
+                var newAuthorHtml = newAvatarUrl
+                    ? '<a class="comment-author comment-author-link" href="' + newAvatarUrl + '">' + authorName + '</a>'
+                    : '<span class="comment-author">' + authorName + '</span>';
+                commentEl.innerHTML = newAvatarHtml +
                     '<div class="comment-body"><div class="comment-header">' +
-                    '<span class="comment-author">' + authorName + '</span>' + titleHtml + replyTag +
+                    newAuthorHtml + titleHtml + replyTag +
                     '<span class="comment-time">' + __t('pd.just_now') + '</span></div>' +
                     '<p class="comment-text">' + App.escapeHtml(comment.content).replace(/\n/g, '<br>') + '</p>' +
                     '<div class="comment-actions">' +

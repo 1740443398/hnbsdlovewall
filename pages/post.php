@@ -64,6 +64,49 @@ if ($editPostId > 0) {
         $editPost = null;
     }
 }
+
+/* 转发（动态套动态）：/pages/post.php?quote=<id>
+ * 只允许引用「当前用户看得见且已发布」的动态。看不见的一律当作没有引用，
+ * 避免用户拿别人的私密动态 id 当探测接口。 */
+$quotePostId = intval($_REQUEST['quote'] ?? 0);
+$quotePost = null;
+$quoteUser = null;
+if ($quotePostId > 0 && !$isEditMode) {
+    $qFs = getFS();
+    $q = $qFs->findById('posts', $quotePostId);
+    $quoteVisible = $q && ($q['status'] ?? '') === 'published';
+    if ($quoteVisible) {
+        $qVis = $q['visibility'] ?? 'public';
+        if ($qVis === 'visible_to') {
+            $qAllowed = array_map('trim', explode(',', (string)($q['visible_to'] ?? '')));
+            $quoteVisible = in_array($user['qq'] ?? '', $qAllowed, true);
+        } elseif ($qVis === 'exclude_to') {
+            $qExcluded = array_map('trim', explode(',', (string)($q['exclude_to'] ?? '')));
+            $quoteVisible = !in_array($user['qq'] ?? '', $qExcluded, true);
+        }
+    }
+    if ($quoteVisible) {
+        $quotePost = $q;
+        $quotePostId = (int)$q['id'];
+        if (empty($q['is_anonymous'])) {
+            $quoteUser = $qFs->findById('users', (int)($q['user_id'] ?? 0));
+        }
+    } else {
+        $quotePostId = 0;
+    }
+}
+$quoteNick = '';
+$quoteExcerpt = '';
+if ($quotePost) {
+    $quoteNick = !empty($quotePost['is_anonymous'])
+        ? '匿名用户'
+        : (string)($quoteUser['nickname'] ?? '匿名用户');
+    if ($quoteNick === '') { $quoteNick = '匿名用户'; }
+    $quoteExcerpt = trim((string)($quotePost['title'] ?? ''));
+    if ($quoteExcerpt === '') {
+        $quoteExcerpt = mb_substr(trim((string)($quotePost['content'] ?? '')), 0, 60);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -450,6 +493,53 @@ if ($editPostId > 0) {
         }
         .poll-toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
 
+        /* 附带抽奖编辑器：复用投票编辑器骨架，只补自己的栅格与勾选行 */
+        .lottery-editor { border-color: var(--accent-light); }
+        .lottery-editor .poll-title-tag { color: var(--accent-dark); }
+        .lottery-grid {
+            display: grid;
+            grid-template-columns: 1.8fr 0.8fr 1.6fr;
+            gap: 10px 12px;
+            margin-bottom: 4px;
+        }
+        .lottery-field label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+        .lottery-field .form-input { width: 100%; }
+        .lottery-rules {
+            display: flex;
+            align-items: center;
+            gap: 6px 16px;
+            flex-wrap: wrap;
+            margin: 14px 0 12px;
+            padding: 10px 12px;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .lottery-rules .lottery-rules-label { font-weight: 600; }
+        .lottery-rules label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .lottery-rules input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+        .lottery-desc { width: 100%; min-height: 76px; resize: vertical; }
+        .lottery-toggle-row { border-color: var(--accent-light); }
+        .lottery-toggle-row input[type="checkbox"] { accent-color: var(--accent); }
+        @media (max-width: 560px) {
+            .lottery-grid { grid-template-columns: 1fr 1fr; }
+            .lottery-grid .lottery-field-wide { grid-column: 1 / -1; }
+        }
+
         /* 简繁一键切换（需求一、4）：标签与按钮同排，窄屏自动换行 */
         .zh-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 0.375rem; }
         .zh-switch-row > label { margin-bottom: 0; }
@@ -464,6 +554,42 @@ if ($editPostId > 0) {
         .zh-btn:hover { background: var(--card-bg); color: var(--primary); }
         .zh-btn:active { transform: scale(0.97); }
         .zh-btn svg { flex: 0 0 auto; }
+
+        /* 转发提示条：/pages/post.php?quote=<id> 时显示在被转发动态上方 */
+        .quote-compose-notice {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 0 0 18px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-light);
+            border-left: 3px solid var(--accent);
+            border-radius: var(--radius-sm);
+            background: var(--bg-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+        .quote-compose-icon { flex: 0 0 auto; color: var(--accent-dark); font-weight: 700; }
+        .quote-compose-notice a { color: var(--primary); font-weight: 600; text-decoration: none; }
+        .quote-compose-notice a:hover { text-decoration: underline; }
+        .quote-compose-excerpt {
+            flex: 1 1 100%;
+            min-width: 0;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .quote-compose-notice .quote-compose-cancel {
+            margin-left: auto;
+            flex: 0 0 auto;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.78rem;
+        }
 
         @media (max-width: 480px) {
             .post-card { padding: 20px; }
@@ -488,10 +614,22 @@ if ($editPostId > 0) {
         <div class="post-card">
             <h1><?= $isEditMode ? '编辑帖子' : '发布帖子' ?></h1>
 
+            <?php if ($quotePost): ?>
+            <div class="quote-compose-notice" id="quoteComposeNotice">
+                <span class="quote-compose-icon" aria-hidden="true">↪</span>
+                <span>正在转发 @<a href="/pages/post_detail.php?id=<?= (int)$quotePostId ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($quoteNick) ?></a> 的动态</span>
+                <?php if ($quoteExcerpt !== ''): ?>
+                <span class="quote-compose-excerpt"><?= htmlspecialchars($quoteExcerpt) ?></span>
+                <?php endif; ?>
+                <a class="quote-compose-cancel" href="/pages/post.php">取消转发</a>
+            </div>
+            <?php endif; ?>
+
             <div class="alert alert-error" id="alertError"></div>
 
             <form id="postForm" enctype="multipart/form-data" autocomplete="off">
                 <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                <input type="hidden" name="quote_post_id" id="quotePostId" value="<?= (int)$quotePostId ?>">
 
                 <div class="form-group">
                     <label>选择分类</label>
@@ -571,6 +709,47 @@ if ($editPostId > 0) {
                         <div class="poll-editor-tip">至少2个选项，最多10个，单个选项不超过50字</div>
                     </div>
                 </div>
+
+                <?php if (!$isEditMode): /* 抽奖只在新建动态时附带；编辑接口不改动抽奖 */ ?>
+                <div class="form-group">
+                    <div class="poll-toggle-row lottery-toggle-row">
+                        <input type="checkbox" id="enableLottery">
+                        <label for="enableLottery" style="margin-bottom:0;cursor:pointer;font-weight:600;font-size:0.9rem;">🎁 附带抽奖</label>
+                    </div>
+                    <div class="poll-editor lottery-editor" id="lotteryEditor" style="display:none;">
+                        <div class="poll-editor-head">
+                            <span class="poll-title-tag">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M3 12h18"/><path d="M12 8v13"/><path d="M12 8c-1.2-2.4-4.5-3.2-5.6-1.2C5.3 8.8 7 10 9 10h3"/><path d="M12 8c1.2-2.4 4.5-3.2 5.6-1.2C18.7 8.8 17 10 15 10h-3"/></svg>
+                                抽奖设置
+                            </span>
+                            <button type="button" class="btn-remove-poll" id="removeLotteryBtn">移除抽奖</button>
+                        </div>
+                        <div class="lottery-grid">
+                            <div class="lottery-field lottery-field-wide">
+                                <label for="lotteryPrize">奖品 <span style="color:var(--danger)">*</span></label>
+                                <input type="text" id="lotteryPrize" class="form-input" placeholder="例如：奶茶一杯 / 校园墙徽章" maxlength="60">
+                            </div>
+                            <div class="lottery-field">
+                                <label for="lotteryPrizeCount">中奖名额</label>
+                                <input type="number" id="lotteryPrizeCount" class="form-input" value="1" min="1" max="100">
+                            </div>
+                            <div class="lottery-field">
+                                <label for="lotteryDrawAt">开奖时间 <span style="color:var(--danger)">*</span></label>
+                                <input type="datetime-local" id="lotteryDrawAt" class="form-input">
+                            </div>
+                        </div>
+                        <div class="lottery-rules">
+                            <span class="lottery-rules-label">参与方式</span>
+                            <label><input type="checkbox" id="lotteryRuleLike" checked> 点赞</label>
+                            <label><input type="checkbox" id="lotteryRuleComment"> 评论</label>
+                            <label><input type="checkbox" id="lotteryRuleRepost"> 转发</label>
+                            <span style="color:var(--text-muted);font-size:.75rem">（可多选，仅作参与提示）</span>
+                        </div>
+                        <textarea id="lotteryDescription" class="form-input lottery-desc" rows="3" maxlength="500" placeholder="抽奖说明（选填）：领奖方式、额外规则等"></textarea>
+                        <div class="poll-editor-tip">发帖成功后自动创建抽奖；读者可在动态卡片点「参与抽奖 →」进入抽奖页。开奖时间必须晚于现在。</div>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <div class="form-group">
                     <div class="anon-toggle">
@@ -652,6 +831,8 @@ if ($editPostId > 0) {
         window.CSRF_TOKEN = CSRF_TOKEN;
         const IS_EDIT_MODE = <?= $isEditMode ? 'true' : 'false' ?>;
         const EDIT_POST_ID = <?= $editPostId ?>;
+        // 转发：?quote=<id> 解析后的有效 id（编辑器里隐藏域同步），0 表示普通发帖
+        const QUOTE_POST_ID = <?= (int)$quotePostId ?>;
         const EDIT_POST_DATA = <?= $editPost ? json_encode(['category' => $editPost['category'], 'title' => $editPost['title'], 'content' => $editPost['content'], 'is_anonymous' => $editPost['is_anonymous'], 'visibility' => $editPost['visibility'] ?? 'public', 'visible_to' => $editPost['visible_to'] ?? '', 'exclude_to' => $editPost['exclude_to'] ?? '', 'poll' => $editPost['poll'] ?? null], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) : 'null' ?>;
         let selectedCategory = '';
         let selectedFiles = [];
@@ -936,6 +1117,82 @@ if ($editPostId > 0) {
             }
         }
 
+        // ===== 附带抽奖编辑器（新建动态时才有；编辑模式不渲染该块）=====
+        const enableLotteryEl = document.getElementById('enableLottery');
+        const lotteryEditorEl = document.getElementById('lotteryEditor');
+
+        function lotteryPad2(n) { return (n < 10 ? '0' : '') + n; }
+        function lotteryToLocalInput(d) {
+            return d.getFullYear() + '-' + lotteryPad2(d.getMonth() + 1) + '-' + lotteryPad2(d.getDate()) +
+                'T' + lotteryPad2(d.getHours()) + ':' + lotteryPad2(d.getMinutes());
+        }
+        // 默认开奖时间 = 明天此刻；min = 1 分钟后，浏览器层先挡掉过去时间
+        function initLotteryDefaults() {
+            const drawEl = document.getElementById('lotteryDrawAt');
+            if (!drawEl) return;
+            const now = Date.now();
+            drawEl.min = lotteryToLocalInput(new Date(now + 60 * 1000));
+            if (!drawEl.value) drawEl.value = lotteryToLocalInput(new Date(now + 24 * 60 * 60 * 1000));
+        }
+        initLotteryDefaults();
+
+        if (enableLotteryEl) {
+            enableLotteryEl.addEventListener('change', function() {
+                lotteryEditorEl.style.display = this.checked ? 'block' : 'none';
+                if (this.checked) initLotteryDefaults();
+            });
+        }
+        const removeLotteryBtn = document.getElementById('removeLotteryBtn');
+        if (removeLotteryBtn) removeLotteryBtn.addEventListener('click', function() {
+            enableLotteryEl.checked = false;
+            lotteryEditorEl.style.display = 'none';
+            clearLotteryEditor();
+        });
+
+        function clearLotteryEditor() {
+            const prizeEl = document.getElementById('lotteryPrize');
+            const countEl = document.getElementById('lotteryPrizeCount');
+            const drawEl = document.getElementById('lotteryDrawAt');
+            const descEl = document.getElementById('lotteryDescription');
+            if (prizeEl) prizeEl.value = '';
+            if (countEl) countEl.value = '1';
+            if (descEl) descEl.value = '';
+            const likeEl = document.getElementById('lotteryRuleLike');
+            const commentEl = document.getElementById('lotteryRuleComment');
+            const repostEl = document.getElementById('lotteryRuleRepost');
+            if (likeEl) likeEl.checked = true;
+            if (commentEl) commentEl.checked = false;
+            if (repostEl) repostEl.checked = false;
+            if (drawEl) { drawEl.value = ''; initLotteryDefaults(); }
+        }
+
+        /* 校验抽奖字段。返回 null 表示校验失败（已弹提示），
+         * 提交端据此中止 —— 与投票的 collectPollData 同一套写法。
+         * 注：后端 lw_do_post_create 仍会再校验一次；抽奖失败不会拖垮发帖。 */
+        function collectLotteryData() {
+            if (!enableLotteryEl || !enableLotteryEl.checked) return null;
+            const prize = (document.getElementById('lotteryPrize').value || '').trim();
+            if (!prize) { showAlert('请填写抽奖奖品'); return null; }
+            const drawAt = (document.getElementById('lotteryDrawAt').value || '').trim();
+            if (!drawAt) { showAlert('请选择开奖时间'); return null; }
+            const drawTs = new Date(drawAt).getTime();
+            if (!drawTs || drawTs <= Date.now() + 60 * 1000) {
+                showAlert('开奖时间必须晚于现在（至少 1 分钟后）');
+                return null;
+            }
+            let count = parseInt(document.getElementById('lotteryPrizeCount').value, 10) || 1;
+            count = Math.max(1, Math.min(100, count));
+            return {
+                prize: prize,
+                prize_count: count,
+                draw_at: drawAt,   // datetime-local；后端 strtotime 前会把 T 换成空格
+                description: (document.getElementById('lotteryDescription').value || '').trim(),
+                rule_like: !!document.getElementById('lotteryRuleLike').checked,
+                rule_comment: !!document.getElementById('lotteryRuleComment').checked,
+                rule_repost: !!document.getElementById('lotteryRuleRepost').checked
+            };
+        }
+
         document.getElementById('postForm').addEventListener('submit', function(e) {
             e.preventDefault();
             hideAlert();
@@ -948,6 +1205,13 @@ if ($editPostId > 0) {
             const pollData = collectPollData();
             if (pollData === null && enablePollEl.checked) return;
 
+            // 附带抽奖：勾选了才校验/提交；校验失败直接中止（不发出半截数据）
+            let lotteryData = null;
+            if (!IS_EDIT_MODE && enableLotteryEl && enableLotteryEl.checked) {
+                lotteryData = collectLotteryData();
+                if (lotteryData === null) return;
+            }
+
             setLoading(document.getElementById('submitBtn'), document.getElementById('submitBtnText'), document.getElementById('submitBtnSpinner'), true);
 
             const formData = new FormData();
@@ -959,10 +1223,27 @@ if ($editPostId > 0) {
             formData.append('visibility', document.querySelector('input[name="visibility"]:checked').value);
             formData.append('visible_to', document.getElementById('visibleTo').value.trim());
             formData.append('exclude_to', document.getElementById('excludeTo').value.trim());
+            // 转发目标：编辑动态不改变原引用，只有新建时才提交 quote_post_id
+            if (!IS_EDIT_MODE) {
+                const quoteField = document.getElementById('quotePostId');
+                const quoteId = parseInt(quoteField ? quoteField.value : String(QUOTE_POST_ID), 10) || QUOTE_POST_ID;
+                if (quoteId > 0) formData.append('quote_post_id', String(quoteId));
+            }
 
             if (pollData) {
                 formData.append('poll_question', pollData.question);
                 formData.append('poll_options', pollData.options.join('\n'));
+            }
+
+            if (lotteryData) {
+                formData.append('lottery_enabled', '1');
+                formData.append('lottery_prize', lotteryData.prize);
+                formData.append('lottery_prize_count', String(lotteryData.prize_count));
+                formData.append('lottery_draw_at', lotteryData.draw_at);
+                formData.append('lottery_description', lotteryData.description);
+                formData.append('lottery_rule_like', lotteryData.rule_like ? '1' : '0');
+                formData.append('lottery_rule_comment', lotteryData.rule_comment ? '1' : '0');
+                formData.append('lottery_rule_repost', lotteryData.rule_repost ? '1' : '0');
             }
 
             if (IS_EDIT_MODE) {
@@ -1010,6 +1291,15 @@ if ($editPostId > 0) {
                 pollEnabled: enablePollEl.checked,
                 pollQuestion: document.getElementById('pollQuestion').value,
                 pollOptions: Array.from(pollOptionsEditor.querySelectorAll('.poll-option-input')).map(function(inp) { return inp.value; }),
+                // 抽奖草稿（编辑模式没有这些元素，读取时都已做空值保护）
+                lotteryEnabled: !!(enableLotteryEl && enableLotteryEl.checked),
+                lotteryPrize: document.getElementById('lotteryPrize') ? document.getElementById('lotteryPrize').value : '',
+                lotteryCount: document.getElementById('lotteryPrizeCount') ? document.getElementById('lotteryPrizeCount').value : '1',
+                lotteryDrawAt: document.getElementById('lotteryDrawAt') ? document.getElementById('lotteryDrawAt').value : '',
+                lotteryDescription: document.getElementById('lotteryDescription') ? document.getElementById('lotteryDescription').value : '',
+                lotteryRuleLike: document.getElementById('lotteryRuleLike') ? document.getElementById('lotteryRuleLike').checked : true,
+                lotteryRuleComment: document.getElementById('lotteryRuleComment') ? document.getElementById('lotteryRuleComment').checked : false,
+                lotteryRuleRepost: document.getElementById('lotteryRuleRepost') ? document.getElementById('lotteryRuleRepost').checked : false,
                 savedAt: new Date().toISOString()
             };
             try {
@@ -1041,6 +1331,17 @@ if ($editPostId > 0) {
                     if (Array.isArray(draft.pollOptions) && draft.pollOptions.length) {
                         draft.pollOptions.forEach(function(v) { addPollOptionRow(v); });
                     }
+                }
+                if (draft.lotteryEnabled && enableLotteryEl) {
+                    enableLotteryEl.checked = true;
+                    lotteryEditorEl.style.display = 'block';
+                    if (draft.lotteryPrize) document.getElementById('lotteryPrize').value = draft.lotteryPrize;
+                    if (draft.lotteryCount) document.getElementById('lotteryPrizeCount').value = draft.lotteryCount;
+                    if (draft.lotteryDrawAt) document.getElementById('lotteryDrawAt').value = draft.lotteryDrawAt;
+                    if (draft.lotteryDescription) document.getElementById('lotteryDescription').value = draft.lotteryDescription;
+                    if (typeof draft.lotteryRuleLike === 'boolean') document.getElementById('lotteryRuleLike').checked = draft.lotteryRuleLike;
+                    if (typeof draft.lotteryRuleComment === 'boolean') document.getElementById('lotteryRuleComment').checked = draft.lotteryRuleComment;
+                    if (typeof draft.lotteryRuleRepost === 'boolean') document.getElementById('lotteryRuleRepost').checked = draft.lotteryRuleRepost;
                 }
                 const cnt = (draft.content || '').length;
                 document.getElementById('charCount').textContent = cnt + ' / 5000';

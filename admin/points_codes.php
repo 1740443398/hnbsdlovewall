@@ -440,8 +440,11 @@ select.pc-input {
                 <div class="pc-step-body">
                     <div class="pc-step-title">选择要发放的商品</div>
                     <div class="pc-hint" style="margin-bottom:10px;">
-                        共 <?= count($allWidgets) ?> 个在售装扮。兑换后直接发放，
-                        不扣积分、不需要用户自己买。
+                        <?php if (!$allWidgets): ?>
+                            还没有可发放的商品 —— 请先去 <a href="/admin/widgets.php">装扮管理</a> 添加一个，再回来生成商品码。
+                        <?php else: ?>
+                            共 <?= count($allWidgets) ?> 个在售装扮。兑换后直接发放，不扣积分、不需要用户自己买。
+                        <?php endif; ?>
                     </div>
                     <select class="pc-input" name="widget_id" id="widgetSelect">
                         <option value="0">— 请选择商品 —</option>

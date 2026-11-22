@@ -1713,21 +1713,40 @@
         }
         return '<span class="' + cls + '" aria-hidden="true" style="' + st + '"></span>';
       }
+      // 作者头像 / 昵称 → 个人主页（/pages/u.php?id=）。
+      // 只把这两个节点包进 <a>，.post-card-author 仍是唯一 flex 容器，
+      // .lw-av / .lw-av-img / .lw-widget-frame 的同心结构完全不动。
+      const authorProfileUrl =
+        post.author && post.author.id
+          ? '/pages/u.php?id=' + encodeURIComponent(String(post.author.id))
+          : '';
+      const avatarSlotHtml =
+        '<span class="lw-av' + (post.author.frame ? ' has-frame' : '') + (IS_IMG_FRAME ? ' has-img-frame' : '') + '" style="--lw-av:' + AV + 'px;width:' + AV + 'px;height:' + AV + 'px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%">' +
+        frameHtml(post.author.frame) +
+        '<img src="' + escapeHtml(post.author.avatar || '/assets/images/default-avatar.svg') + '"' +
+        ' class="lw-av-img"' +
+        ' width="' + AV_D + '" height="' + AV_D + '"' +
+        ' style="position:absolute;left:' + AV_INSET + 'px;top:' + AV_INSET + 'px;width:' + AV_D + 'px;height:' + AV_D + 'px;border-radius:50%;object-fit:cover"' +
+        ' alt="头像" decoding="async" loading="lazy" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'">' +
+        '</span>';
+      const avatarLinkedHtml = authorProfileUrl
+        ? '<a class="post-author-avatar" href="' + authorProfileUrl + '" aria-label="查看用户主页">' + avatarSlotHtml + '</a>'
+        : avatarSlotHtml;
+      const authorNameHtml = authorProfileUrl
+        ? '<a class="author-name author-name-link" href="' + authorProfileUrl + '">' + escapeHtml(post.author.nickname || '匿名用户') + '</a>'
+        : '<span class="author-name">' + escapeHtml(post.author.nickname || '匿名用户') + '</span>';
+      // 私信入口从「整颗头像」挪到独立小按钮：头像已改为跳主页，
+      // 旧监听会把头像的点击吞掉，导致点头像永远到不了个人主页。
+      const authorPmHtml =
+        post.author.qq && post.author.id
+          ? '<button type="button" class="post-author-pm" data-qq="' + escapeHtml(post.author.qq) +
+            '" data-name="' + escapeHtml(post.author.nickname || '同学').replace(/"/g, '&quot;') +
+            '" title="发送私信" aria-label="发送私信">' + svgIcon('message', 14) + '</button>'
+          : '';
       const authorHtml = post.author
-        ? '<div class="post-card-author">' +
-          '<span class="lw-av' + (post.author.frame ? ' has-frame' : '') + (IS_IMG_FRAME ? ' has-img-frame' : '') + '" style="--lw-av:' + AV + 'px;width:' + AV + 'px;height:' + AV + 'px;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%">' +
-          frameHtml(post.author.frame) +
-          '<img src="' + escapeHtml(post.author.avatar || '/assets/images/default-avatar.svg') + '"' +
-          ' class="lw-av-img"' +
-          ' width="' + AV_D + '" height="' + AV_D + '"' +
-          ' style="position:absolute;left:' + AV_INSET + 'px;top:' + AV_INSET + 'px;width:' + AV_D + 'px;height:' + AV_D + 'px;border-radius:50%;object-fit:cover"' +
-          (post.author.qq && post.author.id ? ' data-qq="' + escapeHtml(post.author.qq) + '" data-name="' + escapeHtml(post.author.nickname || '同学') + '" title="发送私信"' : '') +
-          ' alt="头像" decoding="async" loading="lazy" onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'">' +
-          '</span>' +
-          '<span class="author-name">' +
-          escapeHtml(post.author.nickname || '匿名用户') +
-          '</span>' +
+        ? '<div class="post-card-author">' + avatarLinkedHtml + authorNameHtml +
           (post.author.title_text ? renderUserTitle(post.author) : '') +
+          authorPmHtml +
           '</div>'
         : '';
 
@@ -1787,6 +1806,50 @@
         '</button>' +
         '</div>';
 
+      // 引用转发（动态套动态）：正文之后的引用小卡片。
+      // 数据来自 api/posts/list.php 的 post.quote 摘要；被删时后端只给 {deleted:true}。
+      // 整块是一个 <a>，点击直接进入原动态详情；所有文本/图片 URL 都经过 escapeHtml。
+      let quoteHtml = '';
+      if (post.quote) {
+        const q = post.quote;
+        if (q.deleted) {
+          quoteHtml =
+            '<div class="post-quote post-quote-deleted" role="note">' +
+            '<span class="post-quote-deleted-text">原动态已删除</span>' +
+            '</div>';
+        } else {
+          const qId = parseInt(q.id, 10) || 0;
+          if (qId > 0) {
+            const qTitle = String(q.title || '').trim();
+            const qContent = String(q.content || '').trim().replace(/\s*\n+\s*/g, ' ');
+            const qNick = String(q.nickname || '').trim() || '匿名用户';
+            const qImage = String(q.image || '').trim();
+            const qMain = qTitle || qContent || '查看原动态';
+            quoteHtml =
+              '<a class="post-quote" href="/pages/post_detail.php?id=' + qId + '" title="查看被转发的动态">' +
+              '<span class="post-quote-avatar">' +
+              '<img src="' + escapeHtml(q.avatar || '/assets/images/default-avatar.svg') + '"' +
+              ' alt="原动态作者头像" width="28" height="28" loading="lazy" decoding="async"' +
+              ' onerror="this.onerror=null;this.src=\'/assets/images/default-avatar.svg\'">' +
+              '</span>' +
+              '<span class="post-quote-main">' +
+              '<span class="post-quote-nick">' + escapeHtml(qNick) + '</span>' +
+              '<span class="post-quote-title">' + escapeHtml(qMain) + '</span>' +
+              (qTitle && qContent ? '<span class="post-quote-desc">' + escapeHtml(qContent) + '</span>' : '') +
+              '</span>' +
+              (qImage
+                ? '<span class="post-quote-thumb"><img src="' + escapeHtml(qImage) + '" alt="原动态图片"' +
+                  ' loading="lazy" decoding="async" onerror="this.parentNode.style.display=\'none\'"></span>'
+                : '') +
+              '</a>';
+          }
+        }
+      }
+
+      // 附带抽奖：api/posts/list.php 只给 lottery_id（不复制奖品等数据），
+      // 这里只拼「🎁 抽奖」徽章 + 入口，详情/倒计时/参与都在 /pages/lottery.php。
+      const lotteryHtml = this.renderLotteryBadge(post);
+
       const pollHtml = this.renderPollWidget(post);
       card.innerHTML =
         '<div class="post-card-header">' +
@@ -1800,13 +1863,15 @@
         '<div class="post-card-content">' +
         escapeHtml(post.content).replace(/\n/g, '<br>') +
         '</div>' +
+        quoteHtml +
+        lotteryHtml +
         imagesHtml +
         (pollHtml ? '<div class="post-card-poll">' + pollHtml + '</div>' : '') +
         actionsHtml +
         authorHtml;
 
       card.addEventListener('click', (e) => {
-        if (e.target.closest('button, img, .action-btn, .post-card-images')) return;
+        if (e.target.closest('button, a, img, .action-btn, .post-card-images')) return;
         // 游客：帖子详情需注册，给出提示后再跳转注册页，避免无反馈的静默跳转
         if (window.IS_GUEST) {
           showToast(window.GUEST_BLOCKED_MSG || '需要注册账号', 'info');
@@ -1821,6 +1886,21 @@
 
       this.bindPostCardEvents(card, post);
       return card;
+    },
+
+    /* 附带抽奖徽章 HTML。
+     * 数据只有 post.lottery_id（列表接口轻量输出），不重复下发奖品/开奖时间；
+     * 整块是一个链接，点进抽奖详情页参与。没有抽奖的帖子返回空串。 */
+    renderLotteryBadge(post) {
+      const lotteryId = parseInt(post.lottery_id, 10) || 0;
+      if (lotteryId <= 0) return '';
+      return (
+        '<a class="post-lottery-badge" href="/pages/lottery.php?id=' + lotteryId + '"' +
+        ' title="这条动态附带抽奖，点此参与">' +
+        '<span class="post-lottery-tag">🎁 抽奖</span>' +
+        '<span class="post-lottery-link">参与抽奖 →</span>' +
+        '</a>'
+      );
     },
 
     // 投票组件 HTML（结果在未投票时隐藏，投票后由 bindPoll 揭示）
@@ -2102,17 +2182,18 @@
         });
       });
 
-      // 头像换成 .lw-av-img 之后，私信入口挂在整颗头像上（原来挂在 img 上）
-      const authorAvatar = card.querySelector('.author-avatar, .post-card-author .lw-av-img');
-      if (authorAvatar && authorAvatar.dataset.qq && window.App && window.App.PrivateMessage) {
-        authorAvatar.style.cursor = 'pointer';
-        authorAvatar.addEventListener('click', (e) => {
+      // 头像现在包在 .post-author-avatar 链接里（跳个人主页），私信入口独立成
+      // .post-author-pm 小按钮；不能再把点击监听挂在头像上，否则头像永远打不开主页。
+      const authorPm = card.querySelector('.post-author-pm');
+      if (authorPm && window.App && window.App.PrivateMessage) {
+        const authorAvatarImg = card.querySelector('.post-card-author .lw-av-img');
+        authorPm.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          App.PrivateMessage.openWith(authorAvatar.dataset.qq, {
-            qq: authorAvatar.dataset.qq,
-            nickname: authorAvatar.dataset.name || '同学',
-            avatar: authorAvatar.src
+          App.PrivateMessage.openWith(authorPm.dataset.qq, {
+            qq: authorPm.dataset.qq,
+            nickname: authorPm.dataset.name || '同学',
+            avatar: authorAvatarImg ? authorAvatarImg.src : ''
           });
         });
       }

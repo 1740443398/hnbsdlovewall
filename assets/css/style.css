@@ -1063,6 +1063,129 @@ a.sort-tab-room:hover { background: var(--primary-light); color: var(--primary);
 }
 .post-card-author .author-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 
+/* 信息流作者头像 / 昵称 → 个人主页（/pages/u.php?id=）。
+   只给外层 <a> 加布局与去下划线，头像框仍由 .lw-av / .lw-av-img 自己定位。 */
+.post-card-author .post-author-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--transition-fast);
+}
+.post-card-author .post-author-avatar:hover { transform: scale(1.05); }
+.post-card-author .author-name-link { text-decoration: none; color: inherit; }
+.post-card-author .author-name-link:hover { color: var(--primary); }
+/* 私信：从整颗头像挪出来的独立小按钮（保留老功能，不抢头像的主页跳转） */
+.post-card-author .post-author-pm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.post-card-author .post-author-pm:hover { color: var(--primary); background: var(--primary-light); }
+
+/* 引用转发（动态套动态）：信息流卡片与详情页共用同一套结构。 */
+.post-quote {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.post-quote:hover { border-color: var(--accent-dark); background: var(--primary-light); }
+.post-quote-avatar {
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--card-bg);
+}
+.post-quote-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.post-quote-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.post-quote-nick { font-size: 0.74rem; font-weight: 600; color: var(--text-secondary); }
+.post-quote-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.post-quote-desc {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.post-quote-thumb {
+  flex: 0 0 3rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--card-bg);
+}
+.post-quote-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* 原动态已被删除：不可点，弱化成一条静态提示 */
+.post-quote-deleted {
+  align-items: center;
+  border-left-color: var(--border);
+  color: var(--text-muted);
+  cursor: default;
+}
+.post-quote-deleted:hover { border-color: var(--border-light); background: var(--bg-secondary); }
+.post-quote-deleted-text { font-size: 0.82rem; color: var(--text-muted); }
+
+/* 详情页作者 / 评论头像与昵称 → 个人主页；不改变原 flex 布局口径 */
+.post-author-link,
+.comment-avatar-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--transition-fast);
+}
+.post-author-link:hover,
+.comment-avatar-link:hover { transform: translateY(-1px); }
+.post-detail-meta .author-name-link,
+.post-detail-meta a.author-name { color: var(--text); text-decoration: none; }
+.post-detail-meta .author-name-link:hover,
+.post-detail-meta a.author-name:hover { color: var(--primary); }
+.comment-header a.comment-author { color: inherit; text-decoration: none; }
+.comment-header a.comment-author:hover { color: var(--primary); }
+.post-detail-actions a.action-btn { text-decoration: none; }
+@media (max-width: 480px) {
+  .post-quote { padding: 0.5rem 0.625rem; }
+  .post-quote-thumb { flex-basis: 2.5rem; width: 2.5rem; height: 2.5rem; }
+}
+
 /* 加载/分页 */
 .loading-skeleton { display: flex; flex-direction: column; gap: var(--space-md); }
 .skeleton-item {
@@ -4030,4 +4153,71 @@ a:focus-visible { outline-offset: 3px; }
   font-size: 12px;
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* ===== 附带抽奖（发帖时附带，信息流卡片 / 详情页共用）=====
+ * 只给入口，不复制抽奖数据；用站内金色 accent 与蓝色投票区分。
+ * 文字色选深棕（#7A5E28 / #8A6A2B）而不是 --accent-dark，
+ * 保证浅金底上对比度达到 4.5:1（小字可读）。 */
+.post-lottery-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 2px;
+  padding: 6px 12px;
+  border: 1px solid #ECD9AC;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #FBF6EA 0%, #F6EFDD 100%);
+  color: #8A6A2B;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.post-lottery-badge:hover,
+.post-lottery-badge:focus-visible {
+  border-color: #C9A96E;
+  box-shadow: 0 2px 10px rgba(169, 132, 63, 0.18);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.post-lottery-badge:active { transform: scale(0.98); }
+.post-lottery-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #F3E7CD;
+  color: #7A5E28;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.post-lottery-link {
+  color: #8A6A2B;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.post-lottery-prize {
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* 详情页：抽奖块与投票块同宽同间距，视觉上同为「互动附件」 */
+.post-detail-lottery {
+  display: flex;
+  justify-content: flex-start;
+  padding: 4px 0 2px;
+}
+.post-detail-lottery .post-lottery-badge {
+  font-size: 0.85rem;
+  padding: 9px 14px;
+}
+@media (max-width: 480px) {
+  .post-lottery-badge { font-size: 0.76rem; padding: 6px 10px; }
+  .post-lottery-link { font-size: 0.76rem; }
 }

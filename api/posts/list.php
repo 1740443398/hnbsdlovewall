@@ -238,9 +238,42 @@ foreach ($posts as $post) {
         'created_at' => $post['created_at'] ?? '',
         'status' => $post['status'] ?? 'published',
     ];
+
+    /* 引用动态：只给「指向原帖」的摘要（id/标题/作者/首图），
+       前端点进原帖看全文 —— 不复制正文与图片，存储占用为 0 增长。 */
+    $quoteId = (int) ($post['quote_post_id'] ?? 0);
+    if ($quoteId > 0) {
+        static $__qcache = [];
+        if (!array_key_exists($quoteId, $__qcache)) {
+            $__qcache[$quoteId] = getFS()->findById('posts', $quoteId);
+        }
+        $q = $__qcache[$quoteId];
+        if ($q && (($q['status'] ?? '') === 'published')) {
+            $qu = getFS()->findById('users', (int) ($q['user_id'] ?? 0));
+            $qimgs = postImagesExisting($q);
+            $item['quote'] = [
+                'id'       => (int) $q['id'],
+                'title'    => (string) ($q['title'] ?? ''),
+                'content'  => mb_substr((string) ($q['content'] ?? ''), 0, 120),
+                'image'    => $qimgs[0] ?? '',
+                'nickname' => (string) ($qu['nickname'] ?? ''),
+                'avatar'   => (string) ($qu['avatar'] ?? '/assets/images/default-avatar.svg'),
+                'user_id'  => (int) ($qu['user_id'] ?? 0),
+            ];
+        } else {
+            $item['quote'] = ['id' => $quoteId, 'deleted' => true];
+        }
+    }
     // 仅在确有投票数据时才带上 poll，避免每条普通帖子都白送一个 "poll":null 字段
     if ($pollData !== null) {
         $item['poll'] = $pollData;
+    }
+    /* 附带抽奖：只给 lotteries.id，不复制奖品/开奖时间等数据。
+     * 卡片只用来拼 /pages/lottery.php?id=…，详情按 id 打开时再读。
+     * 同 quote 的思路：帖子侧只留一个外键标记。 */
+    $lotteryId = (int) ($post['lottery_id'] ?? 0);
+    if ($lotteryId > 0) {
+        $item['lottery_id'] = $lotteryId;
     }
     $result[] = $item;
 }
@@ -257,7 +290,7 @@ jsonSuccess(lwProjectTop(
             lwFieldsRequest(),
             ['id', 'category', 'title', 'content', 'images', 'is_anonymous', 'is_pinned',
              'visibility', 'author', 'like_count', 'comment_count', 'is_liked',
-             'is_favorited', 'created_at', 'status', 'poll'],
+             'is_favorited', 'created_at', 'status', 'poll', 'lottery_id'],
             ['id']
         ),
         'guest_limited' => $isGuest,
