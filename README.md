@@ -760,3 +760,19 @@ These are **implemented but not confirmed working in production**:
 | Broadcast | Logic runs, logs written | Actual delivery to 100+ @qq.com addresses without throttling |
 
 **Be honest about this in any handover.** "Deployed" is not "verified working".
+
+
+---
+
+## 2026-11 新功能（本轮迭代）
+
+- **发帖附带抽奖**：发帖页勾选「附带抽奖」→ 自动创建抽奖并关联动态；卡片/详情显示徽章与参与入口；到点自动开奖，支持中奖名单与「我参与的抽奖」。
+- **动态套动态（引用转发）**：只存原帖 ID，渲染时链接过去，不复制正文与图片；被引用动态删除时显示占位。
+- **头像跳个人主页**：信息流、详情、评论区头像/昵称均可点入 `/pages/u.php?id=`。
+- **图片放大**：双击放大、单击退出、底部按钮、下滑关闭，支持后台预览弹窗。
+- **后台待审核独立页**：数量徽章、逐条通过/拒绝、全部通过、内嵌预览。
+- **后台去重**：删除 moderation/review_queue/analytics/illegal_access/data_dictionary 五个重复页面（47→42）。
+- **兑换码指定商品**：修复商品选择步骤（toggleType 缺失），支持选装扮批量生成商品码。
+- **安全修复**：WAF 不再把 `?once=1` 误判 XSS（修复登录跳转 403）；注册入口不再被残留 `lw_intent` 弹回；新增 `lwSafeRedirect()`。
+- **QQ 空间同步**：前 50 条分页修复、批量导入提速（37s→0.58s）、点赞只补一次。
+- **比赛版**：`love_wall_competition` 重定位为「校园学习交流平台」，新增学习专区 `/pages/learning.php`、作品介绍页、答辩 PPT 与演示脚本。
