@@ -1525,6 +1525,15 @@ function postImagesExisting($post) {
         if (strpos($img, '..') !== false || $img[0] !== '/') {
             continue;
         }
+        /* 【虚拟图片端点：不对应磁盘文件】
+         * QQ 空间转发来的图片走 /api/qzone/image.php?tid=..&i=..（本地缓存代理），
+         * 它不是一个真实文件。原来这里 is_file() 判定失败就丢弃，
+         * 结果「帖子有图但信息流一张都不显示」—— 站长反馈的「图片没转过来」就是它。
+         * 只放行这一个受控端点，其它相对路径仍然必须真实存在。 */
+        if (strpos($img, '/api/qzone/image.php') === 0) {
+            $result[] = $img;
+            continue;
+        }
         if (!is_file($root . str_replace('/', DIRECTORY_SEPARATOR, $img))) {
             continue;
         }
