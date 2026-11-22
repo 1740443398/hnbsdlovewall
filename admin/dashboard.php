@@ -314,6 +314,18 @@ adminHeader('数据看板', $adminUser, $csrfToken);
      放在统计卡片正下方 —— 「今天来了多少人」是站长每天最重要的
      一个数字，位置必须一眼能看到，不能藏到下面的图表区里。
      ================================================================== -->
+<!-- 快捷操作：站长每天最常用的三个入口 -->
+<div class="section" style="margin-top:14px;padding:12px 16px;">
+    <div class="section-header" style="margin-bottom:10px;"><h3 style="margin:0">快捷操作</h3></div>
+    <div class="quick-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-success btn-sm" href="/admin/pending.php">待审核（<?= (int) $pendingPosts ?>）</a>
+        <a class="btn btn-sm" href="/admin/lottery.php">抽奖管理</a>
+        <a class="btn btn-sm" href="/admin/points_codes.php">生成兑换码</a>
+        <a class="btn btn-sm" href="/admin/posts.php">帖子管理</a>
+        <a class="btn btn-sm" href="/pages/post.php" target="_self">去发帖</a>
+    </div>
+</div>
+
 <div class="visit-card">
     <div class="visit-head">
         <div>

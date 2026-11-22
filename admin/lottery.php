@@ -143,6 +143,7 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
                     </div>
                     <div style="display:flex;gap:6px">
                         <a class="btn btn-sm" href="/pages/lottery.php?id=<?= (int) $l['id'] ?>">查看</a>
+                        <button class="btn btn-sm" type="button" onclick="copyLotLink(<?= (int) $l['id'] ?>)">复制链接</button>
                         <?php if ($status === 'open'): ?>
                         <form method="post" onsubmit="return confirm('立即开奖？开奖后不能再参与')">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
@@ -165,6 +166,21 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+function copyLotLink(id) {
+    var url = location.origin + '/pages/lottery.php?id=' + id;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () {
+            var t = document.createElement('div');
+            t.textContent = '链接已复制';
+            t.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#111;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:99';
+            document.body.appendChild(t);
+            setTimeout(function () { t.remove(); }, 1800);
+        }, function () { prompt('手动复制：', url); });
+    } else { prompt('手动复制：', url); }
+}
+</script>
 
 <style>
 .lot-form { display:flex; flex-direction:column; gap:12px; }

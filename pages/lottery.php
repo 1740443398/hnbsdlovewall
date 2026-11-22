@@ -68,7 +68,16 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
 <div class="wrap">
   <h1><a href="/pages/lottery.php" style="color:inherit;text-decoration:none">🎁 站内抽奖</a></h1>
 
-<?php if ($detail):
+<?php
+/* 我的参与记录：只按 lottery_id 关联读取，不复制抽奖数据 */
+$myLotIds = [];
+if ($user) {
+    foreach ((array) getFS()->read('lottery_entries') as $__e) {
+        if ((int) ($__e['user_id'] ?? 0) === (int) $user['id']) { $myLotIds[(int) $__e['lottery_id']] = true; }
+    }
+}
+
+if ($detail):
     $l = $detail;
     $status = (string) ($l['status'] ?? 'open');
     $drawTs = strtotime((string) ($l['draw_at'] ?? ''));
@@ -102,9 +111,15 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
       <?php elseif ($joined): ?>
         <p><button class="btn ghost" disabled>已参与 ✓</button></p>
       <?php else: ?>
-        <p><button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button></p>
+        <p><button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
+           <button class="btn ghost" onclick="copyShare()">复制分享链接</button></p>
       <?php endif; ?>
     <?php else: ?>
+      <?php if ($user && in_array((int) $user['id'], array_map('intval', $winnerIds), true)): ?>
+      <p style="margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(47,91,154,.08);font-size:14px;font-weight:600;color:var(--primary)">
+        🎉 恭喜你中奖了！奖品：<?= htmlspecialchars((string) $l['prize']) ?>（请联系管理员领取）
+      </p>
+      <?php endif; ?>
       <div class="winners">
         <b>🎉 中奖名单：</b>
         <?php if ($winnerIds): ?>
@@ -165,6 +180,14 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
       }).catch(function () { toast('网络错误'); self.disabled = false; self.textContent = '参与抽奖'; });
     });
 
+    function copyShare() {
+      var url = location.href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { toast('分享链接已复制'); },
+          function () { prompt('手动复制：', url); });
+      } else { prompt('手动复制：', url); }
+    }
+
     function toast(msg) {
       var t = document.querySelector('.toast');
       if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
@@ -194,6 +217,24 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
     </div>
   </a>
     <?php endforeach; endif; ?>
+    <?php if ($user && $myLotIds): ?>
+      <div class="card">
+        <h2 style="font-size:15px">我参与的抽奖</h2>
+        <div class="meta" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <?php foreach (lwLotteryAll() as $__l2):
+              if (empty($myLotIds[(int) $__l2['id']])) { continue; }
+              $__st = (string) ($__l2['status'] ?? 'open');
+              $__win = json_decode((string) ($__l2['winners'] ?? '[]'), true) ?: [];
+              $__won = in_array((int) $user['id'], array_map('intval', $__win), true);
+          ?>
+          <a href="/pages/lottery.php?id=<?= (int) $__l2['id'] ?>" style="color:var(--primary);text-decoration:none">
+            <?= htmlspecialchars((string) $__l2['title']) ?>
+            <?= $__st === 'drawn' ? ($__won ? '· 🎉 已中奖' : '· 已开奖') : '· 进行中' ?>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    <?php endif; ?>
 <?php endif; ?>
 </div>
 </body>
