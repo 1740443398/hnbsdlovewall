@@ -91,6 +91,9 @@ header('Expires: 0');
             background-attachment: fixed;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -207,6 +210,8 @@ header('Expires: 0');
             display: flex;
             align-items: center;
             justify-content: center;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
         .input-icon-btn:hover {
@@ -216,6 +221,16 @@ header('Expires: 0');
         /* 密码框右侧为“显示/隐藏”按钮预留空间，避免文字被按钮遮挡 */
         .form-input.input-password {
             padding-right: 72px;
+            width: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        /* 密码框 + 眼睛按钮：输入框必须占满整行，否则按钮会落在框外压住强度条 */
+        .input-wrapper > .form-input {
+            width: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .error-message {

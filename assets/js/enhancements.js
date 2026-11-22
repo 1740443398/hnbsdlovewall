@@ -8855,12 +8855,26 @@
 
   var PasswordStrengthMeter = {
     init: function () {
+      /* 注册页自带一条强度条（#passwordStrength），这里不再重复注入 */
+      if (document.getElementById('passwordStrength')) return;
       var pwInput = document.querySelector('input[type="password"][name="password"], input[type="password"][name="new_password"], #register-password');
       if (!pwInput) return;
+      /* 【必须插到 .input-wrapper 外面】
+       * .input-wrapper 是 flex 行，里面已经是「密码框 + 显示按钮」。
+       * 原来把强度条插到输入框后面 = 塞进同一个 flex 行：
+       * 强度条占掉 116px，密码框从 332px 被挤到 205px，
+       * 绝对定位的「显示」按钮正好压在强度条上 —— 站长看到的重叠就是这个。
+       * 正确位置：wrapper 的兄弟节点（.form-group 内），独占输入框下面一行。 */
+      var host = pwInput.parentNode;
+      var isWrapper = host && host.classList && host.classList.contains('input-wrapper');
+      var anchorNode = isWrapper ? host : pwInput;
+      var insertParent = isWrapper ? host.parentNode : host;
+      if (!insertParent) return;
+
       var meter = document.createElement('div');
       meter.className = 'pw-strength-meter';
       meter.style.cssText = 'height:4px;border-radius:2px;margin-top:6px;transition:all 0.3s;background:var(--border);width:0;';
-      pwInput.parentNode.insertBefore(meter, pwInput.nextSibling);
+      insertParent.insertBefore(meter, anchorNode.nextSibling);
       var label = document.createElement('span');
       label.className = 'pw-strength-label';
       label.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:2px;display:block;';

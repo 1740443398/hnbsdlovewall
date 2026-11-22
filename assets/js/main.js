@@ -2798,46 +2798,46 @@
     if (!bar) return;
     const scroll = bar.querySelector('.announcement-scroll');
     if (!scroll) return;
-    // 【2026-11-21】先判断「真的溢出」再决定要不要复制 + 滚动。
-    //
-    // 原来这里无条件 scroll.innerHTML = items + items。
-    // 复制一份是为了让 translateX(-50%) 的无缝循环成立 ——
-    // 但前提是「单份内容比可见区更宽」。
-    //
-    // 公告通常只有一句话（比如「欢迎来到…请遵守社区规范」），
-    // 单份宽 ~560px，而容器在 1280px 桌面下 ~1250px ——
-    // 复制出来的两份能**同时完整显示在一行里**，
-    // 用户看到的就是「同一段公告并排写了两遍」，第一眼像界面出了 bug。
-    //
-    // 所以：不溢出就保持单份、静止、居中；只有确实放不下才复制并滚动。
-    const items = scroll.innerHTML;
-    const overflowing = scroll.scrollWidth > scroll.clientWidth + 2;
 
-    if (!overflowing) {
-      scroll.classList.remove('is-scrolling');
-      const forceStill = (prop, val) => scroll.style.setProperty(prop, val, 'important');
-      forceStill('animation', 'none');
-      forceStill('justify-content', 'center');
-      return;
-    }
+    // 【公告栏必须一直滚动】
+    // 之前做过一版「内容没超出容器就静止居中」的优化 —— 确实避免了
+    // 「同一句公告并排写两遍」的观感，但代价是：公告短一点就完全不动，
+    // 站长看到的就是「通知栏不滚动了」。信息条不滚动会让人以为坏了。
+    //
+    // 现在的做法：无论长短都做成无缝走马灯 ——
+    //   内容 + 间隔 + 内容 + 间隔，用 translateX(-50%) 循环；
+    //   · 长内容：与原来的滚动完全一致
+    //   · 短内容：两份之间有 35% 容器宽的空白，读起来是「走马灯重播」，
+    //     而不是「一句话写了两遍」
+    // 速度按距离算（约 60px/秒），长公告不会一闪而过。
+    const items = scroll.innerHTML.trim();
+    if (!items) return;
 
-    scroll.innerHTML = items + items;
+    const vw = scroll.clientWidth || 360;
+    const gap = Math.max(48, Math.round(vw * 0.35));
+    const gapHtml = '<span class="ann-gap" aria-hidden="true" style="display:inline-block;width:' + gap + 'px"></span>';
 
-    // 【2026-10-18】把滚动参数写成**行内 !important**。
-    // 为什么不用 CSS：全站有一条通配规则
-    //   @media (prefers-reduced-motion: reduce) { * { animation-duration:.001ms !important } }
-    // 它是给装饰动效用的，但公告条承载的是信息 —— 被它一压，滚动直接停住，
-    // 长公告停在左边看不见。行内 !important 的层叠优先级最高，
-    // 不用再和那条通配规则比特异性（试过 .announcement-bar .announcement-scroll 仍然被压）。
-    /* 先标上类再写行内 !important：类是给没开行内样式的场景兜底，
-       行内 !important 用来压过 prefers-reduced-motion 的通配规则 */
+    scroll.innerHTML = items + gapHtml + items + gapHtml;
+    // 单份宽度 = 总宽的一半
+    const half = Math.round(items.length > 0 ? scroll.scrollWidth / 2 : scroll.scrollWidth);
+    const dist = Math.max(120, Math.round(scroll.scrollWidth / 2));
+    const dur = Math.max(10, Math.round(dist / 60)) + 's';
+
+    /* 先标类再写行内 !important：
+       类是给没开行内样式的场景兜底；行内 !important 用来压过
+       prefers-reduced-motion 的通配规则（信息条不该被装饰性动效规则关掉）。 */
     scroll.classList.add('is-scrolling');
     const force = (prop, val) => scroll.style.setProperty(prop, val, 'important');
     force('animation-name', 'announcementScroll');
-    force('animation-duration', '26s');
+    force('animation-duration', dur);
     force('animation-timing-function', 'linear');
     force('animation-iteration-count', 'infinite');
     force('animation-play-state', 'running');
+    /* 元素自身也是 flex 子项：只设 width:max-content 会被 flex-shrink 压回容器宽，
+       导致 -50% 位移只走容器一半就回跳（实测 1168px 内容只滚了 183px）。
+       必须同时禁止收缩，宽度才真的是内容宽。 */
+    force('width', 'max-content');
+    force('flex', '0 0 auto');
 
     bar.addEventListener('mouseenter', () => {
       scroll.style.animationPlayState = 'paused';

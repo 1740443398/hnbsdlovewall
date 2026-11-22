@@ -299,6 +299,37 @@ class FileStorage {
     }
 
     /**
+     * 批量插入：只加锁/读文件/写文件各一次。
+     *
+     * 【为什么必须有它】
+     * insert() 每插一条就整文件重写一遍。QQ 动态一次要导入几百条，
+     * 用 insert() 就是几百次全量读写（O(n²)），在免费主机上必然超时。
+     * 批量插入把「几百次」压成「一次」。
+     */
+    public function insertMany($table, array $records, bool $keepCreatedAt = false) {
+        if (empty($records)) { return []; }
+        $this->acquireLock($table, LOCK_EX);
+        $data = $this->readUnlocked($table);
+        $out = [];
+        $now = date('Y-m-d H:i:s');
+        foreach ($records as $rec) {
+            $rec['id'] = $this->generateId($data);
+            /* keepCreatedAt=true：调用方给的 created_at 是有意义的（比如 QQ 评论原时间），
+               不能被「现在」覆盖。update 时仍写 now。 */
+            if (!$keepCreatedAt || empty($rec['created_at'])) { $rec['created_at'] = $now; }
+            $rec['updated_at'] = $now;
+            $data[] = $rec;
+            $out[] = $rec;
+        }
+        $result = $this->writeUnlocked($table, $data);
+        if (!$result) {
+            error_log('FileStorage insertMany: write failed for table ' . $table . ' with ' . count($records) . ' records');
+        }
+        $this->releaseLock($table);
+        return $result ? $out : [];
+    }
+
+    /**
      * 插入一条记录，并按条数上限裁剪（保留最近 $maxRecords 条）。
      * 用于日志类表：避免表无限膨胀后每次追加都要整文件重写，拖慢共享主机。
      */

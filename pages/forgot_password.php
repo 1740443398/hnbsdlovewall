@@ -77,6 +77,9 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
             background-attachment: fixed;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -193,7 +196,20 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
             display: flex;
             align-items: center;
             justify-content: center;
+            top: 50%;
+            transform: translateY(-50%);
         }
+
+        /* 输入框必须占满整行：.input-wrapper 是 flex，输入框允许收缩就会被挤窄，
+           绝对定位的按钮随即落到框外压住下面的提示（手机端实测） */
+        .input-wrapper > .form-input {
+            width: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        /* 右侧有按钮的输入框，给按钮留出空间，避免文字被压 */
+        .input-wrapper > input[type="password"] { padding-right: 64px; }
+        .input-wrapper > #resetCode { padding-right: 112px; }
 
         .input-icon-btn:hover {
             color: var(--text);

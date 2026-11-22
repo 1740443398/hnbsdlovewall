@@ -51,7 +51,7 @@ if (!function_exists('lwQzoneDefaults')) {
             'image_quality'   => 82,    // JPEG 质量 60-92
             'prefetch_per_run'=> 8,     // 每次同步最多预热多少张图（避免单次请求太久）
             /* OCR：站长要求「线上自动识别」，所以走云端 API（OCR.space 免费档支持中文） */
-            'ocr_enabled'     => 1,     // 是否自动识别图片文字（默认开）
+            'ocr_enabled'     => 0,     // 是否自动识别图片文字（默认关：站长反馈效果一般，代码保留可随时开）
             'ocr_api_key'     => 'helloworld', // OCR.space 的 key；'helloworld' 是官方公开测试 key，建议换成自己免费申请的
             'ocr_per_run'     => 3,     // 每次同步最多识别几张图
             'notify_email'    => '',
@@ -252,6 +252,11 @@ if (!function_exists('lwQzoneHttp')) {
         if (!function_exists('curl_init')) {
             return ['ok' => false, 'code' => 0, 'body' => '', 'err' => 'curl 扩展不可用'];
         }
+        /* 【自动续期】QQ 每次请求都可能通过 Set-Cookie 下发新的 skey / p_skey。
+         * 原来这些响应头被直接丢弃，等于「每次都在用旧会话」——
+         * 现在把它们抓下来，交给调用方合并回存储（见 lwQzoneAbsorbResponseCookies）。
+         * 这是「一次扫码长期可用」最关键的一环：只要会话还活，密钥会被自动续上。 */
+        $respCookies = [];
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -266,12 +271,106 @@ if (!function_exists('lwQzoneHttp')) {
                 'Referer: https://user.qzone.qq.com/',
             ],
             CURLOPT_COOKIE         => $cookie,
+            CURLOPT_HEADERFUNCTION => function ($ch2, $header) use (&$respCookies) {
+                if (stripos($header, 'set-cookie:') === 0) {
+                    $raw = trim(substr($header, 11));
+                    $pair = explode(';', $raw)[0] ?? '';
+                    if (strpos($pair, '=') !== false) {
+                        [$k, $v] = explode('=', $pair, 2);
+                        $k = trim($k); $v = trim($v);
+                        if ($k !== '') { $respCookies[$k] = $v; }
+                    }
+                }
+                return strlen($header);
+            },
         ]);
         $body = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = (string) curl_error($ch);
         curl_close($ch);
-        return ['ok' => $body !== false && $err === '', 'code' => $code, 'body' => is_string($body) ? $body : '', 'err' => $err];
+        return ['ok' => $body !== false && $err === '', 'code' => $code, 'body' => is_string($body) ? $body : '', 'set_cookies' => $respCookies, 'err' => $err];
+    }
+}
+
+if (!function_exists('lwQzoneAbsorbResponseCookies')) {
+    /**
+     * 把响应里下发的 Set-Cookie 合并进已保存的 Cookie（自动续期）。
+     *
+     * 【为什么这是「一次扫码长期可用」的关键】
+     * skey / p_skey 是腾讯服务端签发的**会话密钥**，算法上不可能离线推算。
+     * 但它们会随着正常请求不断被刷新下发 —— 只要会话还活着。
+     * 原来这些响应头被丢弃，所以我们永远在用最初那份；一旦它过期就彻底失效。
+     * 现在每次响应都把新值吸收回来，等于「用着用着就自动续期了」。
+     *
+     * 规则：
+     *   · 只接受非空值（QQ 有时会下发空值表示清除，不能把有效值覆盖成空）
+     *   · 其余字段原样保留（uin / p_uin / pt4_token / media_p_skey ...）
+     *   · 有关键字段变化才写盘，避免每次请求都写配置
+     */
+    function lwQzoneAbsorbResponseCookies(array $pairs): int
+    {
+        if (!$pairs) { return 0; }
+        $raw = lwQzoneGetCookie();
+        if ($raw === '') { return 0; }
+        $changed = 0;
+        foreach ($pairs as $k => $v) {
+            $k = trim((string) $k);
+            $v = trim((string) $v);
+            if ($k === '' || $v === '') { continue; }
+            $cur = lwQzoneCookieValue($raw, $k);
+            if ($cur === $v) { continue; }
+            if ($cur === '') {
+                $raw .= '; ' . $k . '=' . $v;
+            } else {
+                $raw = preg_replace('/(^|;\s*)' . preg_quote($k, '/') . '=[^;]*/',
+                                    '$1' . $k . '=' . $v, $raw, 1);
+            }
+            $changed++;
+        }
+        if ($changed > 0) {
+            lwQzoneSetCookie($raw);
+            lwQzoneSaveConfig(['cookie_refreshed_at' => time()]);
+        }
+        return $changed;
+    }
+}
+
+if (!function_exists('lwQzoneKeepAlive')) {
+    /**
+     * 保活：带着现有 Cookie 访问空间首页，让服务端续期会话并吸收新密钥。
+     * 返回 ['ok'=>bool,'state'=>'ok|cookie_expired','refreshed'=>int,'err'=>string]
+     */
+    function lwQzoneKeepAlive(): array
+    {
+        $cfg = lwQzoneConfig();
+        $uin = preg_replace('/\D/', '', (string) $cfg['uin']);
+        $raw = lwQzoneGetCookie();
+        if ($uin === '' || $raw === '') {
+            return ['ok' => false, 'state' => 'cookie_expired', 'refreshed' => 0, 'err' => '未配置 Cookie'];
+        }
+        $refreshed = 0;
+        $last = null;
+        foreach (['https://user.qzone.qq.com/' . $uin, 'https://qzone.qq.com/'] as $url) {
+            $r = lwQzoneHttp($url, lwQzoneGetCookie(), 15);
+            $last = $r;
+            if (!empty($r['set_cookies'])) {
+                $refreshed += lwQzoneAbsorbResponseCookies($r['set_cookies']);
+            }
+        }
+        /* 【必须用真实接口验证，不能只看字段在不在】
+         * 实测：随便一份假的 skey/p_skey 也能通过「字段存在」检查，
+         * 于是保活会误报成功，同步继续失败 —— 那就等于没自检。
+         * 这里拉 1 条说说做探针：真正能读到数据才算活着。 */
+        $probe = lwQzoneFetchFeeds(0, 1);
+        $alive = !empty($probe['ok']) && !empty($probe['items']);
+        $state = $alive ? 'ok' : ((string) ($probe['state'] ?? 'cookie_expired'));
+        lwQzoneSaveConfig(['last_alive_at' => $alive ? time() : 0]);
+        return [
+            'ok'        => $alive,
+            'state'     => $state,
+            'refreshed' => $refreshed,
+            'err'       => $alive ? '' : ('保活失败：' . ((string) ($probe['err'] ?? '')) ?: 'Cookie 已失效，需要重新扫码或粘贴'),
+        ];
     }
 }
 
@@ -299,6 +398,10 @@ if (!function_exists('lwQzoneFetchFeeds')) {
         $r = lwQzoneHttp($url, $raw);
         if (!$r['ok']) {
             return ['ok' => false, 'state' => 'error', 'items' => [], 'err' => '网络请求失败：' . $r['err']];
+        }
+        /* 每次拉取都顺手把服务端新下发的密钥吸收进来（会话保持活跃时自动续期） */
+        if (!empty($r['set_cookies'])) {
+            lwQzoneAbsorbResponseCookies($r['set_cookies']);
         }
         $body = trim($r['body']);
         /* 剥 JSONP 外壳：_Callback({...}) 或 callback({...}) */
@@ -486,18 +589,46 @@ if (!function_exists('lwQzoneNormalizeList')) {
             if ($tid === '') {
                 continue;
             }
+            /* 【图片：一张都不能丢】
+             *
+             * 原来只取 url1（QQ 返回的三档尺寸里最小的那档），
+             * 而且早期是用 HTML 抓只拿到封面，所以实测 19 条说说只有 22 张图
+             * （16 条各 1 张、3 条各 2 张）—— 站长反馈「基本每条都有图」。
+             *
+             * QQ 的 pic 项有两种形态，都要兼容：
+             *   · 数组：['url1'=>小, 'url2'=>中, 'url3'=>大, ...]
+             *   · 字符串：直接就是图片地址
+             * 尺寸优先取 url3 → url2 → url1（大图清晰，后续我们自己再压缩）。 */
             $images = [];
             if (!empty($it['pic']) && is_array($it['pic'])) {
                 foreach ($it['pic'] as $p) {
+                    if (is_string($p)) {
+                        $p = trim($p);
+                        if ($p !== '') { $images[] = $p; }
+                        continue;
+                    }
                     if (!is_array($p)) {
                         continue;
                     }
-                    $u = (string) ($p['url1'] ?? ($p['url2'] ?? ($p['url3'] ?? '')));
-                    if ($u !== '') {
-                        $images[] = $u;
+                    $u = (string) ($p['url3'] ?? ($p['url2'] ?? ($p['url1'] ?? ($p['url'] ?? ''))));
+                    if ($u === '') {
+                        /* 少数形态把地址放在 pic[i]['url'] 里或直接是字符串列表 */
+                        $u = (string) ($p['pic'] ?? '');
+                    }
+                    if ($u !== '') { $images[] = $u; }
+                }
+            }
+            /* 有些说说（尤其长图/多图）图片在 pic2 里 */
+            if (empty($images) && !empty($it['pic2']) && is_array($it['pic2'])) {
+                foreach ($it['pic2'] as $p) {
+                    if (is_string($p) && trim($p) !== '') { $images[] = trim($p); }
+                    elseif (is_array($p)) {
+                        $u = (string) ($p['url3'] ?? ($p['url2'] ?? ($p['url1'] ?? '')));
+                        if ($u !== '') { $images[] = $u; }
                     }
                 }
             }
+            $images = array_values(array_unique($images));
             $comments = [];
             if (!empty($it['commentlist']) && is_array($it['commentlist'])) {
                 foreach ($it['commentlist'] as $c) {
@@ -517,6 +648,8 @@ if (!function_exists('lwQzoneNormalizeList')) {
                         'tid'        => $cid,
                         'author'     => (string) ($c['name'] ?? ($c['nickname'] ?? '')),
                         'author_uin' => (string) ($c['uin'] ?? ''),
+                        /* 评论人头像：QQ 接口可能给 icon/portrait，没有就按 uin 拼 QQ 头像 */
+                        'author_avatar' => (string) ($c['icon'] ?? ($c['portrait'] ?? ($c['avatar'] ?? ''))),
                         'content'    => $ctext,
                         'created_at' => (int) ($c['createTime'] ?? ($c['create_time'] ?? 0)),
                     ];
@@ -558,6 +691,15 @@ if (!function_exists('lwQzoneSync')) {
 
         for ($p = 0; $p < $pages; $p++) {
             $r = lwQzoneFetchFeeds($p * $num, $num);
+            if (!$r['ok'] && ($r['state'] ?? '') === 'cookie_expired') {
+                /* 【先自救再报错】Cookie 失效时先跑一次保活：
+                 * 很多「失效」只是 p_skey 轮换没了，skey 还活着 ——
+                 * 访问一次空间首页就能拿回新 p_skey，不必让站长重新扫码。 */
+                $ka = lwQzoneKeepAlive();
+                if (!empty($ka['ok'])) {
+                    $r = lwQzoneFetchFeeds($p * $num, $num);
+                }
+            }
             if (!$r['ok']) {
                 lwQzoneSaveConfig([
                     'last_state' => $r['state'],

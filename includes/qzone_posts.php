@@ -67,6 +67,140 @@ if (!function_exists('lwQzoneBotUser')) {
     }
 }
 
+if (!function_exists('lwQzoneItemComments')) {
+    /**
+     * 取一条说说的评论列表。
+     *
+     * 优先用 qzone_comments 表（同步时按评论抓取、可能补全更多字段），
+     * 表里没有时回退到 item 自带的 comment_list JSON ——
+     * 否则「评论被同步进 comment_list 但没写表」这种情形会一条都导不进来。
+     */
+    function lwQzoneItemComments(string $tid, array $item, array $byTid): array
+    {
+        if (isset($byTid[$tid]) && is_array($byTid[$tid]) && $byTid[$tid]) {
+            return $byTid[$tid];
+        }
+        $raw = $item['comment_list'] ?? '';
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) { return $decoded; }
+        }
+        return [];
+    }
+}
+
+if (!function_exists('lwQzoneShadowUser')) {
+    /**
+     * QQ 评论人 → 站内「影子用户」。
+     *
+     * 站长的要求：把 QQ 空间那条帖子下的评论一并搬过来，评论人就用 QQ 名 + QQ 头像。
+     * 站内的评论渲染依赖 comments.user_id → users 记录（取昵称与头像），
+     * 所以这里给每个 QQ 评论人建一条轻量用户记录：
+     *   · 昵称用 QQ 名，头像按 uin 拼 QQ 头像（q.qlogo.cn）
+     *   · 随机密码 + 随机 security_stamp → 无法登录（不是可登录账号）
+     *   · 按 qq（uin）去重，同一个人只建一次
+     *   · source 标记来源，方便后台区分「真实注册用户」与「同步来的评论人」
+     */
+    function lwQzoneShadowUser(string $uin, string $nick, string $avatar = ''): ?array
+    {
+        $uin = preg_replace('/\D/', '', $uin);
+        if ($uin === '') { return null; }
+        /* 昵称里也可能带 QQ 表情码（实测有个评论人叫「实习盖章打卡论文[em]e258679[/em]🤗🤗」），
+           显示在墙上就是乱码，剥掉。 */
+        $nick = trim((string) preg_replace('/\[em\]e\d+\[\/em\]/i', '', $nick));
+        $fs = getFS();
+        $found = $fs->findOne('users', ['qq' => $uin]);
+        if ($found) { return $found; }
+
+        if ($avatar === '') {
+            $avatar = 'https://q.qlogo.cn/headimg_dl?dst_uin=' . $uin . '&spec=100';
+        }
+        $rec = [
+            'qq'             => $uin,
+            'uuid'           => generateUUID(),
+            'password_hash'  => hashPassword(bin2hex(random_bytes(16))),
+            'nickname'       => $nick !== '' ? $nick : ('QQ用户' . substr($uin, -4)),
+            'avatar'         => $avatar,
+            'role'           => 'user',
+            'security_stamp' => generateSecurityStamp(),
+            'is_banned'      => 0,
+            'invite_code'    => 'QZC' . substr(sha1($uin), 0, 5),
+            'invited_by'     => 0,
+            'is_bot'         => 0,
+            'bio'            => '',
+            'source'         => 'qzone_comment_import',
+        ];
+        $created = $fs->insert('users', $rec);
+        return $created ?: null;
+    }
+}
+
+if (!function_exists('lwQzoneImportComments')) {
+    /**
+     * 把「帖子里挂着的 QQ 评论」变成站内真实评论。返回新增条数。
+     *
+     * $map: [post_id => [评论数组, ...]]
+     *
+     * 幂等：按 comments.qq_tid 去重，重复同步不会重复插入。
+     * 性能：先在内存里建立已存在集合，再一次性 insertMany —— 几百条评论也只写一次盘。
+     */
+    function lwQzoneImportComments(array $map): int
+    {
+        if (!$map) { return 0; }
+        $fs = getFS();
+        $known = [];
+        $postTimes = [];
+        foreach ((array) $fs->read('posts') as $pp) {
+            $pt = (string) ($pp['created_at'] ?? '');
+            if ($pt !== '') { $postTimes[(int) ($pp['id'] ?? 0)] = (int) strtotime($pt); }
+        }
+        foreach ((array) $fs->read('comments') as $c) {
+            if (!empty($c['qq_tid'])) { $known[(string) $c['qq_tid']] = 1; }
+        }
+        $rows = [];
+        foreach ($map as $postId => $list) {
+            foreach ((array) $list as $c) {
+                /* 【字段兼容】评论有两个来源，字段名不一样：
+                 *   · API/comment_list：tid / author / author_uin / author_avatar / created_at
+                 *   · qzone_comments 表：item_tid / author / author_uin / posted_ts（没有 tid）
+                 * 原来只认 tid，走表路径时全部被当成空 id 跳过 —— 一条都导不进来。 */
+                $rawId = (string) ($c['tid'] ?? ($c['qq_tid'] ?? ($c['id'] ?? '')));
+                $uin  = (string) ($c['author_uin'] ?? ($c['uin'] ?? ''));
+                $name = (string) ($c['author'] ?? ($c['name'] ?? ($c['nickname'] ?? '')));
+                $av   = (string) ($c['author_avatar'] ?? ($c['avatar'] ?? ($c['icon'] ?? '')));
+                $text = trim((string) ($c['content'] ?? ''));
+                /* 早期抓取存下来的评论里可能带 QQ 表情码 [em]e258679[/em]，
+                   API 路径已在归一化时剥离，这里再兜一层（表格路径进来的没剥过）。 */
+                $text = trim((string) preg_replace('/\[em\]e\d+\[\/em\]/i', '', $text));
+                if ($text === '') { continue; }
+                $ts   = (int) ($c['created_at'] ?? ($c['posted_ts'] ?? 0));
+                if ($ts <= 0) { $ts = (int) ($postTimes[(int) $postId] ?? 0); }
+                /* 没有 QQ 评论 id 时，用「帖子+作者+内容+时间」生成稳定指纹做去重 */
+                $qtid = $rawId !== '' ? $rawId
+                      : 'h' . substr(md5($postId . '|' . $uin . '|' . $name . '|' . $text . '|' . $ts), 0, 20);
+                if (isset($known[$qtid])) { continue; }
+                $u = lwQzoneShadowUser($uin, $name, $av);
+                if (!$u) { continue; }
+                $rows[] = [
+                    'post_id'      => (int) $postId,
+                    'user_id'      => (int) $u['id'],
+                    'content'      => $text,
+                    'is_anonymous' => 0,
+                    'parent_id'    => 0,
+                    'qq_tid'       => $qtid,
+                    'source'       => 'qzone',
+                    /* 保留 QQ 评论原时间（insertMany 的第三参数会尊重它） */
+                    'created_at'   => $ts > 0 ? date('Y-m-d H:i:s', $ts) : '',
+                ];
+                $known[$qtid] = 1;
+            }
+        }
+        if (!$rows) { return 0; }
+        $inserted = $fs->insertMany('comments', $rows, true);
+        return count($inserted);
+    }
+}
+
 if (!function_exists('lwQzonePostImages')) {
     /** 说说里的图片 → 站内代理地址（走本地缓存，避免 QQ 防盗链与过期签名） */
     function lwQzonePostImages(string $tid, array $urls): array
@@ -121,15 +255,22 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                    tid 是这条评论自己的序号）。这里按 item_tid 归组。 */
                 $t = (string) ($c['item_tid'] ?? '');
                 if ($t === '') { continue; }
+                /* 原样透传：QQ 评论 id / 评论人 uin / 原始时间都要保留，
+                   否则后面「评论人建影子用户（需要 uin）+ 去重（需要 tid）+ 时间（需要 posted_ts）」
+                   全部失效 —— 实测就是因为这里只留了 name/content/time，评论一条都导不进来。 */
                 $qcomments[$t][] = [
-                    'name'    => (string) ($c['author'] ?? ''),
-                    'content' => (string) ($c['content'] ?? ''),
-                    'time'    => (string) ($c['time'] ?? ''),
+                    'tid'           => (string) ($c['tid'] ?? ''),
+                    'author'        => (string) ($c['author'] ?? ''),
+                    'author_uin'    => (string) ($c['author_uin'] ?? ''),
+                    'author_avatar' => (string) ($c['author_avatar'] ?? ''),
+                    'content'       => (string) ($c['content'] ?? ''),
+                    'created_at'    => (int) ($c['posted_ts'] ?? 0),
                 ];
             }
         }
 
         $created = 0; $updated = 0; $skipped = 0; $hidden = 0;
+        $cmtMap  = [];   /* post_id => QQ 评论列表，循环结束后一次性批量导入 */
         foreach ($items as $it) {
             $tid = (string) ($it['tid'] ?? '');
             if ($tid === '') { $skipped++; continue; }
@@ -172,13 +313,18 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                 }
             }
 
+            /* QQ 侧的数量（点赞 / 评论总数）—— 站内显示要把这两个数当基数，
+               再叠加本站用户自己点的赞、自己发的评论。 */
+            $qqLikes = (int) ($it['likes'] ?? 0);
+            $qqCmtNum = (int) ($it['comments'] ?? ($it['comment_num'] ?? 0));
+
             $meta = [
-                'source'      => 'qzone',
-                'source_tid'  => $tid,
-                'source_url'  => 'https://user.qzone.qq.com/3893174881/mood/' . $tid,
-                'qq_likes'    => (int) ($it['likes'] ?? 0),
-                'qq_comments' => $imgs === null ? [] : ($qcomments[$tid] ?? []),
-                'qq_comment_num' => (int) ($it['comment_num'] ?? 0),
+                'source'         => 'qzone',
+                'source_tid'     => $tid,
+                'source_url'     => 'https://user.qzone.qq.com/3893174881/mood/' . $tid,
+                'qq_likes'       => $qqLikes,
+                'qq_comments'    => lwQzoneItemComments($tid, $it, $qcomments),
+                'qq_comment_num' => $qqCmtNum,
             ];
 
             $exist = $fs->findOne('posts', ['source_tid' => $tid]);
@@ -201,7 +347,19 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                     $patch['title'] = lwQzonePostTitle($tid);
                 }
                 $patch['images'] = json_encode(lwQzonePostImages($tid, $imgs), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+                /* 【数量叠加】显示数 = QQ 原数 + 本站新增量。
+                 * 本站新增量 = 当前总数 - 上一轮记录的 QQ 数（若为负则按 0 处理）。
+                 * 这样 QQ 那边涨了会跟着涨，本站用户点的赞/发的评论也不会被覆盖掉。 */
+                $prevQqLikes = (int) ($exist['qq_likes'] ?? 0);
+                $prevQqCmt   = (int) ($exist['qq_comment_num'] ?? 0);
+                $localLikes  = max(0, (int) ($exist['likes'] ?? 0) - $prevQqLikes);
+                $localCmt    = max(0, (int) ($exist['comments'] ?? 0) - $prevQqCmt);
+                $patch['likes']    = $qqLikes + $localLikes;
+                $patch['comments'] = $qqCmtNum + $localCmt;
+
                 $fs->update('posts', (int) $exist['id'], $patch);
+                $cmtMap[(int) $exist['id']] = $patch['qq_comments'];
                 $updated++;
                 continue;
             }
@@ -217,18 +375,24 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                 'visible_to'  => '',
                 'exclude_to'  => '',
                 'status'      => $profStatus,
-                'likes'       => 0,      /* 站内点赞从 0 开始；QQ 原赞数在 qq_likes 里单独展示 */
-                'comments'    => 0,
+                /* 从 QQ 基数起步（之后本站用户操作在此之上叠加） */
+                'likes'       => $qqLikes,
+                'comments'    => $qqCmtNum,
                 'views'       => 0,
             ]);
             $new = $fs->insert('posts', $rec);
             if (!$new) { $skipped++; continue; }
+            $cmtMap[(int) $new['id']] = $rec['qq_comments'];
             /* insert() 会强制把 created_at 写成当前时间 —— 必须改回 QQ 发布时间，
                否则信息流顺序会全变成「刚刚」。 */
             $fs->update('posts', (int) $new['id'], ['created_at' => $postedAt]);
             $created++;
         }
-        return ['created' => $created, 'updated' => $updated, 'skipped' => $skipped, 'hidden' => $hidden];
+        /* 循环结束再统一把 QQ 评论导成站内评论（一次批量写盘，避免每条帖子都读写文件） */
+        $importedComments = lwQzoneImportComments($cmtMap);
+
+        return ['created' => $created, 'updated' => $updated, 'skipped' => $skipped,
+                'hidden' => $hidden, 'comments' => $importedComments];
     }
 }
 

@@ -762,6 +762,7 @@ body > .main-content {
    * 用户看到的就是「文字错位/突然跳一下」，等 JS 跑完才恢复正常。
    * 现在改成默认静止，由 JS 在复制好内容后再加 .is-scrolling。 */
 }
+.announcement-scroll > * { flex: 0 0 auto; }
 .announcement-scroll.is-scrolling {
   animation: announcementScroll 26s linear infinite;
 }
