@@ -1105,6 +1105,27 @@ function requireMember($message = '该功能需要注册账号后才能使用') 
  * 拦截游客并引导注册：AJAX 请求返回 401，页面请求跳转注册页。
  * 注册页自身会在未确认安全声明时先转到 gateway 页。
  */
+/**
+ * 统一安全跳转：只允许站内相对路径（或本站域名下的绝对地址），
+ * 其它一律落到 fallback —— 防止 ?to= / ?redirect= 被拿来当 open redirect。
+ */
+function lwSafeRedirect(string $url, string $fallback = '/'): void
+{
+    $allow = false;
+    if ($url !== '' && strpos($url, '/') === 0 && strpos($url, '//') !== 0 && strpos($url, '\\') === false) {
+        $allow = true;
+    } else {
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host && isset($_SERVER['HTTP_HOST']) && strtolower($host) === strtolower((string) $_SERVER['HTTP_HOST'])) {
+            $allow = true;
+        }
+    }
+    if (!headers_sent()) {
+        header('Location: ' . ($allow ? $url : $fallback));
+        exit();
+    }
+}
+
 function denyGuest($message = '该功能需要注册账号后才能使用') {
     $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest')
            || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);

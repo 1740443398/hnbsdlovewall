@@ -23,11 +23,19 @@ if (!hasAcceptedGateway()) {
     exit();
 }
 
-// 登录页把用户引导过来时（?from_login=1），或用户刚在网关声明页选择登录，
-// 返回时直接渲染登录页 —— 这一条彻底断掉 login ↔ register 的重定向环。
-if (!empty($_GET['from_login']) || ($_SESSION['lw_intent'] ?? '') === 'login') {
+// 【注册入口被弹回登录页的根因】
+// 原来这里除了 ?from_login=1，还会因为 session 里残留的 lw_intent === 'login'
+// 直接 302 到登录页 —— 而 lw_intent 是「用户在网关页选择去登录」时写下的，
+// 之后用户再点站点任何地方的「注册」按钮，仍会被这个残留值弹回登录页，
+// 表现就是「注册按钮点了不注册 / 三个入口只有一个好使」。
+// 现在：只有真正从登录页首访引导过来（?from_login=1）才回登录页；
+// 其余情况一律把意图修正为 register 并正常渲染注册页。
+if (!empty($_GET['from_login'])) {
     header('Location: ' . SITE_URL . '/pages/login.php?once=1');
     exit();
+}
+if (($_SESSION['lw_intent'] ?? '') === 'login') {
+    $_SESSION['lw_intent'] = 'register';
 }
 
 // 防缓存：CSRF_TOKEN 存 session，注册页若被浏览器缓存会沿用旧 token 导致 403。
