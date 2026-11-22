@@ -1,9 +1,0 @@
-﻿feat(lottery+quote+admin): 发帖附带抽奖/动态引用转发/头像跳主页/后台去重
-
-- 抽奖：发帖页可选「附带抽奖」；内核建抽奖并双向关联 posts.lottery_id；
-  详情/卡片徽章；/pages/lottery.php 列表与参与、到点自动开奖；/admin/lottery.php 管理
-- 引用转发：posts.quote_post_id 只存原帖 ID，列表输出 quote 摘要，卡片与详情渲染引用块
-- 头像/昵称跳 /pages/u.php?id=；详情页新增「转发」入口
-- 后台去重：删除 moderation/review_queue/analytics/illegal_access/data_dictionary 五个重复页（保留待审核/数据看板/安全告警）
-- 兑换码：补齐 toggleType()（原来商品选择步骤不可用），支持指定商品发放
-- 修复 api/lottery/join.php 使用未定义 isPost() 的 500
