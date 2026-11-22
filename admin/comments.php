@@ -127,7 +127,7 @@ function loadComments() {
                         '<td><input type="checkbox" class="comment-checkbox" value="' + esc(c.id) + '"></td>' +
                         '<td>' + esc(c.id) + '</td>' +
                         '<td><div style="max-width:320px;">' + esc(c.content_short || '') + '</div></td>' +
-                        '<td><a href="posts.php?post_id=' + esc(c.post_id) + '" target="_blank" style="color:var(--primary);text-decoration:none;">#' + esc(c.post_id) + ' ' + esc(c.post_title || '') + '</a></td>' +
+                        '<td><a href="posts.php?post_id=' + esc(c.post_id) + '" style="color:var(--primary);text-decoration:none;">#' + esc(c.post_id) + ' ' + esc(c.post_title || '') + '</a></td>' +
                         '<td>' + userDisplay + '</td>' +
                         '<td>' + (c.created_at ? c.created_at.substring(0, 16) : '-') + '</td>' +
                         '<td>' + actions + '</td>' +

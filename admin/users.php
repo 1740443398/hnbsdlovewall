@@ -1051,7 +1051,7 @@ function openUserDetail(userId) {
 
         var postsHtml = (u.recent_posts && u.recent_posts.length)
             ? u.recent_posts.map(function (p) {
-                return '<a class="ud-item" href="/pages/post_detail.php?id=' + encodeURIComponent(p.id) + '" target="_blank" rel="noopener">' +
+                return '<a class="ud-item" href="/pages/post_detail.php?id=' + encodeURIComponent(p.id) + '" rel="noopener">' +
                     '<span class="ud-item-main">' + esc(p.title || '(无标题)') + '</span>' +
                     '<span class="ud-item-meta">' + esc((p.created_at || '').substring(0, 10)) + '</span></a>';
             }).join('')
@@ -1059,7 +1059,7 @@ function openUserDetail(userId) {
 
         var commentsHtml = (u.recent_comments && u.recent_comments.length)
             ? u.recent_comments.map(function (c) {
-                return '<a class="ud-item" href="/pages/post_detail.php?id=' + encodeURIComponent(c.post_id) + '" target="_blank" rel="noopener">' +
+                return '<a class="ud-item" href="/pages/post_detail.php?id=' + encodeURIComponent(c.post_id) + '" rel="noopener">' +
                     '<span class="ud-item-main">' + esc(c.content || '') + '</span>' +
                     '<span class="ud-item-meta">' + esc((c.created_at || '').substring(0, 10)) + '</span></a>';
             }).join('')

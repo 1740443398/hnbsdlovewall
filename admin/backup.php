@@ -67,7 +67,7 @@ adminHeader('数据备份/恢复', $adminUser, $csrfToken);
             <div style="font-weight:600;margin-bottom:4px;">公开下载完整备份（需邮箱验证码）</div>
             <div class="bk-tip">网站公开链接已对<b>所有已注册用户</b>开放：任何人申请下载时，系统会先向其注册邮箱发送验证码，验证通过后才能获取全站数据。申请记录在本页下方可见。</div>
             <div class="bk-actions">
-                <a class="btn btn-primary" href="<?= SITE_URL ?>/pages/download_backup.php" target="_blank">前往公开申请下载</a>
+                <a class="btn btn-primary" href="<?= SITE_URL ?>/pages/download_backup.php">前往公开申请下载</a>
             </div>
         </div>
 

@@ -155,7 +155,7 @@ function loadList(){
                 html += '<div class="md-acts">';
                 html += '<button class="btn btn-sm btn-primary" onclick="act(\\'approve\\',' + it.id + ')">通过并发布</button>';
                 html += '<button class="btn btn-sm btn-danger" onclick="act(\\'reject\\',' + it.id + ')">拒绝并隐藏</button>';
-                html += '<a class="btn btn-sm" href="/pages/post_detail.php?id=' + it.id + '" target="_blank">查看原帖</a>';
+                html += '<a class="btn btn-sm" href="/pages/post_detail.php?id=' + it.id + '">查看原帖</a>';
                 html += '</div>';
             }
             html += '</div>';

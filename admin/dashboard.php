@@ -15,8 +15,18 @@ $comments = $fs->read('comments') ?: [];
 $today = date('Y-m-d');
 $yesterday = date('Y-m-d', strtotime('-1 day'));
 
-$totalUsers = count($users);
-$todayUsers = count(array_filter($users, function($u) use ($today) {
+/* 【注册用户不能把「同步来的评论人」算进去】
+ * QQ 空间评论人会被建一条轻量用户记录（昵称/头像用 QQ 的，随机密码不可登录），
+ * 目的是让评论能正常显示。它们不是本站注册用户 ——
+ * 直接 count($users) 会让看板出现「今天新增注册 121 人」的假数字。 */
+$realUsers = array_values(array_filter($users, function($u) {
+    if (!empty($u['is_bot'])) { return false; }
+    if (($u['source'] ?? '') === 'qzone_comment_import') { return false; }
+    return true;
+}));
+$shadowUsers = count($users) - count($realUsers);
+$totalUsers = count($realUsers);
+$todayUsers = count(array_filter($realUsers, function($u) use ($today) {
     return isset($u['created_at']) && strpos($u['created_at'], $today) === 0;
 }));
 
@@ -29,7 +39,7 @@ $pendingPosts = count(array_filter($posts, function($p) {
     return ($p['status'] ?? '') === 'pending';
 }));
 
-$bannedUsers = count(array_filter($users, function($u) {
+$bannedUsers = count(array_filter($realUsers, function($u) {
     return !empty($u['is_banned']);
 }));
 
@@ -47,11 +57,20 @@ for ($i = 6; $i >= 0; $i--) {
     $recent7Days[] = ['date' => $date, 'count' => $count];
 }
 
-// 访问统计：总访问量 / 今日访问 / 近7日访问趋势
-$visitStats = $fs->findOne('visit_stats', ['id' => 1]);
-$totalVisits = (int)($visitStats['total'] ?? 0);
-$todayVisits = (int)($visitStats['today'] ?? 0);
-$daily = is_array(($visitStats['daily'] ?? null)) ? $visitStats['daily'] : [];
+/* 【访问统计的正确读法】
+ * visit_stats 是「一行一个访客/天」的表，不是一个 id=1 的汇总行。
+ * 原来用 findOne('visit_stats', ['id' => 1]) 读 total/today 字段 —— 这两个字段根本不存在，
+ * 卡片永远 0，而下方明细（lwVisitToday）却是真实数字。现在两者读同一份数据。 */
+$__visitRows = $fs->read('visit_stats') ?: [];
+$totalVisits = 0;
+foreach ($__visitRows as $__vr) {
+    if (!isset($__vr['date'])) { continue; }   // 跳过旧版汇总行
+    $totalVisits += max(1, (int) ($__vr['visits'] ?? 1));
+}
+$__visCardToday = function_exists('lwVisitToday') ? lwVisitToday() : ['total' => 0, 'visits' => 0];
+$todayVisits = (int) ($__visCardToday['visits'] ?? 0);
+$visitStats = [];
+$daily = [];
 $visitTrend = [];
 for ($i = 6; $i >= 0; $i--) {
     $d = date('Y-m-d', strtotime("-$i days"));
@@ -215,7 +234,7 @@ $phpVersion = PHP_VERSION;
 /* ---- 今日访问数据（服务端直出，不用等 AJAX）----
  * 仪表盘首屏就要看到「今天来了多少人」，
  * 走 AJAX 会多等一个 ~950ms 的请求，体验很差。 */
-$__vis = function_exists('lwVisitToday') ? lwVisitToday() : [
+$__vis = $__visCardToday ?: [
     'total' => 0, 'members' => 0, 'guests' => 0, 'new_users' => 0, 'visits' => 0, 'users' => [],
 ];
 $__visTrend = function_exists('lwVisitTrend') ? lwVisitTrend(7) : [];
@@ -232,7 +251,7 @@ adminHeader('数据看板', $adminUser, $csrfToken);
             <div class="stat-value"><?= $totalUsers ?></div>
             <div class="stat-label">注册用户</div>
         </div>
-        <div class="stat-change positive">+<?= $todayUsers ?> 今日</div>
+        <div class="stat-change positive">+<?= $todayUsers ?> 今日<?= $shadowUsers > 0 ? '　另有 ' . $shadowUsers . ' 位同步评论人' : '' ?></div>
     </div>
     <div class="stat-card">
         <div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></div>

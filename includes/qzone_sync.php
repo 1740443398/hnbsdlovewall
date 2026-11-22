@@ -424,7 +424,23 @@ if (!function_exists('lwQzoneFetchFeeds')) {
         if (!is_array($list)) {
             $list = [];
         }
-        return ['ok' => true, 'state' => 'ok', 'items' => lwQzoneNormalizeList($list), 'err' => ''];
+        $norm = lwQzoneNormalizeList($list);
+        /* 【分页必须靠 total，不能靠「返回数 < 请求数」】
+         * 实测：请求 num=20，QQ 实际每次只返回 19 条，而 total=513。
+         * 原来用 count < num 判定「没有下一页」，永远只拿到第一页 ——
+         * 站长问「为什么只有几十条」的答案就在这里。 */
+        $total = (int) ($json['total'] ?? 0);
+        if ($total <= 0 && isset($json['msglist']) && is_array($json['msglist'])) {
+            $total = (int) ($json['total'] ?? 0);
+        }
+        return [
+            'ok'    => true,
+            'state' => 'ok',
+            'items' => $norm,
+            'err'   => '',
+            'total' => $total,
+            'step'  => count($norm),   // 下一页应该用「实际返回条数」推进，而不是 num
+        ];
     }
 }
 
@@ -437,7 +453,7 @@ if (!function_exists('lwQzoneFetchLikesBatch')) {
      * （19 条动态 × 每次点赞请求 1~2s）。改成 curl_multi 后并发 6 路，
      * 总耗时降到 2~4 秒 —— 这直接决定「访问触发同步」时页面被拖多久。
      */
-    function lwQzoneFetchLikesBatch(array $pairs, string $uin, string $cookie, int $gtk, int $concurrency = 6): array
+    function lwQzoneFetchLikesBatch(array $pairs, string $uin, string $cookie, int $gtk, int $concurrency = 6, int $budgetSec = 10): array
     {
         $out = [];
         if (!$pairs || $uin === '' || $cookie === '') { return $out; }
@@ -497,7 +513,13 @@ if (!function_exists('lwQzoneFetchLikesBatch')) {
             return 0;
         };
 
+        /* 【硬性时间上限】实测线上主机访问 qz_opcnt2 会长时间挂住（6 条 > 90 秒没返回），
+           会导致整轮同步被主机 60 秒上限杀掉、什么状态都存不下来。
+           所以这里到点就放弃：宁可这批赞数下一轮再补，也不能拖死同步。 */
+        $likeDeadline = microtime(true) + max(3, $budgetSec);
+
         do {
+            if (microtime(true) >= $likeDeadline) { break; }
             $status = curl_multi_exec($mh, $running);
             if ($running) {
                 if (curl_multi_select($mh, 0.3) === -1) { usleep(50000); }
@@ -522,8 +544,12 @@ if (!function_exists('lwQzoneFetchLikesBatch')) {
                     }
                 }
             }
-        } while ($running > 0 || $handles);
+        } while (($running > 0 || $handles) && microtime(true) < $likeDeadline);
 
+        foreach ($handles as $h) {
+            curl_multi_remove_handle($mh, $h['h']);
+            curl_close($h['h']);
+        }
         curl_multi_close($mh);
         return $out;
     }
@@ -685,19 +711,40 @@ if (!function_exists('lwQzoneSync')) {
 
         lwQzoneSaveConfig(['last_attempt_at' => $now]);
 
+        /* 【整轮时间预算】线上单请求 60 秒上限：抓取/点赞/预热/OCR 全部串行跑很容易超。
+         * 到了预算就跳过后续可选项（点赞、图片预热、OCR），保证同步本身能落盘返回。
+         * 没做的那部分下一轮会继续补（点赞按预算分批、预热按 prefetch_per_run）。 */
+        $deadline = microtime(true) + max(15, min(50, (int) ($cfg['sync_budget_sec'] ?? 40)));
+
         $added = 0;
         $updated = 0;
         $items = [];
 
-        for ($p = 0; $p < $pages; $p++) {
-            $r = lwQzoneFetchFeeds($p * $num, $num);
+        /* 【分页策略：从最新往前，按 total 收口】
+         *
+         * 目标：把「最新 max_items 条」都拿到（站长这次要前 50 条）。
+         * 关键事实（实测）：请求 num=20，QQ 实际只回 19 条，而 total=513。
+         * 所以：下一页用「实际返回条数」推进 pos，用 total 判断是否到底 ——
+         * 原来用「返回数 < num 就当没有下一页」，永远只拿第一页，
+         * 这就是「几百条动态只同步到几十条」的根因。
+         */
+        $wantItems = max(10, (int) $cfg['max_items']);
+        $maxPages  = max(1, min(20, (int) ($cfg['sync_pages_per_run'] ?? 6)));
+        $wantPages = (int) ceil($wantItems / max(1, $num));
+        $pageLimit = max(1, min($maxPages, $wantPages));
+        $totalAll  = 0;
+        $pos       = 0;
+        $gotItems  = 0;
+
+        for ($p = 0; $p < $pageLimit; $p++) {
+            $r = lwQzoneFetchFeeds($pos, $num);
             if (!$r['ok'] && ($r['state'] ?? '') === 'cookie_expired') {
                 /* 【先自救再报错】Cookie 失效时先跑一次保活：
                  * 很多「失效」只是 p_skey 轮换没了，skey 还活着 ——
                  * 访问一次空间首页就能拿回新 p_skey，不必让站长重新扫码。 */
                 $ka = lwQzoneKeepAlive();
                 if (!empty($ka['ok'])) {
-                    $r = lwQzoneFetchFeeds($p * $num, $num);
+                    $r = lwQzoneFetchFeeds($pos, $num);
                 }
             }
             if (!$r['ok']) {
@@ -709,27 +756,39 @@ if (!function_exists('lwQzoneSync')) {
                 lwQzoneNotifyFailure((string) $r['state'], (string) $r['err']);
                 return ['ok' => false, 'state' => $r['state'], 'err' => $r['err'], 'added' => $added, 'updated' => $updated];
             }
-            $items = array_merge($items, $r['items']);
-            if (count($r['items']) < $num) {
-                break; /* 没有下一页 */
-            }
+            if (!empty($r['total'])) { $totalAll = (int) $r['total']; }
+            $step = (int) ($r['step'] ?? count($r['items']));
+            if ($step === 0) { break; }              /* 真的到末尾了 */
+            $items    = array_merge($items, $r['items']);
+            $gotItems += $step;
+            $pos      += $step;
+            lwQzoneSaveConfig(['sync_pos' => $pos, 'sync_total' => $totalAll]);
+            if ($totalAll > 0 && $pos >= $totalAll) { break; }   /* 全量到底 */
+            if ($gotItems >= $wantItems) { break; }              /* 已够本轮上限 */
+            usleep(250000);                                       /* 稍歇，降低风控概率 */
         }
 
         /* 点赞数：msglist 里没有，需要逐条查 qz_opcnt2。
          * 每次最多补 30 条，避免免费主机上单个请求拖太久；其余下一轮再补。 */
-        if ((int) $cfg['sync_likes'] === 1 && $items) {
+        $likesSkipped = false;
+        if ((int) $cfg['sync_likes'] === 1 && $items && (microtime(true) < $deadline - 12)) {
             $rawCk = lwQzoneGetCookie();
             $gtk   = lwQzoneGtk(lwQzoneCookieValue($rawCk, 'p_skey'));
             $uinN  = preg_replace('/\D/', '', (string) $cfg['uin']);
             /* 并发抓点赞：串行实测整轮 47 秒 → 并发 6 路后 2~4 秒。
                这直接决定「访问触发同步」时请求被拖多久。 */
             $targets = [];
-            $budget = 30;
+            /* 本轮拿到的条目都要补赞数：前 50 条模式下 30 条不够，
+               第二轮只会补到「新出现的」，旧的可能永远停在 0。 */
+            $budget = max(30, min(60, count($items)));
             foreach ($items as $itx) {
                 if ($budget-- <= 0) { break; }
                 $targets[] = ['tid' => (string) $itx['tid']];
             }
-            $batch = lwQzoneFetchLikesBatch($targets, (string) $uinN, $rawCk, $gtk, 6);
+            /* 时间不够就少补一些：宁可本轮少补几条，也别让整轮请求被主机杀掉 */
+            $remain = $deadline - microtime(true);
+            if ($remain < 12) { $targets = array_slice($targets, 0, 12); }
+            $batch = lwQzoneFetchLikesBatch($targets, (string) $uinN, $rawCk, $gtk, 6, 10);
             foreach ($items as &$itx) {
                 $tid = (string) $itx['tid'];
                 if (isset($batch[$tid]) && $batch[$tid] > 0) { $itx['likes'] = $batch[$tid]; }
@@ -737,10 +796,27 @@ if (!function_exists('lwQzoneSync')) {
             unset($itx);
         }
 
+        /* 【批量写盘】原来这里面每条 item 都 findOne + update（整文件读写），
+         * 每条评论也各自 findOne/insert/update —— 57 条说说 + 123 条评论
+         * 就是几百次全量文件操作，线上直接把 60 秒请求上限吃穿（同步被 kill，无输出）。
+         * 改成：两个表各读一次建索引，循环里只算记录，最后 insertMany/updateMany 各一次。 */
+        $existItems = [];
+        foreach ((array) $fs->read('qzone_items') as $row) {
+            $k = (string) ($row['tid'] ?? '');
+            if ($k !== '') { $existItems[$k] = $row; }
+        }
+        $existCmts = [];
+        foreach ((array) $fs->read('qzone_comments') as $row) {
+            $k = (string) ($row['item_tid'] ?? '') . '|' . (string) ($row['tid'] ?? '');
+            $existCmts[$k] = $row;
+        }
+
+        $newItems    = [];
+        $itemPatches = [];
+        $newCmts     = [];
+        $cmtPatches  = [];
+
         foreach ($items as $it) {
-            $exist = $fs->findOne('qzone_items', ['tid' => $it['tid']]);
-            /* 注意：filestorage::insert() 会用当前时间**强制覆盖** created_at/updated_at，
-             * 所以对方说说的发布时间必须存在单独的 posted_ts 里，否则会丢。 */
             $rec = [
                 'tid'        => $it['tid'],
                 'content'    => $it['content'],
@@ -750,25 +826,29 @@ if (!function_exists('lwQzoneSync')) {
                 'comment_num'=> $it['comments'],
                 'synced_at'  => $now,
             ];
-            if ($exist) {
-                $fs->update('qzone_items', $exist['id'], $rec);
-                $itemId = (int) $exist['id'];
+            if (isset($existItems[(string) $it['tid']])) {
+                /* 【点赞不能被 0 覆盖】
+                 * msglist_v6 完全不含点赞字段（实测 19 条里 like* 全空），
+                 * 点赞只能从 qz_opcnt2 单独取。如果本轮没取到（sync_likes=0 或接口超时），
+                 * $it['likes'] 就是 0 —— 直接写进去会把之前正确的赞数抹掉，
+                 * 站长看到的就是「原帖 184 赞变成 0」。所以：0 不覆盖已有值。 */
+                if ((int) ($rec['likes'] ?? 0) <= 0) {
+                    unset($rec['likes']);
+                }
+                $itemPatches[(int) $existItems[(string) $it['tid']]['id']] = $rec;
                 $updated++;
             } else {
-                $created = $fs->insert('qzone_items', $rec);
-                if (!$created) {
-                    continue;
-                }
-                $itemId = (int) $created['id'];
+                /* item_id 先留 0，插入后按 tid 回填 */
+                $rec['item_id'] = 0;
+                $newItems[] = $rec;
                 $added++;
             }
 
             if ((int) $cfg['sync_comments'] === 1 && !empty($it['comment_list'])) {
                 foreach ($it['comment_list'] as $c) {
-                    $hit = $fs->findOne('qzone_comments', ['item_tid' => $it['tid'], 'tid' => $c['tid']]);
+                    $k = (string) $it['tid'] . '|' . (string) $c['tid'];
                     $crec = [
                         'item_tid'   => $it['tid'],
-                        'item_id'    => $itemId,
                         'tid'        => $c['tid'],
                         'author'     => $c['author'],
                         'author_uin' => $c['author_uin'],
@@ -776,26 +856,47 @@ if (!function_exists('lwQzoneSync')) {
                         'posted_ts'  => $c['created_at'],
                         'synced_at'  => $now,
                     ];
-                    if ($hit) {
-                        $fs->update('qzone_comments', $hit['id'], $crec);
+                    if (isset($existCmts[$k])) {
+                        $cmtPatches[(int) $existCmts[$k]['id']] = $crec;
                     } else {
-                        $fs->insert('qzone_comments', $crec);
+                        $crec['item_id'] = 0;   /* 插入后回填 */
+                        $newCmts[] = $crec;
                     }
                 }
             }
         }
 
-        /* 修剪：本地最多保留 max_items 条（按对方发布时间倒序），超出删除 */
-        $all = $fs->read('qzone_items');
-        if (is_array($all)) {
-            usort($all, function ($a, $b) { return ((int) ($b['posted_ts'] ?? 0)) <=> ((int) ($a['posted_ts'] ?? 0)); });
-            $max = max(10, (int) $cfg['max_items']);
-            if (count($all) > $max) {
-                foreach (array_slice($all, $max) as $old) {
-                    $fs->delete('qzone_items', $old['id']);
-                    foreach ($fs->find('qzone_comments', ['item_tid' => $old['tid']]) as $c) {
-                        $fs->delete('qzone_comments', $c['id']);
-                    }
+        /* 落盘：新 item 先插入，拿到 id 后回填评论的 item_id */
+        $itemIdByTid = [];
+        foreach ($existItems as $tid => $row) { $itemIdByTid[$tid] = (int) $row['id']; }
+        if ($newItems) {
+            $insItems = $fs->insertMany('qzone_items', $newItems, true);
+            foreach ($insItems as $row) {
+                $itemIdByTid[(string) $row['tid']] = (int) $row['id'];
+            }
+        }
+        if ($itemPatches) { $fs->updateMany('qzone_items', $itemPatches); }
+        foreach ($newCmts as &$c) {
+            $c['item_id'] = $itemIdByTid[(string) $c['item_tid']] ?? 0;
+        }
+        unset($c);
+        if ($newCmts) { $fs->insertMany('qzone_comments', $newCmts, true); }
+        if ($cmtPatches) { $fs->updateMany('qzone_comments', $cmtPatches); }
+
+        /* 修剪：本地最多保留 max_items 条（按对方发布时间倒序），超出删除。
+           站长要求「站内只保留前 50 条」，这里兜住 qzone_items，避免无限堆积。 */
+        $allItems = $fs->read('qzone_items');
+        if (is_array($allItems) && count($allItems) > max(10, (int) $cfg['max_items'])) {
+            usort($allItems, function ($a, $b) { return ((int) ($b['posted_ts'] ?? 0)) <=> ((int) ($a['posted_ts'] ?? 0)); });
+            $drop = array_slice($allItems, max(10, (int) $cfg['max_items']));
+            $dropTids = [];
+            foreach ($drop as $old) {
+                $dropTids[(string) ($old['tid'] ?? '')] = true;
+                $fs->delete('qzone_items', (int) $old['id']);
+            }
+            foreach ($fs->read('qzone_comments') as $c) {
+                if (isset($dropTids[(string) ($c['item_tid'] ?? '')])) {
+                    $fs->delete('qzone_comments', (int) $c['id']);
                 }
             }
         }
@@ -803,7 +904,10 @@ if (!function_exists('lwQzoneSync')) {
         /* 预热图片（爬过来 + 压缩存本地）。失败不影响同步结果。 */
         $imgCached = 0;
         try {
-            $imgCached = lwQzonePrefetchImages();
+            /* 只剩不到 15 秒就不预热了：一张图 1~3 秒，硬跑必然超时 */
+            if (microtime(true) < $deadline - 15) {
+                $imgCached = lwQzonePrefetchImages();
+            }
         } catch (Throwable $e) {
             $imgCached = 0;
         }
@@ -813,7 +917,7 @@ if (!function_exists('lwQzoneSync')) {
         $ocrDone = 0;
         try {
             $ocrInc = __DIR__ . '/qzone_ocr.php';
-            if (is_file($ocrInc)) {
+            if (microtime(true) < $deadline - 8 && is_file($ocrInc)) {
                 require_once $ocrInc;
                 if (function_exists('lwQzoneOcrAutoRun')) {
                     $ocrRes = lwQzoneOcrAutoRun();

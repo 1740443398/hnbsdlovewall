@@ -177,7 +177,40 @@ if ($password !== $confirmPassword) {
 
 $existing = $fs->findOne('users', ['qq' => $qq]);
 if ($existing) {
-    jsonError('该QQ号已被注册');
+    /* 【影子用户转正】
+     * QQ 空间评论同步会给评论人建一条轻量用户记录（昵称/头像用 QQ 的，随机密码不可登录），
+     * 这样评论才显示得出来。但本人如果之后真的来注册同一个 QQ 号，
+     * 不能对他说「该QQ号已被注册」—— 那等于把自己的 QQ 号挡在外面。
+     * 这里把影子记录原地升级成真实账号：
+     *   · 保留 id（历史评论/点赞自动归到他名下，不会变成孤儿数据）
+     *   · 换成他本次设置的密码与昵称，补 uuid / 邀请码
+     *   · source 标记为 registered，之后不再被当成影子账号统计
+     * 真正的已注册用户、机器人仍继续拒绝。 */
+    $isShadow = (($existing['source'] ?? '') === 'qzone_comment_import') && empty($existing['is_bot']);
+    if (!$isShadow) {
+        jsonError('该QQ号已被注册');
+    }
+    $shadowId = (int) ($existing['id'] ?? 0);
+    if ($shadowId <= 0) {
+        jsonError('该QQ号已被注册');
+    }
+    // 影子账号的昵称可能与其他用户重名时，注册页已做过重名校验，这里沿用用户填写值
+    $fs->update('users', $shadowId, array_merge([
+        'uuid'           => !empty($existing['uuid']) ? $existing['uuid'] : generateUUID(),
+        'password_hash'  => hashPassword($password),
+        'nickname'       => $nickname !== '' ? $nickname : (string) ($existing['nickname'] ?? ''),
+        'avatar'         => getQQAvatar($qq),
+        'role'           => 'user',
+        'security_stamp' => generateSecurityStamp(),
+        'is_banned'      => 0,
+        'source'         => 'registered',
+        'invite_code'    => !empty($existing['invite_code']) ? $existing['invite_code'] : lwInviteAllocate($fs),
+    ], $profile));
+    $user = $fs->findById('users', $shadowId);
+    if (!$user) {
+        jsonError('注册失败，请重试');
+    }
+    $convertedFromShadow = true;
 }
 
 // ---- 年级 / 班级 / 真实姓名（可选，后端校验。选科选项已移除） ----
@@ -214,23 +247,26 @@ $profile['real_name'] = $realName;
 $hashedPassword = hashPassword($password);
 $avatar = getQQAvatar($qq);
 
-$user = $fs->insert('users', array_merge([
-    'qq' => $qq,
-    'uuid' => generateUUID(),
-    'password_hash' => $hashedPassword,
-    'nickname' => $nickname,
-    'avatar' => $avatar,
-    'role' => 'user',
-    'security_stamp' => generateSecurityStamp(),
-    'is_banned' => 0,
-    // 注册即分配邀请码：老用户的邀请码由 lwInviteEnsureCode 懒补，新用户当场就位
-    'invite_code' => lwInviteAllocate($fs),
-    'invited_by' => 0,
-], $profile));
-
-if (!$user) {
-    jsonError('注册失败，请重试');
+if (empty($convertedFromShadow)) {
+    $user = $fs->insert('users', array_merge([
+        'qq' => $qq,
+        'uuid' => generateUUID(),
+        'password_hash' => $hashedPassword,
+        'nickname' => $nickname,
+        'avatar' => $avatar,
+        'role' => 'user',
+        'security_stamp' => generateSecurityStamp(),
+        'is_banned' => 0,
+        // 注册即分配邀请码：老用户的邀请码由 lwInviteEnsureCode 懒补，新用户当场就位
+        'invite_code' => lwInviteAllocate($fs),
+        'invited_by' => 0,
+    ], $profile));
+    
+        if (!$user) {
+        jsonError('注册失败，请重试');
+    }
 }
+
 
 logUserActivity($user['id'], 'register', '注册成功');
 

@@ -30,7 +30,10 @@ if ($user) {
 }
 $isGuest = ($user === null);
 // 记录本次访问（总访问量 + 该用户访问次数）
-trackVisit($user);
+/* 统一走新版统计（includes/visit_stats.php）：它按「访客×天」落行，
+       看板卡片与下方明细读的是同一份数据，不会再出现「卡片 0、明细 39」的错位。
+       旧 trackVisit 只在极端情况下（模块缺失）兜底。 */
+    if (function_exists('lwVisitTrack')) { lwVisitTrack($user); } else { trackVisit($user); }
 $isSponsor = false;
 if ($user && isset($user['qq'])) {
     $sponsors = $fs->read('sponsors');

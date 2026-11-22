@@ -154,8 +154,15 @@ if (!function_exists('lwQzoneImportComments')) {
             $pt = (string) ($pp['created_at'] ?? '');
             if ($pt !== '') { $postTimes[(int) ($pp['id'] ?? 0)] = (int) strtotime($pt); }
         }
+        /* 【去重键必须带上 post_id】
+         * 原来只用 qq_tid 做全局去重：同一条评论 id 只要在任意帖子下出现过，
+         * 其它帖子下的同 id 评论就被当成「已存在」直接跳过。
+         * 实测结果就是 50 条帖子只有 9 条挂上了评论，其余全是「还没有评论」。
+         * 按 (post_id, qq_tid) 去重才是正确的语义。 */
         foreach ((array) $fs->read('comments') as $c) {
-            if (!empty($c['qq_tid'])) { $known[(string) $c['qq_tid']] = 1; }
+            if (!empty($c['qq_tid'])) {
+                $known[(int) ($c['post_id'] ?? 0) . '|' . (string) $c['qq_tid']] = 1;
+            }
         }
         $rows = [];
         foreach ($map as $postId => $list) {
@@ -178,7 +185,13 @@ if (!function_exists('lwQzoneImportComments')) {
                 /* 没有 QQ 评论 id 时，用「帖子+作者+内容+时间」生成稳定指纹做去重 */
                 $qtid = $rawId !== '' ? $rawId
                       : 'h' . substr(md5($postId . '|' . $uin . '|' . $name . '|' . $text . '|' . $ts), 0, 20);
-                if (isset($known[$qtid])) { continue; }
+                $dedupeKey = (int) $postId . '|' . $qtid;
+                if (isset($known[$dedupeKey])) { continue; }
+                /* 没有 uin 的评论人（早期抓取或对方隐藏 QQ 号）也要能显示：
+                   用「昵称+评论id」合成一个稳定假 uin，避免整条评论被丢弃。 */
+                if ($uin === '') {
+                    $uin = 'x' . substr(md5($name . '|' . $qtid), 0, 15);
+                }
                 $u = lwQzoneShadowUser($uin, $name, $av);
                 if (!$u) { continue; }
                 $rows[] = [
@@ -192,7 +205,7 @@ if (!function_exists('lwQzoneImportComments')) {
                     /* 保留 QQ 评论原时间（insertMany 的第三参数会尊重它） */
                     'created_at'   => $ts > 0 ? date('Y-m-d H:i:s', $ts) : '',
                 ];
-                $known[$qtid] = 1;
+                $known[$dedupeKey] = 1;
             }
         }
         if (!$rows) { return 0; }
@@ -271,6 +284,20 @@ if (!function_exists('lwQzoneSyncToPosts')) {
 
         $created = 0; $updated = 0; $skipped = 0; $hidden = 0;
         $cmtMap  = [];   /* post_id => QQ 评论列表，循环结束后一次性批量导入 */
+
+        /* 【批量读写】导入几十条时，逐条 findOne/update 每次都要整文件读+写，
+         * 实测 50 条要 37 秒，直接把免费主机 60 秒请求上限吃穿（线上同步因此被 kill）。
+         * 这里改成：先一次性读 posts 建 tid 索引，循环里只算 patch，
+         * 最后 insertMany + updateMany 各写一次盘。 */
+        $postByTid = [];
+        foreach ((array) $fs->read('posts') as $pp) {
+            $pt = (string) ($pp['source_tid'] ?? '');
+            if ($pt !== '') { $postByTid[$pt] = $pp; }
+        }
+        $patchMap  = [];   /* post_id => patch */
+        $newRows   = [];   /* 待批量插入的新帖 */
+        $cmtByTid  = [];   /* tid => QQ 评论列表 */
+        $profBudget = 15;  /* 本轮最多跑几次敏感词接口（每次都是一次外网请求） */
         foreach ($items as $it) {
             $tid = (string) ($it['tid'] ?? '');
             if ($tid === '') { $skipped++; continue; }
@@ -287,12 +314,17 @@ if (!function_exists('lwQzoneSyncToPosts')) {
             if (!is_array($imgs)) { $imgs = []; }
             $postedTs = (int) ($it['posted_ts'] ?? 0);
             $postedAt = $postedTs > 0 ? date('Y-m-d H:i:s', $postedTs) : date('Y-m-d H:i:s');
+            $exist = $postByTid[$tid] ?? null;
 
             /* QQ 转发的也要过敏感词（站长要求）。文本取 OCR 识别结果 ——
                这些说说正文为空，内容全在聊天截图里，只查 content 等于没查。 */
             $profStatus = 'published';
             $profFields = [];
-            if (function_exists('lwProfanityEnabled') || is_file(__DIR__ . '/profanity.php')) {
+            /* 敏感词检测每条都要发一次外网请求 —— 50 条就是 50 次，
+               线上单请求 60 秒上限会被它吃光（实测同步被 kill）。
+               所以：只对新帖检测，且每轮限 15 条；剩下的下一轮继续。 */
+            if (!$exist && $profBudget > 0 && (function_exists('lwProfanityEnabled') || is_file(__DIR__ . '/profanity.php'))) {
+                $profBudget--;
                 require_once __DIR__ . '/profanity.php';
                 if (lwProfanityEnabled()) {
                     $scanText = lwQzonePostTitle($tid);
@@ -327,7 +359,6 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                 'qq_comment_num' => $qqCmtNum,
             ];
 
-            $exist = $fs->findOne('posts', ['source_tid' => $tid]);
             if ($exist) {
                 $patch = $meta;
                 if (!empty($profFields)) {
@@ -358,8 +389,8 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                 $patch['likes']    = $qqLikes + $localLikes;
                 $patch['comments'] = $qqCmtNum + $localCmt;
 
-                $fs->update('posts', (int) $exist['id'], $patch);
-                $cmtMap[(int) $exist['id']] = $patch['qq_comments'];
+                $patchMap[(int) $exist['id']] = $patch;
+                $cmtByTid[$tid] = $patch['qq_comments'];
                 $updated++;
                 continue;
             }
@@ -380,14 +411,29 @@ if (!function_exists('lwQzoneSyncToPosts')) {
                 'comments'    => $qqCmtNum,
                 'views'       => 0,
             ]);
-            $new = $fs->insert('posts', $rec);
-            if (!$new) { $skipped++; continue; }
-            $cmtMap[(int) $new['id']] = $rec['qq_comments'];
-            /* insert() 会强制把 created_at 写成当前时间 —— 必须改回 QQ 发布时间，
-               否则信息流顺序会全变成「刚刚」。 */
-            $fs->update('posts', (int) $new['id'], ['created_at' => $postedAt]);
+            /* insert() 会用当前时间覆盖 created_at，但 insertMany 支持保留给定值，
+               所以这里直接把 QQ 发布时间塞进去，省掉一次「改回时间」的更新。 */
+            $rec['created_at'] = $postedAt;
+            $rec['updated_at'] = $postedAt;
+            $newRows[] = $rec;
+            $cmtByTid[$tid] = $rec['qq_comments'];
             $created++;
         }
+        /* 批量落盘：新帖一次插入，旧帖一次更新 */
+        if ($newRows) {
+            $inserted = $fs->insertMany('posts', $newRows, true);
+            foreach ($inserted as $np) {
+                $tid = (string) ($np['source_tid'] ?? '');
+                $cmtMap[(int) $np['id']] = $cmtByTid[$tid] ?? [];
+            }
+        }
+        if ($patchMap) {
+            $fs->updateMany('posts', $patchMap);
+            foreach ($patchMap as $pid => $pp) {
+                $cmtMap[(int) $pid] = $pp['qq_comments'] ?? [];
+            }
+        }
+
         /* 循环结束再统一把 QQ 评论导成站内评论（一次批量写盘，避免每条帖子都读写文件） */
         $importedComments = lwQzoneImportComments($cmtMap);
 

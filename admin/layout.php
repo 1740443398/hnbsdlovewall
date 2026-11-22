@@ -673,6 +673,10 @@ function adminHeader($title, $adminUser, $csrfToken) {
             transition: all var(--transition);
             text-decoration: none;
             white-space: nowrap;
+            /* 裸 .btn（没带 .btn-primary 等变体）必须有默认配色：
+               否则 <a class="btn"> 会退回浏览器默认的蓝色下划线链接，非常扎眼 */
+            background: var(--input-bg);
+            color: var(--text);
         }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         .btn-primary { background: var(--primary); color: var(--on-solid, #fff); }
@@ -689,6 +693,11 @@ function adminHeader($title, $adminUser, $csrfToken) {
             color: var(--text);
         }
         .btn-outline:hover { background: var(--input-bg); border-color: var(--border); }
+        /* 后台通用链接：统一用主题主色，不要浏览器默认蓝 */
+        .main-content a, .admin-main a, .content a { color: var(--primary); text-decoration: none; }
+        .main-content a:hover, .admin-main a:hover, .content a:hover { text-decoration: underline; }
+        a.btn:hover, a.btn-sm:hover { text-decoration: none; }
+
         .btn:hover { transform: translateY(-1px); }
         .btn:active { transform: scale(0.97); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -1785,6 +1794,19 @@ textarea,
             <?php endif; ?>
             <?php endif; ?>
             <?php if (checkPermission($adminUser, 'view_posts')): ?>
+            <?php
+            /* 待审核独立入口：站长反馈待审核混在帖子管理里太麻烦 */
+            $__pendingCount = 0;
+            try {
+                foreach (getFS()->read('posts') as $__p) {
+                    if (($__p['status'] ?? '') === 'pending') { $__pendingCount++; }
+                }
+            } catch (Throwable $__e) {}
+            ?>
+            <a href="/admin/pending.php" class="<?= $page === 'pending.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/></svg></span>
+                <span>待审核<?= $__pendingCount > 0 ? '（' . (int) $__pendingCount . '）' : '' ?></span>
+            </a>
             <a href="/admin/posts.php" class="<?= $page === 'posts.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span> 帖子管理
             </a>

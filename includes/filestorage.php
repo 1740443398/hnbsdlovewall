@@ -351,6 +351,35 @@ class FileStorage {
         return $result ? $record : false;
     }
 
+    /**
+     * 批量更新：$patches = [id => patch数组]。只加锁/读文件/写文件各一次。
+     *
+     * 【为什么必须有它】
+     * QQ 动态一次导入几十条，每条都要改 created_at / 数量 / 状态。
+     * 用 update() 就是几十次「整文件读 + 整文件写」，
+     * 在免费主机（单请求 60 秒上限）上直接超时 —— 实测 50 条导入 37 秒。
+     */
+    public function updateMany($table, array $patches) {
+        if (empty($patches)) { return 0; }
+        $this->acquireLock($table, LOCK_EX);
+        $data = $this->readUnlocked($table);
+        $now = date('Y-m-d H:i:s');
+        $n = 0;
+        foreach ($data as &$item) {
+            $id = (int) ($item['id'] ?? 0);
+            if (!isset($patches[$id])) { continue; }
+            $patch = $patches[$id];
+            if (!is_array($patch)) { continue; }
+            $patch['updated_at'] = $now;
+            $item = array_merge($item, $patch);
+            $n++;
+        }
+        unset($item);
+        $result = $n > 0 ? $this->writeUnlocked($table, $data) : true;
+        $this->releaseLock($table);
+        return $result ? $n : 0;
+    }
+
     public function update($table, $id, $record) {
         $this->acquireLock($table, LOCK_EX);
         $data = $this->readUnlocked($table);

@@ -479,7 +479,7 @@ function renderDetail(log, conv) {
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
             turn.image_meta.forEach(function(im) {
                 if (im.exists) {
-                    html += '<a href="' + SITE_URL + '/' + esc(im.url) + '" target="_blank" rel="noopener"><img src="' + SITE_URL + '/' + esc(im.url) + '" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid rgba(0,0,0,.1);" alt="图片"></a>';
+                    html += '<a href="' + SITE_URL + '/' + esc(im.url) + '" rel="noopener"><img src="' + SITE_URL + '/' + esc(im.url) + '" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid rgba(0,0,0,.1);" alt="图片"></a>';
                 } else {
                     html += '<span style="width:96px;height:96px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px dashed var(--border-light);font-size:11px;color:var(--text-secondary);text-align:center;">图片已过期<br>(超30天)</span>';
                 }

@@ -3938,3 +3938,74 @@ a:focus-visible { outline-offset: 3px; }
   }
   .reaction-btn { display: inline-flex; align-items: center; justify-content: center; }
 }
+
+
+/* ======================================================================
+   图片放大查看（Lightbox）
+   ----------------------------------------------------------------------
+   站长反馈「图片也要可以放大查看，这样看着太烧心了」。
+   站内所有帖子图片（信息流卡片、帖子详情、评论区图片）点一下即可全屏查看，
+   再点图片在 1x / 2.2x 之间切换，放大后可以拖动；Esc / 点背景 / 点右下角关闭。
+   ====================================================================== */
+.lw-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 180ms ease;
+  overscroll-behavior: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+.lw-zoom-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+.lw-zoom-img {
+  max-width: 96vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 6px;
+  transition: transform 180ms ease;
+  will-change: transform;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.lw-zoom-img.is-zoomed {
+  cursor: grab;
+  transition: none;
+}
+.lw-zoom-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.lw-zoom-close:active { transform: scale(0.92); }
+.lw-zoom-hint {
+  position: absolute;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}

@@ -4578,4 +4578,118 @@
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) { restart(0); }
   });
+  /* ==================================================================
+     图片放大查看
+     ------------------------------------------------------------------
+     任何贴子图片（.post-card / .post-images / .pd-gallery / .comment-text 内的 img）
+     点击后全屏查看：
+       · 点图片在 1x / 2.2x 之间切换，放大后可拖动
+       · Esc / 点背景 / 点关闭按钮退出
+       · 打开的是原图（去掉卡片用的 w=420 缩略参数）
+     ================================================================== */
+  function initImageZoom() {
+    var overlay = null, imgEl = null, hintEl = null;
+    var zoomed = false, scale = 1, tx = 0, ty = 0;
+    var dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+
+    function fullSrc(src) {
+      // 卡片用的是 /api/qzone/image.php?...&w=420 缩略图；放大时去掉 w 拿原图
+      return src.replace(/([?&])w=\d+&?/, '$1').replace(/[?&]$/, '');
+    }
+
+    function build() {
+      overlay = document.createElement('div');
+      overlay.className = 'lw-zoom-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-label', '查看大图');
+      overlay.innerHTML =
+        '<img class="lw-zoom-img" alt="">' +
+        '<button class="lw-zoom-close" aria-label="关闭">✕</button>' +
+        '<div class="lw-zoom-hint">点图片放大 · 拖动查看 · Esc 关闭</div>';
+      document.body.appendChild(overlay);
+      imgEl = overlay.querySelector('.lw-zoom-img');
+
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay || e.target.classList.contains('lw-zoom-close')) { close(); }
+      });
+
+      imgEl.addEventListener('click', function (e) {
+        e.stopPropagation();
+        zoomed = !zoomed;
+        if (zoomed) {
+          scale = 2.2;
+          // 以点击位置为焦点放大
+          var r = imgEl.getBoundingClientRect();
+          var px = (e.clientX - r.left) / r.width;
+          var py = (e.clientY - r.top) / r.height;
+          tx = (0.5 - px) * r.width * (scale - 1);
+          ty = (0.5 - py) * r.height * (scale - 1);
+          imgEl.style.transformOrigin = 'center center';
+        } else {
+          scale = 1; tx = 0; ty = 0;
+        }
+        imgEl.classList.toggle('is-zoomed', zoomed);
+        applyTransform();
+      });
+
+      imgEl.addEventListener('pointerdown', function (e) {
+        if (!zoomed) return;
+        dragging = true; startX = e.clientX; startY = e.clientY; baseX = tx; baseY = ty;
+        imgEl.setPointerCapture(e.pointerId);
+      });
+      imgEl.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        tx = baseX + (e.clientX - startX);
+        ty = baseY + (e.clientY - startY);
+        applyTransform();
+      });
+      imgEl.addEventListener('pointerup', function () { dragging = false; });
+      imgEl.addEventListener('pointercancel', function () { dragging = false; });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay.classList.contains('is-open')) { close(); }
+      });
+    }
+
+    function applyTransform() {
+      imgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    }
+
+    function open(src) {
+      if (!overlay) { build(); }
+      zoomed = false; scale = 1; tx = 0; ty = 0;
+      imgEl.classList.remove('is-zoomed');
+      imgEl.style.transform = '';
+      imgEl.src = fullSrc(src);
+      overlay.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function close() {
+      overlay.classList.remove('is-open');
+      zoomed = false; scale = 1; tx = 0; ty = 0;
+      imgEl.style.transform = '';
+      imgEl.src = '';
+      document.body.style.overflow = '';
+    }
+
+    // 事件委托：站内所有帖子图片都可点开
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || t.tagName !== 'IMG') { return; }
+      if (!t.closest('.post-card, .post-images, .pd-gallery, .comment-text, .qz-source-imgs, .pending-item')) { return; }
+      if (t.closest('.lw-zoom-overlay')) { return; }
+      var src = t.currentSrc || t.src;
+      if (!src) { return; }
+      e.preventDefault();
+      open(src);
+    });
+
+    // 全局可用（后台待审核页也在用）
+    window.openZoom = open;
+  }
+
+  initImageZoom();
+
+
 })();
