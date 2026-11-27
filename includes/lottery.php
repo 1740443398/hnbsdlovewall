@@ -149,12 +149,25 @@ if (!function_exists('lwLotteryJoin')) {
         foreach ($rules as $r) { if (mb_strpos((string) $r, '关注') !== false) { $needFollow = true; break; } }
         /* 点赞 / 评论 规则的强校验：只有当抽奖关联了动态（post_id>0）时才能核验，
          * 没有关联动态的抽奖保持"仅提示"，避免把用户拦在门外却无从操作。 */
-        $needLike = false; $needComment = false;
+        $needLike = false; $needComment = false; $needRepost = false;
         foreach ($rules as $r) {
             if (mb_strpos((string) $r, '点赞') !== false) { $needLike = true; }
             if (mb_strpos((string) $r, '评论') !== false) { $needComment = true; }
+            if (mb_strpos((string) $r, '转发') !== false) { $needRepost = true; }
         }
         $lotPostId = (int) ($l['post_id'] ?? 0);
+        if ($lotPostId > 0 && $needRepost) {
+            /* 「转发」规则：检查是否有本人发布的、引用了该动态的帖子（动态套动态，不复制数据） */
+            $reposted = false;
+            foreach ((array) getFS()->read('posts') as $__p) {
+                if (!is_array($__p) || !empty($__p['is_deleted'])) { continue; }
+                if ((int) ($__p['user_id'] ?? 0) !== $userId) { continue; }
+                if ((int) ($__p['quote_post_id'] ?? 0) === $lotPostId) { $reposted = true; break; }
+            }
+            if (!$reposted) {
+                return ['ok' => false, 'error' => '该抽奖要求先转发附带动态（写一条引用它的动态）', 'need_repost' => $lotPostId];
+            }
+        }
         if ($lotPostId > 0 && $needLike) {
             $liked = getFS()->findOne('post_likes', ['post_id' => $lotPostId, 'user_id' => $userId]);
             if (!$liked) {
@@ -315,6 +328,13 @@ if (!function_exists('lwLotteryRuleStatus')) {
                 $out['点赞'] = (bool) $fs->findOne('post_likes', ['post_id' => $postId, 'user_id' => $userId]);
             } elseif (mb_strpos($r, '评论') !== false && $postId > 0) {
                 $out['评论'] = (bool) $fs->findOne('comments', ['post_id' => $postId, 'user_id' => $userId]);
+            } elseif (mb_strpos($r, '转发') !== false && $postId > 0) {
+                $done = false;
+                foreach ((array) $fs->read('posts') as $__p) {
+                    if (!is_array($__p) || !empty($__p['is_deleted'])) { continue; }
+                    if ((int) ($__p['user_id'] ?? 0) === $userId && (int) ($__p['quote_post_id'] ?? 0) === $postId) { $done = true; break; }
+                }
+                $out['转发'] = $done;
             }
         }
         return $out;

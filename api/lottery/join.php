@@ -18,6 +18,9 @@ if (empty($r['ok'])) {
     if (!empty($r['need_like'])) {
         jsonError((string) ($r['error'] ?? '请先点赞附带动态'), 403, ['need_like' => (int) $r['need_like']]);
     }
+    if (!empty($r['need_repost'])) {
+        jsonError((string) ($r['error'] ?? '请先转发附带动态'), 403, ['need_repost' => (int) $r['need_repost']]);
+    }
     if (!empty($r['need_comment'])) {
         jsonError((string) ($r['error'] ?? '请先在附带动态下评论'), 403, ['need_comment' => (int) $r['need_comment']]);
     }
