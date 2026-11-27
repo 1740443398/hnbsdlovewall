@@ -13,7 +13,7 @@ if ($user) { $user = checkBanned($user); }
 $isGuest = ($user === null);
 
 $tab = (string)($_GET['tab'] ?? 'recommend');
-if (!in_array($tab, ['recommend', 'hot', 'tags', 'series'], true)) {
+if (!in_array($tab, ['recommend', 'hot', 'tags', 'series', 'following'], true)) {
     $tab = 'recommend';
 }
 $pageTitle = '发现 · ' . SITE_NAME;
@@ -259,6 +259,9 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
         <a class="disc-tab <?= $tab === 'recommend' ? 'on' : '' ?>" href="/pages/discover.php?tab=recommend">为你推荐</a>
         <a class="disc-tab <?= $tab === 'hot' ? 'on' : '' ?>" href="/pages/discover.php?tab=hot">热门</a>
         <a class="disc-tab <?= $tab === 'tags' ? 'on' : '' ?>" href="/pages/discover.php?tab=tags">主题</a>
+        <?php if ($user): ?>
+        <a class="disc-tab <?= $tab === 'following' ? 'on' : '' ?>" href="/pages/discover.php?tab=following">关注</a>
+        <?php endif; ?>
         <a class="disc-tab <?= $tab === 'series' ? 'on' : '' ?>" href="/pages/discover.php?tab=series">专栏</a>
     </div>
 
@@ -267,7 +270,7 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
 </main>
 
 <script>
-var TAB = <?= json_encode($tab) ?>;
+var TAB = <?php echo json_encode($tab === 'following' && !$user ? 'recommend' : $tab); ?>;
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function postCard(p){
@@ -290,6 +293,26 @@ function loadRecommend(){
     .then(function(d){ render((d.data && d.data.posts) || [], '暂无推荐，先去发个帖子吧'); })
     .catch(function(){ document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
 }
+function loadFollowing(){
+    document.getElementById('content').innerHTML = '<div class="empty">加载中…</div>';
+    fetch('/api/posts/following.php?page=1&limit=12', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            var data = d.data || {};
+            if (!data.posts || !data.posts.length) {
+                if (!data.following_count) {
+                    document.getElementById('content').innerHTML =
+                        '<div class="empty">还没有关注任何人 —— 去 <a href="/pages/discover.php?tab=hot">热门</a> 里找几位同学关注吧</div>';
+                } else {
+                    document.getElementById('content').innerHTML = '<div class="empty">你关注的同学还没有新动态</div>';
+                }
+                return;
+            }
+            render(data.posts, '暂无内容');
+        })
+        .catch(function () { document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
+}
+
 function loadHot(){
     fetch('/api/recommend.php?action=hot&limit=12', {credentials:'same-origin'})
     .then(function(r){ return r.json(); })
@@ -327,7 +350,8 @@ function loadSeries(){
         document.getElementById('content').innerHTML = html;
     });
 }
-if (TAB === 'hot') loadHot();
+if (TAB === 'following') loadFollowing();
+else if (TAB === 'hot') loadHot();
 else if (TAB === 'tags') loadTags();
 else if (TAB === 'series') loadSeries();
 else loadRecommend();
