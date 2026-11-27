@@ -263,6 +263,9 @@ if ($inviteEnabled && $tab === 'invite') {
             margin-bottom: 0.25rem;
         }
 
+        /* 收藏分类徽标 */
+        .uc-data-cat { display: inline-block; padding: 0 6px; border-radius: 5px; background: rgba(47,91,154,.10); color: var(--primary); font-size: .7rem; font-weight: 600; }
+
         /* 资料卡快捷数据 */
         .uc-quick-stats { display: flex; gap: 1.1rem; margin-top: .65rem; flex-wrap: wrap; }
         .uc-qs { display: flex; flex-direction: column; line-height: 1.2; text-decoration: none; }
@@ -2226,7 +2229,7 @@ if ($inviteEnabled && $tab === 'invite') {
                         <div class="uc-data-main">
                             <a href="${SITE_URL}/pages/post_detail.php?id=${f.post_id}" class="uc-data-title">${f.title || __t('uc.no_title')}</a>
                             <div class="uc-data-content">${f.content || ''}</div>
-                            <div class="uc-data-meta">${f.timeAgo} · ${f.author ? f.author.nickname : ''} · ${f.like_count || 0}${__t('uc.likes')} · ${f.comment_count || 0}${__t('uc.comments')}</div>
+                            <div class="uc-data-meta">${f.category_name ? '<span class="uc-data-cat">' + f.category_name + '</span> · ' : ''}${f.timeAgo} · ${f.author ? f.author.nickname : ''} · ${f.like_count || 0}${__t('uc.likes')} · ${f.comment_count || 0}${__t('uc.comments')}</div>
                         </div>
                         <div class="uc-data-actions">
                             <button class="uc-btn uc-btn-outline uc-btn-sm" data-unfavorite="${f.post_id}">${__t('uc.unfavorite')}</button>
