@@ -107,12 +107,19 @@ if ($detail):
 
     <?php if ($status === 'open'): ?>
       <?php if ($isGuest): ?>
-        <p><a class="btn" href="/pages/login.php">登录后参与</a></p>
+        <div class="lot-actions">
+          <a class="btn" href="/pages/login.php">登录后参与</a>
+        </div>
       <?php elseif ($joined): ?>
-        <p><button class="btn ghost" disabled>已参与 ✓</button></p>
+        <div class="lot-actions">
+          <button class="btn ghost" disabled>已参与 ✓</button>
+          <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
+        </div>
       <?php else: ?>
-        <p><button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
-           <button class="btn ghost" onclick="copyShare()">复制分享链接</button></p>
+        <div class="lot-actions">
+          <button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
+          <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
+        </div>
       <?php endif; ?>
     <?php else: ?>
       <?php if ($user && in_array((int) $user['id'], array_map('intval', $winnerIds), true)): ?>
