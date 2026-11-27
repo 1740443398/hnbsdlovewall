@@ -50,6 +50,9 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     .sr-item .mt{font-size:.76rem;color: var(--text-muted, #a0aec0);display:flex;gap:14px;flex-wrap:wrap}
     .sr-item .fd{font-size:.7rem;background: var(--primary-light, #eef3fa);color: var(--primary, #2F5B9A);padding:1px 6px;border-radius:4px;margin-left:6px}
     .sr-empty{text-align:center;padding:60px 20px;color: var(--text-muted, #a0aec0)}
+    #moreWrap{text-align:center;margin:18px 0 8px}
+    #moreBtn{padding:10px 26px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:.9rem;cursor:pointer}
+    #moreBtn:disabled{opacity:.6;cursor:default}
     .sr-history{display:none;margin:4px 0 14px;font-size:.85rem}
     .sr-history-head{display:flex;justify-content:space-between;align-items:center;color:var(--text-muted,#a0aec0);margin-bottom:8px}
     .sr-history-head button{background:none;border:none;color:var(--primary,#2F5B9A);cursor:pointer;font-size:.82rem;padding:2px 4px}
@@ -82,6 +85,7 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     </div>
 
     <div id="result"><div class="sr-empty">输入关键词开始搜索</div></div>
+    <div id="moreWrap" style="display:none"><button type="button" id="moreBtn">加载更多</button></div>
 </div>
 </main>
 
@@ -106,48 +110,82 @@ function fieldLabel(f){
     return {title:'标题', content:'正文', author:'作者'}[f] || f;
 }
 
-function render(data){
-    TERMS = data.terms || [];
-    var posts = data.posts || [];
-    document.getElementById('sorts').style.display = posts.length ? 'flex' : 'none';
-    if (!posts.length) {
-        document.getElementById('result').innerHTML = '<div class="sr-empty">' +
-            (data.message || ('没有找到与「' + esc(data.query) + '」相关的内容')) + '</div>';
-        return;
-    }
-    var html = '<div style="font-size:.84rem;color:#718096;margin-bottom:12px">共 ' + data.total + ' 条结果</div>';
-    posts.forEach(function(p){
-        var fields = (p.matched_fields || []).map(function(f){
-            return '<span class="fd">' + fieldLabel(f) + '</span>';
-        }).join('');
-        html += '<div class="sr-item">' +
-            '<h3><a href="/pages/post_detail.php?id=' + p.id + '">' +
-            (p.title ? highlight(p.title) : highlight(p.snippet.slice(0, 30))) + fields + '</a></h3>' +
-            '<div class="sn">' + highlight(p.snippet) + '</div>' +
-            '<div class="mt"><span>' + esc(p.author_name) + '</span>' +
-            '<span>♡ ' + p.like_count + '</span><span>评论 ' + p.comment_count + '</span>' +
-            '<span>' + esc(p.created_at) + '</span></div></div>';
-    });
-    document.getElementById('result').innerHTML = html;
+function itemHtml(p) {
+    var fields = (p.matched_fields || []).map(function (f) {
+        return '<span class="fd">' + fieldLabel(f) + '</span>';
+    }).join('');
+    return '<div class="sr-item">' +
+        '<h3><a href="/pages/post_detail.php?id=' + p.id + '">' +
+        (p.title ? highlight(p.title) : highlight((p.snippet || '').slice(0, 30))) + fields + '</a></h3>' +
+        '<div class="sn">' + highlight(p.snippet || '') + '</div>' +
+        '<div class="mt"><span>' + esc(p.author_name) + '</span>' +
+        '<span>♡ ' + p.like_count + '</span><span>评论 ' + p.comment_count + '</span>' +
+        '<span>' + esc(p.created_at) + '</span></div></div>';
 }
 
-function search(){
+function render(data, append) {
+    TERMS = data.terms || [];
+    var posts = data.posts || [];
+    ITEMS = append ? ITEMS.concat(posts) : posts;
+    HAS_MORE = !!(data.pagination && data.pagination.has_more);
+    var box = document.getElementById('result');
+    var moreWrap = document.getElementById('moreWrap');
+    var moreBtn = document.getElementById('moreBtn');
+    var sorts = document.getElementById('sorts');
+    if (sorts) sorts.style.display = ITEMS.length ? 'flex' : 'none';
+
+    if (!ITEMS.length) {
+        box.innerHTML = '<div class="sr-empty">' +
+            (data.message || ('没有找到与「' + esc(data.query) + '」相关的内容')) + '</div>';
+        if (moreWrap) moreWrap.style.display = 'none';
+        return;
+    }
+    var head = '<div style="font-size:.84rem;color:#718096;margin-bottom:12px">共 ' + data.total + ' 条结果</div>';
+    box.innerHTML = head + ITEMS.map(itemHtml).join('');
+    if (moreWrap) moreWrap.style.display = 'block';
+    if (moreBtn) { moreBtn.disabled = !HAS_MORE; moreBtn.textContent = HAS_MORE ? '加载更多' : '没有更多了'; }
+}
+
+function fetchPage(page, append) {
+    var q = LAST_Q;
+    var url = '/api/search/fulltext.php?q=' + encodeURIComponent(q) + '&sort=' + SORT +
+        '&page=' + page + '&limit=20';
+    document.getElementById('result').innerHTML = '<div class="sr-empty">搜索中…</div>';
+    fetch(url, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d.success) {
+                document.getElementById('result').innerHTML = '<div class="sr-empty">' + esc(d.message || '搜索失败') + '</div>';
+                return;
+            }
+            PAGE = page;
+            render(d.data, append);
+        })
+        .catch(function () {
+            document.getElementById('result').innerHTML = '<div class="sr-empty">网络错误</div>';
+        });
+}
+
+function search() {
     var q = document.getElementById('q').value.trim();
-    if (!q) { document.getElementById('result').innerHTML = '<div class="sr-empty">请输入关键词</div>'; return; }
+    if (!q) {
+        document.getElementById('result').innerHTML = '<div class="sr-empty">请输入关键词</div>';
+        renderHistory();
+        return;
+    }
+    LAST_Q = q;
     saveHistory(q);
     var __h = document.getElementById('history'); if (__h) __h.style.display = 'none';
-    var url = '/api/search/fulltext.php?q=' + encodeURIComponent(q) + '&sort=' + SORT + '&limit=30';
-    // 同步 URL，方便分享与前进后退
     history.replaceState(null, '', '/pages/search.php?q=' + encodeURIComponent(q) + '&sort=' + SORT);
-    document.getElementById('result').innerHTML = '<div class="sr-empty">搜索中…</div>';
-    fetch(url, {credentials:'same-origin'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-        if (!d.success) { document.getElementById('result').innerHTML = '<div class="sr-empty">' + esc(d.message||'搜索失败') + '</div>'; return; }
-        render(d.data);
-    })
-    .catch(function(){ document.getElementById('result').innerHTML = '<div class="sr-empty">网络错误</div>'; });
+    ITEMS = [];
+    fetchPage(1, false);
 }
+
+function loadMore() {
+    if (!HAS_MORE || !LAST_Q) return;
+    fetchPage(PAGE + 1, true);
+}
+document.getElementById('moreBtn').addEventListener('click', loadMore);
 
 /* ---------- 最近搜索（localStorage，最多 8 条） ---------- */
 var HIST_KEY = 'lw_search_history';
