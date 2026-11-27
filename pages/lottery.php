@@ -412,6 +412,42 @@ if ($detail):
         <?php if ($__page < $__pages): ?><a href="?<?= $__keepQ ?>&page=<?= $__page + 1 ?>" style="padding:4px 10px;border-radius:999px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);text-decoration:none">下一页</a><?php endif; ?>
     </div>
     <?php endif; ?>
+    <?php
+    /* 最近开奖：横向滚动卡片，给列表页一个"结果感" */
+    $__recent = [];
+    foreach (lwLotteryAll() as $__rl) {
+        if ((string) ($__rl['status'] ?? 'open') === 'open') { continue; }
+        $__recent[] = $__rl;
+    }
+    usort($__recent, function ($a, $b) {
+        $ta = strtotime((string) ($a['drawn_at'] ?? $a['draw_at'] ?? '')) ?: 0;
+        $tb = strtotime((string) ($b['drawn_at'] ?? $b['draw_at'] ?? '')) ?: 0;
+        return $tb <=> $ta;
+    });
+    $__recent = array_slice($__recent, 0, 6);
+    ?>
+    <?php if ($__recent): ?>
+    <div class="lot-recent" style="margin:16px 0 6px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+        <b style="font-size:14.5px">🎉 最近开奖</b>
+        <a href="/pages/lottery.php?status=drawn" style="font-size:12px;color:var(--primary);text-decoration:none">查看全部 →</a>
+      </div>
+      <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch">
+        <?php foreach ($__recent as $__rl):
+            $__rw = array_map('intval', (array) json_decode((string) ($__rl['winners'] ?? '[]'), true));
+            $__names = [];
+            foreach (array_slice($__rw, 0, 2) as $__ru) { $__names[] = lwLUser($userIndex, (int) $__ru)['nickname']; }
+            if (!$__names) { $__names[] = '流抽'; }
+        ?>
+        <a href="/pages/lottery.php?id=<?= (int) $__rl['id'] ?>" style="flex:0 0 180px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:10px 12px;text-decoration:none;color:var(--text)">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars((string) ($__rl['title'] ?? '')) ?></div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎁 <?= htmlspecialchars((string) ($__rl['prize'] ?? '')) ?></div>
+          <div style="font-size:11.5px;color:#C0392B;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎉 <?= htmlspecialchars(implode('、', $__names)) ?></div>
+        </a>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <?php endif; ?>
     <?php if ($user && $myLotIds): ?>
       <div class="card">
         <h2 style="font-size:15px">我参与的抽奖</h2>
