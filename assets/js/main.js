@@ -3444,7 +3444,7 @@
 
     /* ---------- 静默偏好（本地） ---------- */
     prefs() {
-      const def = { silent: false, silentStart: 23, silentEnd: 7, unreadFirst: false };
+      const def = { silent: false, silentStart: 23, silentEnd: 7, unreadFirst: false, unreadOnly: false };
       try {
         const o = JSON.parse(localStorage.getItem(this.PREFS_KEY) || '{}');
         return Object.assign(def, o || {});
@@ -3462,6 +3462,15 @@
       this._st.unread.classList.toggle('is-on', on);
       this._st.unread.setAttribute('aria-pressed', on ? 'true' : 'false');
       this._st.unread.innerHTML = '未读优先' + (on ? ' ✓' : '');
+    },
+
+    /** 「只看未读」按钮态 */
+    syncUnreadOnlyUI() {
+      if (!this._st || !this._st.onlyUnread) return;
+      const on = !!this.prefs().unreadOnly;
+      this._st.onlyUnread.classList.toggle('is-on', on);
+      this._st.onlyUnread.setAttribute('aria-pressed', on ? 'true' : 'false');
+      this._st.onlyUnread.innerHTML = '只看未读' + (on ? ' ✓' : '');
     },
 
     /** 当前是否处于静默时段（跨零点用 OR 判定） */
@@ -3507,6 +3516,7 @@
             svgIcon('bell', 15) + '<span>静默</span>' +
           '</button>' +
           '<button type="button" class="lw-ntf-unread" aria-pressed="false" title="未读通知优先显示">未读优先</button>' +
+          '<button type="button" class="lw-ntf-onlyunread" data-ntf-onlyunread aria-pressed="false" title="只显示未读通知">只看未读</button>' +
           '<button type="button" class="mark-all-read">全部已读</button>' +
         '</div>' +
         '<div class="lw-ntf-tabs" role="tablist">' +
@@ -3529,10 +3539,12 @@
         more: this.panel.querySelector('[data-ntf-more]'),
         silent: this.panel.querySelector('[data-ntf-silent]'),
         unread: this.panel.querySelector('.lw-ntf-unread'),
+        onlyUnread: this.panel.querySelector('[data-ntf-onlyunread]'),
         tabs: Array.prototype.slice.call(this.panel.querySelectorAll('[data-ntf-tab]')),
       };
       this.syncSilentUI();
       this.syncUnreadUI();
+      this.syncUnreadOnlyUI();
       this.repositionPanel();
     },
 
@@ -3605,6 +3617,21 @@
           this.savePrefs(p);
           this.syncUnreadUI();
           this.renderList();
+        });
+      }
+
+      // 只看未读
+      if (this._st.onlyUnread) {
+        this._st.onlyUnread.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const p = this.prefs();
+          p.unreadOnly = !p.unreadOnly;
+          this.savePrefs(p);
+          this.syncUnreadOnlyUI();
+          this._page = 1;
+          this._items = [];
+          this._seenIds = null;
+          this.fetchNotifications();
         });
       }
 
@@ -3684,8 +3711,9 @@
         }
         // 拉取含已读的完整列表（不再用 unread=1），既拿未读数也保留历史记录
         const cat = (this._tab && this._tab !== 'all') ? ('&category=' + encodeURIComponent(this._tab)) : '';
+        const onlyUnread = this.prefs().unreadOnly ? '&unread=1' : '';
         const data = await fetchAPI(
-          '/api/user/notifications.php?page=' + this._page + '&limit=' + this._limit + cat
+          '/api/user/notifications.php?page=' + this._page + '&limit=' + this._limit + cat + onlyUnread
         );
         if (!data.data) return;
         this.unreadCount = data.data.unread_count || 0;
@@ -3757,9 +3785,10 @@
       if (this.prefs().unreadFirst) {
         list = list.slice().sort((a, b) => (a.is_read ? 1 : 0) - (b.is_read ? 1 : 0));
       }
-      if (this._tab === 'interact') list = all.filter((n) => this.classify(n)[0] === 'interact');
-      else if (this._tab === 'system') list = all.filter((n) => this.classify(n)[0] === 'system');
-      else if (this._tab === 'lottery') list = all.filter((n) => this.classify(n)[0] === 'lottery');
+      if (this.prefs().unreadOnly) list = list.filter((n) => !n.is_read);
+      if (this._tab === 'interact') list = list.filter((n) => this.classify(n)[0] === 'interact');
+      else if (this._tab === 'system') list = list.filter((n) => this.classify(n)[0] === 'system');
+      else if (this._tab === 'lottery') list = list.filter((n) => this.classify(n)[0] === 'lottery');
 
       // 更新标签上的未读数
       this.updateTabCounts(all);
