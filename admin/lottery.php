@@ -353,7 +353,13 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                 <div class="lot-field"><label>中奖名额</label><input class="form-input" type="number" name="prize_count" value="1" min="1" max="100"></div>
                 <div class="lot-field"><label>开奖时间</label><input class="form-input" type="datetime-local" name="draw_at" required></div>
             </div>
-            <div class="lot-field"><label>封面图（可选，≤3MB，jpg/png/gif/webp）</label><input class="form-input" type="file" name="cover_image_file" accept="image/*"></div>
+            <div class="lot-field"><label>封面图（可选，≤3MB，jpg/png/gif/webp）</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <input class="form-input" type="file" name="cover_image_file" accept="image/*" id="coverInput" style="flex:1">
+                    <img id="coverPreview" alt="" style="display:none;width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--border)">
+                    <button type="button" id="coverClear" class="btn btn-sm" style="display:none">移除</button>
+                </div>
+            </div>
             <div class="lot-field"><label>说明（可选）</label><textarea class="form-input" name="description" rows="3" placeholder="抽奖规则、领奖方式等"></textarea></div>
             <div class="lot-field">
                 <label>参与方式（可多选；关注 / 点赞 / 评论 会自动核验，转发由「绑定动态」天然满足）</label>
@@ -529,6 +535,25 @@ document.addEventListener('click', function (e) {
     setTimeout(function () { inp.style.outline = ''; }, 1600);
   }
 });
+
+/* 封面选择后即时预览（本地 FileReader，不上传） */
+(function () {
+  var inp = document.getElementById('coverInput');
+  var img = document.getElementById('coverPreview');
+  var clr = document.getElementById('coverClear');
+  if (!inp) return;
+  inp.addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) { img.style.display = 'none'; clr.style.display = 'none'; return; }
+    if (!/^image\//.test(f.type)) { alert('请选择图片文件'); this.value = ''; return; }
+    var r = new FileReader();
+    r.onload = function (e) { img.src = e.target.result; img.style.display = 'block'; clr.style.display = 'inline-block'; };
+    r.readAsDataURL(f);
+  });
+  if (clr) clr.addEventListener('click', function () {
+    inp.value = ''; img.style.display = 'none'; img.removeAttribute('src'); this.style.display = 'none';
+  });
+})();
 
 function copyLotLink(id) {
     var url = location.origin + '/pages/lottery.php?id=' + id;
