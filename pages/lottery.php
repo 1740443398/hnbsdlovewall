@@ -182,7 +182,7 @@ if ($detail):
         </div>
       <?php else: ?>
         <?php if (!empty($__missingRules)): ?>
-        <div class="lot-missing-hint">还差 <?= (int) $__missingRules ?> 项参与条件，点上面的红叉去完成即可</div>
+        <div class="lot-missing-hint">还差 <?= (int) $__missingRules ?> 项参与条件，点上面的红叉去完成，或 <a href="/pages/lottery_guide.php?lottery_id=<?= (int) $l['id'] ?>" style="color:inherit;font-weight:700;text-decoration:underline">一键补全 →</a></div>
         <?php endif; ?>
         <div class="lot-actions">
           <?php if (!empty($__missingRules)): ?>
