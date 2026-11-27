@@ -307,7 +307,12 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                     <tbody>
                     <?php foreach ($__pending as $__q): ?>
                         <tr>
-                            <td><?= htmlspecialchars((string)($__q['send_at'] ?? '')) ?></td>
+                            <td><?php
+                                $__at = strtotime((string)($__q['send_at'] ?? '')) ?: 0;
+                                $__left = max(0, (int) ceil(($__at - time()) / 60));
+                                echo htmlspecialchars((string)($__q['send_at'] ?? ''));
+                                if ($__at > 0) { echo '<div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px">距发送 ' . $__left . ' 分钟</div>'; }
+                            ?></td>
                             <td><?= ['all'=>'全部','role_user'=>'普通用户','role_admin'=>'管理员','single'=>'用户#' . (int)($__q['single_id'] ?? 0)][(string)($__q['target'] ?? 'all')] ?? '全部' ?></td>
                             <td style="max-width:320px;word-break:break-word"><?= htmlspecialchars(mb_substr((string)($__q['content'] ?? ''), 0, 60)) ?></td>
                             <td><?= !empty($__q['app_push']) ? '✓' : '—' ?></td>
