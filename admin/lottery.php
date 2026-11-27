@@ -326,6 +326,7 @@ $__funnel = [
                     </div>
                     <div style="display:flex;gap:6px">
                         <a class="btn btn-sm" href="/pages/lottery.php?id=<?= (int) $l['id'] ?>">查看</a>
+                        <a class="btn btn-sm" href="/admin/lottery_export.php?id=<?= (int) $l['id'] ?>">导出 CSV</a>
                         <button class="btn btn-sm" type="button" onclick="copyLotLink(<?= (int) $l['id'] ?>)">复制链接</button>
                         <?php if ($status === 'open'): ?>
                         <form method="post" onsubmit="return confirm('立即开奖？开奖后不能再参与')">
