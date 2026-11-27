@@ -435,11 +435,28 @@ if ($detail):
       <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch">
         <?php foreach ($__recent as $__rl):
             $__rw = array_map('intval', (array) json_decode((string) ($__rl['winners'] ?? '[]'), true));
-            $__names = [];
-            foreach (array_slice($__rw, 0, 2) as $__ru) { $__names[] = lwLUser($userIndex, (int) $__ru)['nickname']; }
+            $__names = []; $__avatars = [];
+            foreach (array_slice($__rw, 0, 3) as $__ru) {
+                $__u2 = lwLUser($userIndex, (int) $__ru);
+                $__names[] = $__u2['nickname'];
+                $__avatars[] = $__u2['avatar'];
+            }
             if (!$__names) { $__names[] = '流抽'; }
+            $__cover = trim((string) ($__rl['cover_image'] ?? ''));
+            if ($__cover !== '' && $__cover[0] === '/') { $__cover = 'https://' . ltrim((string) parse_url(SITE_URL, PHP_URL_HOST), '/') . $__cover; }
         ?>
         <a href="/pages/lottery.php?id=<?= (int) $__rl['id'] ?>" style="flex:0 0 180px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:10px 12px;text-decoration:none;color:var(--text)">
+          <?php if ($__cover !== ''): ?>
+          <div class="recent-cover" style="height:56px;border-radius:9px;overflow:hidden;margin-bottom:8px;background:#EEF1F5">
+            <img src="<?= htmlspecialchars($__cover) ?>" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.display='none'">
+          </div>
+          <?php elseif ($__avatars): ?>
+          <div class="recent-cover" style="height:56px;border-radius:9px;margin-bottom:8px;background:linear-gradient(135deg,rgba(47,91,154,.12),rgba(56,161,105,.14));display:flex;align-items:center;justify-content:center;gap:-6px">
+            <?php foreach ($__avatars as $__ai => $__av): ?>
+            <img src="<?= htmlspecialchars($__av) ?>" alt="" loading="lazy" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #fff;margin-left:<?= $__ai === 0 ? '0' : '-10px' ?>;background:#e8edf2" onerror="this.style.display='none'">
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
           <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars((string) ($__rl['title'] ?? '')) ?></div>
           <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎁 <?= htmlspecialchars((string) ($__rl['prize'] ?? '')) ?></div>
           <div style="font-size:11.5px;color:#C0392B;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎉 <?= htmlspecialchars(implode('、', $__names)) ?></div>
