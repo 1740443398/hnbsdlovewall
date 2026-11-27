@@ -50,6 +50,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             } elseif ($adminQq === '') {
                 $msg = '管理员账号缺少 QQ 号，无法发私信'; $msgType = 'error';
             } else {
+                /* 变量替换：{title} {prize} {prize_count} {draw_at} —— 群发文案不用手抄奖品信息 */
+                $__lot = lwLotteryGet($lid);
+                $text = strtr($text, [
+                    '{title}'       => (string) ($__lot['title'] ?? ''),
+                    '{prize}'       => (string) ($__lot['prize'] ?? ''),
+                    '{prize_count}' => (string) (int) ($__lot['prize_count'] ?? 1),
+                    '{draw_at}'     => (string) ($__lot['draw_at'] ?? ''),
+                ]);
                 $keyOf = function ($a, $b) { return $a < $b ? $a . '|' . $b : $b . '|' . $a; };
                 $sent = 0; $skip = 0;
                 $fsPm = getFS();
@@ -264,7 +272,7 @@ foreach ($all as $__lv) {
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <input type="hidden" name="act" value="pm_entries">
                         <input type="hidden" name="lottery_id" value="<?= (int) $l['id'] ?>">
-                        <input type="text" name="pm_text" placeholder="私信参与者内容…" maxlength="200" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);min-width:150px">
+                        <input type="text" name="pm_text" placeholder="私信内容（可用 {title}/{prize}/{prize_count}/{draw_at}）" maxlength="200" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);min-width:150px">
                         <button class="btn btn-sm" type="submit">群发</button>
                     </form>
                     <form method="post" onsubmit="return confirm('删除这个抽奖及其参与记录？')">
