@@ -169,7 +169,7 @@ adminHeader('通知群发', $adminUser, $csrfToken);
             <h4 style="font-size:14px;margin-bottom:8px">最近群发记录</h4>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>时间</th><th>发送人</th><th>对象</th><th>内容</th><th>触达</th><th>App推送</th></tr></thead>
+                    <thead><tr><th>时间</th><th>发送人</th><th>对象</th><th>内容</th><th>触达</th><th>App推送</th><th>操作</th></tr></thead>
                     <tbody>
                     <?php foreach ($__logs as $__lg): ?>
                         <tr>
@@ -179,6 +179,12 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                             <td style="max-width:320px;word-break:break-word"><?= htmlspecialchars(mb_substr((string)($__lg['content'] ?? ''), 0, 60)) ?></td>
                             <td><?= (int)($__lg['sent_count'] ?? 0) ?></td>
                             <td><?= !empty($__lg['app_push']) ? '✓' : '—' ?></td>
+                            <td><button type="button" class="btn btn-outline btn-sm refill-broadcast"
+                                data-target="<?= htmlspecialchars((string)($__lg['target'] ?? 'all')) ?>"
+                                data-single="<?= (int)($__lg['single_id'] ?? 0) ?>"
+                                data-content="<?= htmlspecialchars((string)($__lg['content'] ?? '')) ?>"
+                                data-link="<?= htmlspecialchars((string)($__lg['link'] ?? '')) ?>"
+                                data-push="<?= !empty($__lg['app_push']) ? 1 : 0 ?>">重发</button></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -192,4 +198,26 @@ adminHeader('通知群发', $adminUser, $csrfToken);
         </p>
     </div>
 </div>
+<script>
+(function () {
+    document.querySelectorAll('.refill-broadcast').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var form = document.querySelector('form[method="post"]');
+            if (!form) return;
+            var targetSel = form.querySelector('select[name="target"]');
+            var single = form.querySelector('input[name="single_id"]');
+            var content = form.querySelector('textarea[name="content"]');
+            var link = form.querySelector('input[name="link"]');
+            var push = form.querySelector('input[name="app_push"]');
+            if (targetSel) targetSel.value = btn.getAttribute('data-target') || 'all';
+            if (single) single.value = btn.getAttribute('data-single') || '';
+            if (content) { content.value = btn.getAttribute('data-content') || ''; }
+            if (link) link.value = btn.getAttribute('data-link') || '';
+            if (push) push.checked = btn.getAttribute('data-push') === '1';
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (content) content.focus();
+        });
+    });
+})();
+</script>
 <?php adminFooter(); ?>
