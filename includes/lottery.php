@@ -283,6 +283,32 @@ if (!function_exists('lwLotteryPreDrawNotify')) {
     }
 }
 
+if (!function_exists('lwLotteryRuleStatus')) {
+    /**
+     * 计算当前用户对某抽奖规则的完成情况（用于详情页规则芯片打勾）。
+     * 返回 ['关注' => true, '点赞' => false, ...]；无法判断的规则不返回（前端保持中性）。
+     */
+    function lwLotteryRuleStatus(array $l, int $userId): array
+    {
+        $out = [];
+        if ($userId <= 0) { return $out; }
+        $fs = getFS();
+        $postId = (int) ($l['post_id'] ?? 0);
+        $ownerId = (int) ($l['created_by'] ?? 0);
+        foreach ((array) ($l['rules'] ?? []) as $r) {
+            $r = (string) $r;
+            if (mb_strpos($r, '关注') !== false && $ownerId > 0 && $ownerId !== $userId) {
+                $out['关注'] = (bool) $fs->findOne('follows', ['user_id' => $userId, 'target_id' => $ownerId]);
+            } elseif (mb_strpos($r, '点赞') !== false && $postId > 0) {
+                $out['点赞'] = (bool) $fs->findOne('post_likes', ['post_id' => $postId, 'user_id' => $userId]);
+            } elseif (mb_strpos($r, '评论') !== false && $postId > 0) {
+                $out['评论'] = (bool) $fs->findOne('comments', ['post_id' => $postId, 'user_id' => $userId]);
+            }
+        }
+        return $out;
+    }
+}
+
 if (!function_exists('lwLotteryRemindSet')) {
     /** 设置/取消「开奖提醒」。返回是否已设置。 */
     function lwLotteryRemindSet(int $userId, int $lotteryId, bool $on = true): bool

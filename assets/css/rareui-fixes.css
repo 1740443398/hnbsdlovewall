@@ -328,3 +328,6 @@
 }
 .lw-ntf-unread:hover { background: rgba(47, 91, 154, .08); color: var(--primary); }
 .lw-ntf-unread.is-on { background: rgba(47, 91, 154, .12); color: var(--primary); }
+
+.lot-rule-chip.is-ok { background: rgba(30, 122, 76, .10); color: #1E7A4C; }
+.lot-rule-chip.is-miss { background: rgba(192, 57, 43, .08); color: #C0392B; }

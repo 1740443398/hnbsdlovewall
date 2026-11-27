@@ -105,14 +105,17 @@ if ($detail):
     <?php endif; ?>
     <div class="lot-rules">
       <span class="lot-rules-label">参与方式</span>
+      <?php $__ruleState = $user ? lwLotteryRuleStatus($l, (int) $user['id']) : []; ?>
       <?php if ($rules): foreach ($rules as $__r):
           $__icon = '✅';
           if (mb_strpos($__r, '转发') !== false) { $__icon = '🔁'; }
           elseif (mb_strpos($__r, '评论') !== false) { $__icon = '💬'; }
           elseif (mb_strpos($__r, '点赞') !== false) { $__icon = '👍'; }
           elseif (mb_strpos($__r, '关注') !== false) { $__icon = '➕'; }
+          $__st = null;
+          foreach ($__ruleState as $__k => $__v) { if (mb_strpos((string) $__r, $__k) !== false) { $__st = $__v; break; } }
       ?>
-        <span class="lot-rule-chip"><i><?= $__icon ?></i><?= htmlspecialchars($__r) ?></span>
+        <span class="lot-rule-chip<?= $__st === true ? ' is-ok' : ($__st === false ? ' is-miss' : '') ?>"><i><?= $__icon ?></i><?= htmlspecialchars($__r) ?><?= $__st === true ? ' ✓' : ($__st === false ? ' ✗' : '') ?></span>
       <?php endforeach; else: ?>
         <span class="lot-rule-chip"><i>✅</i>直接参与</span>
       <?php endif; ?>
