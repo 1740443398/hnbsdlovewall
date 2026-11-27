@@ -80,6 +80,18 @@ if ($action === 'list') {
     ]);
 }
 
+if ($action === 'delete') {
+    $id = (int) ($_POST['id'] ?? 0);
+    if ($id <= 0) { jsonError('参数无效', 400); }
+    $row = getFS()->findById('lobby_messages', $id);
+    if (!$row) { jsonError('消息不存在', 404); }
+    $isOwner = (int) ($row['user_id'] ?? 0) === (int) $user['id'];
+    $isAdmin = in_array((string) ($user['role'] ?? ''), ['admin', 'super_admin'], true);
+    if (!$isOwner && !$isAdmin) { jsonError('只能删除自己的消息', 403); }
+    try { getFS()->delete('lobby_messages', $id); } catch (Throwable $e) { jsonError('删除失败', 500); }
+    jsonSuccess(['id' => $id], '已删除');
+}
+
 if ($action === 'quota') {
     jsonSuccess([
         'quota_left' => lwLobbyImageQuotaLeft((int)$user['id']),

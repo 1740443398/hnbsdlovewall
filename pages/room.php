@@ -70,7 +70,9 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-time{font-size:.66rem;color:var(--text-tertiary,#8E9AA8);margin-top:.1875rem;}
         .lb-msg.mine .lb-time{text-align:right;}
 
-        .lb-at{color:var(--primary,#2F5B9A);font-weight:600}
+        .lb-del-btn{border:0;background:none;color:var(--text-tertiary,#8E9AA8);font-size:.68rem;cursor:pointer;padding:0 2px;margin-left:4px}
+    .lb-del-btn:hover{color:#C0392B;text-decoration:underline}
+    .lb-at{color:var(--primary,#2F5B9A);font-weight:600}
     .lb-who-name{cursor:pointer}
     .lb-who-name:hover{color:var(--primary);text-decoration:underline}
     .lb-emoji-panel{position:absolute;bottom:64px;left:12px;right:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);box-shadow:0 10px 30px rgba(0,0,0,.14);z-index:5}
@@ -250,7 +252,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
             '<div class="lb-body">' +
               '<div class="lb-who"><span class="lb-who-name" data-nick="' + esc(m.nickname || ('用户' + m.user_id)) + '" title="点一下 @TA">' + esc(m.nickname || ('用户' + m.user_id)) + '</span>' + roleTag + '</div>' +
               '<div class="lb-bubble">' + inner + '</div>' +
-              '<div class="lb-time">' + timeStr(m.ts) + '</div>' +
+              '<div class="lb-time">' + timeStr(m.ts) + ((mine || (typeof me !== 'undefined' && me && (me.role === 'admin' || me.role === 'super_admin'))) ? ' <button type="button" class="lb-del-btn" data-del-msg="' + m.id + '" title="删除这条消息">删除</button>' : '') + '</div>' +
             '</div>';
 
         var img = wrap.querySelector('.lb-bubble img');
@@ -301,6 +303,24 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
             .then(function () { moreBtn.disabled = false; });
     }
     if (moreBtn) moreBtn.addEventListener('click', loadEarlier);
+
+    /* 删除自己的消息（管理员可删任意消息） */
+    msgsEl.addEventListener('click', function (e) {
+        var b = e.target.closest('.lb-del-btn');
+        if (!b) return;
+        e.stopPropagation();
+        if (!window.confirm('删除这条消息？')) return;
+        var id = b.getAttribute('data-del-msg');
+        var fd = new URLSearchParams(); fd.set('action', 'delete'); fd.set('id', id); fd.set('csrf_token', window.CSRF_TOKEN || '');
+        fetch(SITE_URL + '/api/lobby.php', { method: 'POST', credentials: 'same-origin', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.success) { window.lwAlert((d && d.message) || '删除失败'); return; }
+                var wrap = b.closest('.lb-msg');
+                if (wrap) wrap.remove();
+            })
+            .catch(function () { window.lwAlert('网络错误，删除失败'); });
+    });
 
     /* 点昵称：把「@昵称 」插进输入框（未登录时只提示登录） */
     msgsEl.addEventListener('click', function (e) {
