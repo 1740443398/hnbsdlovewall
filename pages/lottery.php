@@ -146,7 +146,13 @@ if ($detail):
           <img src="<?= htmlspecialchars($eu['avatar']) ?>" alt="" loading="lazy">
         </a>
       <?php endforeach; ?>
+      <?php if (count($entries) > 24): ?>
+        <span class="lot-more" title="仅展示前 24 位参与者">+<?= count($entries) - 24 ?></span>
+      <?php endif; ?>
     </div>
+    <?php if (count($entries) > 24): ?>
+    <p style="font-size:12px;color:var(--muted);margin-top:6px">共 <?= count($entries) ?> 人参与，这里展示前 24 位</p>
+    <?php endif; ?>
     <?php endif; ?>
   </div>
   <p style="font-size:12px;color:var(--muted)"><a href="/pages/lottery.php">← 返回抽奖列表</a></p>

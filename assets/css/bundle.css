@@ -3572,3 +3572,13 @@ html.dark-theme .post-content img:hover {
 .lot-badge.urgent i { animation: lot-blink 1.2s infinite; }
 @keyframes lot-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
+
+/* 参与者头像余量标记 */
+.lot-more {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  background: rgba(47, 91, 154, .10); color: var(--primary);
+  border: 1px dashed rgba(47, 91, 154, .35);
+}
+
