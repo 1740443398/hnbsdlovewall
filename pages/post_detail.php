@@ -1335,6 +1335,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 g.textAlign = 'center'; g.fillStyle = '#6B7A8B'; g.font = '18px "Microsoft YaHei", sans-serif';
                 g.fillText('长按识别二维码 · 查看原文', W / 2, oy + cell * n2 + 34);
 
+                // 水印：站名 + 域名（右下水印不影响阅读）
+                g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,.62)'; g.font = '16px "Microsoft YaHei", sans-serif';
+                g.fillText(<?= json_encode((string) SITE_NAME, JSON_UNESCAPED_UNICODE) ?> + ' · ' + location.host, W - 30, H - 16);
+
                 var a = document.getElementById('posterDownload');
                 try { a.href = c.toDataURL('image/png'); } catch (e) {}
                 document.getElementById('posterModal').style.display = 'flex';
