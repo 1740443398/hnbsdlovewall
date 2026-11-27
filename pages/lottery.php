@@ -498,7 +498,7 @@ if ($detail):
         ?>
         <a href="/pages/lottery.php?id=<?= (int) $__rl['id'] ?>" style="flex:0 0 180px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:10px 12px;text-decoration:none;color:var(--text)">
           <?php if ($__cover !== ''): ?>
-          <div class="recent-cover" style="height:56px;border-radius:9px;overflow:hidden;margin-bottom:8px;background:#EEF1F5">
+          <div class="recent-cover" style="height:56px;border-radius:9px;overflow:hidden;margin-bottom:8px;background:var(--bg-secondary,#EEF1F5)">
             <img src="<?= htmlspecialchars($__cover) ?>" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.display='none'">
           </div>
           <?php elseif ($__avatars): ?>
