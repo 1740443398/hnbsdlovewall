@@ -1,0 +1,32 @@
+[
+  {
+    "name": "home",
+    "info": {
+      "title": "淮南北师大实验中学高中部学习交流平台",
+      "bodyBg": "rgb(244, 246, 249)",
+      "bodyColor": "rgb(45, 55, 72)",
+      "scrollW": 390,
+      "innerW": 390,
+      "overflow": false,
+      "cssLoaded": true,
+      "dark": false
+    },
+    "dark": {
+      "bodyBg": "rgb(15, 21, 32)",
+      "bodyColor": "rgb(228, 233, 240)"
+    },
+    "errors": []
+  },
+  {
+    "name": "lottery",
+    "failed": true
+  },
+  {
+    "name": "changelog",
+    "failed": true
+  },
+  {
+    "name": "login",
+    "failed": true
+  }
+]
