@@ -319,7 +319,19 @@ if (!function_exists('lwLotteryDraw')) {
             }
         } catch (Throwable $__e) { error_log('lottery remind notify: ' . $__e->getMessage()); }
         if (!empty($__appUids)) {
-            lwLotteryAppPush($__appUids, '🎁 抽奖开奖：' . (string) ($l['title'] ?? ''), '抽奖已开奖，点开查看中奖结果', '/pages/lottery.php?id=' . $lotteryId);
+            /* 开奖推送按结果拆分：中奖者和未中奖者收到不同文案，避免"中奖了却看到通用文案"的错位 */
+            $__winSet = array_flip(array_map('intval', $winners));
+            $__wonPush = []; $__losePush = [];
+            foreach (array_unique(array_map('intval', $__appUids)) as $__pu) {
+                if ($__pu <= 0) { continue; }
+                if (isset($__winSet[$__pu])) { $__wonPush[] = $__pu; } else { $__losePush[] = $__pu; }
+            }
+            if ($__wonPush) {
+                lwLotteryAppPush($__wonPush, '🎉 恭喜中奖：' . (string) ($l['title'] ?? ''), '你参与的抽奖已开奖，恭喜中奖！点开查看领奖方式', '/pages/lottery.php?id=' . $lotteryId);
+            }
+            if ($__losePush) {
+                lwLotteryAppPush($__losePush, '🎁 抽奖开奖：' . (string) ($l['title'] ?? ''), '抽奖已开奖，本次未中奖，下次好运～', '/pages/lottery.php?id=' . $lotteryId);
+            }
         }
 
         return ['ok' => true, 'winners' => $winners];
