@@ -1,10 +1,10 @@
 [
   {
-    "name": "home",
+    "name": "changelog",
     "info": {
-      "title": "淮南北师大实验中学高中部学习交流平台",
-      "bodyBg": "rgb(244, 246, 249)",
-      "bodyColor": "rgb(45, 55, 72)",
+      "title": "更新日志 · 淮南北师大实验中学高中部校园交流墙",
+      "bodyBg": "rgba(0, 0, 0, 0)",
+      "bodyColor": "rgb(26, 29, 35)",
       "scrollW": 390,
       "innerW": 390,
       "overflow": false,
@@ -12,21 +12,9 @@
       "dark": false
     },
     "dark": {
-      "bodyBg": "rgb(15, 21, 32)",
+      "bodyBg": "rgba(0, 0, 0, 0)",
       "bodyColor": "rgb(228, 233, 240)"
     },
     "errors": []
-  },
-  {
-    "name": "lottery",
-    "failed": true
-  },
-  {
-    "name": "changelog",
-    "failed": true
-  },
-  {
-    "name": "login",
-    "failed": true
   }
 ]
