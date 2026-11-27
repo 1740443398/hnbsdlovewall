@@ -91,6 +91,12 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
 <body>
 <div class="wrap">
   <h1><a href="/pages/lottery.php" style="color:inherit;text-decoration:none">🎁 站内抽奖</a></h1>
+<?php if ($user && !$detail): ?>
+  <div style="display:flex;gap:8px;margin:10px 0 4px;font-size:12.5px">
+    <a href="/pages/lottery.php?view=all" style="padding:4px 12px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['view'] ?? 'all') !== 'mine' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">全部抽奖</a>
+    <a href="/pages/lottery.php?view=mine" style="padding:4px 12px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['view'] ?? '') === 'mine' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">我参与的（<?= count($myLotIds) ?>）</a>
+  </div>
+<?php endif; ?>
 
 <?php
 /* 我的参与记录：只按 lottery_id 关联读取，不复制抽奖数据 */
@@ -304,6 +310,14 @@ if ($detail):
 
 <?php else:
     $all = lwLotteryAll();
+    /* 列表视图：全部 / 只看我参与的 */
+    $listView = (string) ($_GET['view'] ?? 'all');
+    if (!in_array($listView, ['all', 'mine'], true)) { $listView = 'all'; }
+    if ($listView === 'mine') {
+        $all = array_values(array_filter($all, function ($__l) use ($myLotIds) {
+            return !empty($myLotIds[(int) ($__l['id'] ?? 0)]);
+        }));
+    }
     if (!$all): ?>
   <div class="card"><div class="empty">还没有抽奖活动<br><span style="font-size:12px">管理员可以在后台「抽奖管理」创建</span></div></div>
     <?php else: foreach ($all as $l):
