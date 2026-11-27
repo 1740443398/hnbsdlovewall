@@ -3461,7 +3461,8 @@
       const on = !!this.prefs().unreadFirst;
       this._st.unread.classList.toggle('is-on', on);
       this._st.unread.setAttribute('aria-pressed', on ? 'true' : 'false');
-      this._st.unread.innerHTML = '未读优先' + (on ? ' ✓' : '');
+      this._st.unread.textContent = on ? '开' : '关';
+      this._st.unread.classList.toggle('is-on', on);
     },
 
     /** 「只看未读」按钮态 */
@@ -3470,7 +3471,8 @@
       const on = !!this.prefs().unreadOnly;
       this._st.onlyUnread.classList.toggle('is-on', on);
       this._st.onlyUnread.setAttribute('aria-pressed', on ? 'true' : 'false');
-      this._st.onlyUnread.innerHTML = '只看未读' + (on ? ' ✓' : '');
+      this._st.onlyUnread.textContent = on ? '开' : '关';
+      this._st.onlyUnread.classList.toggle('is-on', on);
     },
 
     /** 当前是否处于静默时段（跨零点用 OR 判定） */
@@ -3512,13 +3514,17 @@
       this.panel.innerHTML =
         '<div class="lw-ntf-head">' +
           '<span class="lw-ntf-title">消息通知</span>' +
-          '<button type="button" class="lw-ntf-silent" data-ntf-silent aria-pressed="false" title="静默通知（23:00-次日7:00 不打扰）">' +
-            svgIcon('bell', 15) + '<span>静默</span>' +
-          '</button>' +
-          '<button type="button" class="lw-ntf-unread" aria-pressed="false" title="未读通知优先显示">未读优先</button>' +
-          '<button type="button" class="lw-ntf-onlyunread" data-ntf-onlyunread aria-pressed="false" title="只显示未读通知">只看未读</button>' +
+          '<button type="button" class="lw-ntf-gear" data-ntf-gear aria-expanded="false" aria-label="通知设置" title="通知设置">⚙</button>' +
           '<button type="button" class="mark-all-read">全部已读</button>' +
           '<a class="lw-ntf-all" href="/pages/notifications.php" title="在整页中查看">查看全部</a>' +
+        '</div>' +
+        '<div class="lw-ntf-settings" data-ntf-settings hidden>' +
+          '<div class="lw-ntf-set-row"><span>静默通知<em>23:00-7:00 不打扰</em></span>' +
+            '<button type="button" class="lw-ntf-silent" data-ntf-silent aria-pressed="false">关</button></div>' +
+          '<div class="lw-ntf-set-row"><span>未读优先<em>未读排在最前</em></span>' +
+            '<button type="button" class="lw-ntf-unread" aria-pressed="false">关</button></div>' +
+          '<div class="lw-ntf-set-row"><span>只看未读<em>隐藏已读通知</em></span>' +
+            '<button type="button" class="lw-ntf-onlyunread" data-ntf-onlyunread aria-pressed="false">关</button></div>' +
         '</div>' +
         '<div class="lw-ntf-tabs" role="tablist">' +
           '<button type="button" class="lw-ntf-tab is-active" data-ntf-tab="all" role="tab">全部</button>' +
@@ -3541,6 +3547,8 @@
         silent: this.panel.querySelector('[data-ntf-silent]'),
         unread: this.panel.querySelector('.lw-ntf-unread'),
         onlyUnread: this.panel.querySelector('[data-ntf-onlyunread]'),
+        gear: this.panel.querySelector('[data-ntf-gear]'),
+        settings: this.panel.querySelector('[data-ntf-settings]'),
         tabs: Array.prototype.slice.call(this.panel.querySelectorAll('[data-ntf-tab]')),
       };
       this.syncSilentUI();
@@ -3591,6 +3599,17 @@
       window.addEventListener('resize', () => {
         if (this.panel.classList.contains('show')) this.repositionPanel();
       });
+
+      // 通知设置展开/收起
+      if (this._st.gear && this._st.settings) {
+        this._st.gear.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const open = this._st.settings.hasAttribute('hidden');
+          if (open) { this._st.settings.removeAttribute('hidden'); } else { this._st.settings.setAttribute('hidden', ''); }
+          this._st.gear.setAttribute('aria-expanded', open ? 'true' : 'false');
+          this._st.gear.classList.toggle('is-on', open);
+        });
+      }
 
       // 分类标签页切换
       this._st.tabs.forEach((tabEl) => {
@@ -3674,6 +3693,7 @@
       if (!this._st || !this._st.silent) return;
       this._st.silent.classList.toggle('is-on', !!p.silent);
       this._st.silent.setAttribute('aria-pressed', p.silent ? 'true' : 'false');
+      this._st.silent.textContent = p.silent ? '开' : '关';
       const quietNow = this.isQuietNow();
       let bar = this.panel.querySelector('.lw-ntf-quiet');
       if (quietNow && !bar) {

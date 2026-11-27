@@ -3807,3 +3807,28 @@ a.lot-rule-chip:hover { filter: brightness(0.96); text-decoration: none; }
 .lw-ntf-all { margin-left: 6px; font-size: 12px; color: var(--primary, #2F5B9A); text-decoration: none; }
 .lw-ntf-all:hover { text-decoration: underline; }
 
+
+/* ===== 通知面板：设置聚合 ===== */
+.lw-ntf-gear {
+  margin-left: auto; width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--border, #dfe4ea); background: transparent;
+  color: var(--text-muted, #7C8B9E); font-size: 13px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.lw-ntf-gear.is-on { border-color: var(--primary, #2F5B9A); color: var(--primary, #2F5B9A); }
+.lw-ntf-settings {
+  padding: 6px 12px 10px; border-bottom: 1px solid var(--border-light, #edf1f5);
+  background: var(--bg-secondary, #F7F9FC);
+}
+.lw-ntf-set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 2px; font-size: 13px; color: var(--text, #1a202c);
+}
+.lw-ntf-set-row em { display: block; font-style: normal; font-size: 11px; color: var(--text-muted, #7C8B9E); margin-top: 1px; }
+.lw-ntf-set-row button {
+  flex: 0 0 auto; min-width: 46px; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--border, #dfe4ea); background: var(--card-bg, #fff);
+  color: var(--text-secondary, #4a5568); font-size: 12px; cursor: pointer;
+}
+.lw-ntf-set-row button.is-on { background: var(--primary, #2F5B9A); border-color: var(--primary, #2F5B9A); color: #fff; }
+
