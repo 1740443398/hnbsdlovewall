@@ -16,6 +16,7 @@ lwLotteryAutoDraw();
 
 $id = max(0, (int) ($_GET['id'] ?? 0));
 $detail = $id > 0 ? lwLotteryGet($id) : null;
+if ($detail) { lwLotteryTrackView($id); }
 
 $userIndex = [];
 foreach ((array) getFS()->read('users') as $u) { $userIndex[(int) ($u['id'] ?? 0)] = $u; }

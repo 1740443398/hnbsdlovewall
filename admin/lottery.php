@@ -108,6 +108,9 @@ foreach ($all as $__lw) {
     if (is_array($__wn)) { $__lotStats['winners'] += count($__wn); }
 }
 $__lotStats['reminds'] = count((array) getFS()->read('lottery_reminders'));
+$__lotStats['views'] = 0;
+foreach ($all as $__lv2) { $__lotStats['views'] += (int) ($__lv2['views'] ?? 0); }
+$__lotStats['rate'] = $__lotStats['views'] > 0 ? round($__lotStats['entries'] * 100 / $__lotStats['views'], 1) : 0;
 
 /* 列表状态筛选：只影响列表展示，统计卡始终是全局口径 */
 $lotFilter = (string) ($_GET['status'] ?? 'all');
@@ -149,6 +152,8 @@ foreach ($all as $__lv) {
             ['参与人次', $__lotStats['entries'], ''],
             ['提醒人次', $__lotStats['reminds'], ''],
             ['中奖人数', $__lotStats['winners'], ''],
+            ['浏览总数', $__lotStats['views'], ''],
+            ['参与转化', $__lotStats['rate'] . '%', ''],
         ];
         foreach ($__cards as $__c):
         ?>

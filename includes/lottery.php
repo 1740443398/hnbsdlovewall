@@ -308,6 +308,22 @@ if (!function_exists('lwLotteryPreDrawNotify')) {
     }
 }
 
+if (!function_exists('lwLotteryTrackView')) {
+    /** 详情浏览计数：同一会话内同一抽奖只记一次，避免刷量 */
+    function lwLotteryTrackView(int $lotteryId): void
+    {
+        if ($lotteryId <= 0) { return; }
+        $seen = $_SESSION['lottery_viewed'] ?? [];
+        if (isset($seen[$lotteryId])) { return; }
+        $seen[$lotteryId] = 1;
+        $_SESSION['lottery_viewed'] = $seen;
+        try {
+            $l = lwLotteryGet($lotteryId);
+            if ($l) { getFS()->update('lotteries', $lotteryId, ['views' => (int) ($l['views'] ?? 0) + 1]); }
+        } catch (Throwable $e) {}
+    }
+}
+
 if (!function_exists('lwLotteryRuleStatus')) {
     /**
      * 计算当前用户对某抽奖规则的完成情况（用于详情页规则芯片打勾）。
