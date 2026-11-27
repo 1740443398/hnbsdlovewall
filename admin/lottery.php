@@ -310,7 +310,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
         </div>
     </div>
     <div class="section-body" style="overflow-x:auto">
-        <div style="display:grid;grid-template-columns:repeat(7,minmax(72px,1fr));gap:6px;min-width:520px">
+        <div class="lot-cal-grid" style="display:grid;grid-template-columns:repeat(7,minmax(72px,1fr));gap:6px;min-width:520px">
             <?php foreach (['日', '一', '二', '三', '四', '五', '六'] as $__w): ?>
             <div style="text-align:center;font-size:11.5px;color:var(--text-muted);padding:2px 0"><?= $__w ?></div>
             <?php endforeach; ?>
@@ -327,6 +327,21 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                 <?php if (count($__list) > 2): ?><div style="color:var(--text-muted)">+<?= count($__list) - 2 ?></div><?php endif; ?>
             </div>
             <?php endfor; ?>
+        </div>
+        <?php ksort($__byDay); ?>
+        <div class="lot-cal-list">
+            <?php if (!$__byDay): ?>
+            <div style="color:var(--text-muted);font-size:12.5px;padding:6px 0">本月没有排期，点上面日期可快速创建。</div>
+            <?php else: foreach ($__byDay as $__d2 => $__list2): ?>
+            <div class="lot-cal-row">
+                <div class="lot-cal-date"><?= (int) date('n', $__first) ?>月<?= (int) $__d2 ?>日</div>
+                <div class="lot-cal-items">
+                    <?php foreach ($__list2 as $__it): ?>
+                    <a href="/pages/lottery.php?id=<?= (int) $__it['id'] ?>" class="<?= (($__it['status'] ?? 'open') === 'open') ? 'is-open' : 'is-drawn' ?>"><?= htmlspecialchars((string) ($__it['title'] ?? '')) ?></a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endforeach; endif; ?>
         </div>
     </div>
 </div>
