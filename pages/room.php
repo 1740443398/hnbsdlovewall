@@ -71,6 +71,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-msg.mine .lb-time{text-align:right;}
 
         .lb-emoji-panel{position:absolute;bottom:64px;left:12px;right:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);box-shadow:0 10px 30px rgba(0,0,0,.14);z-index:5}
+    .lb-emoji-recent{grid-column:1/-1;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding-bottom:6px;margin-bottom:4px;border-bottom:1px dashed var(--border-light,#E4E9F0)}
     .lb-emoji-item{font-size:22px;line-height:1;text-align:center;padding:5px 0;border-radius:8px;cursor:pointer;user-select:none}
     .lb-emoji-item:hover{background:rgba(47,91,154,.10)}
     .lb-more{position:sticky;top:0;align-self:center;margin:6px auto 8px;padding:5px 14px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:12px;cursor:pointer;z-index:2}
@@ -145,6 +146,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
             </button>
             <input type="file" id="lbFile" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
             <div class="lb-emoji-panel" id="lbEmojiPanel" hidden>
+                <div class="lb-emoji-recent" id="lbEmojiRecent" hidden></div>
                 <span class="lb-emoji-item">😀</span><span class="lb-emoji-item">😂</span><span class="lb-emoji-item">😊</span><span class="lb-emoji-item">😍</span>
                 <span class="lb-emoji-item">😎</span><span class="lb-emoji-item">🤔</span><span class="lb-emoji-item">😭</span><span class="lb-emoji-item">😡</span>
                 <span class="lb-emoji-item">👍</span><span class="lb-emoji-item">👏</span><span class="lb-emoji-item">🙏</span><span class="lb-emoji-item">💪</span>
@@ -383,6 +385,26 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
     if (inputEl && sendBtn) {
         var emojiBtn = document.getElementById('lbEmojiBtn');
     var emojiPanel = document.getElementById('lbEmojiPanel');
+    var emojiRecent = document.getElementById('lbEmojiRecent');
+    var EMOJI_KEY = 'lw_chat_emoji_recent';
+    function readRecentEmoji() {
+        try { var a = JSON.parse(localStorage.getItem(EMOJI_KEY) || '[]'); return Array.isArray(a) ? a.slice(0, 8) : []; } catch (e) { return []; }
+    }
+    function renderRecentEmoji() {
+        if (!emojiRecent) return;
+        var list = readRecentEmoji();
+        if (!list.length) { emojiRecent.hidden = true; emojiRecent.innerHTML = ''; return; }
+        emojiRecent.hidden = false;
+        emojiRecent.innerHTML = list.map(function (e) { return '<span class="lb-emoji-item">' + e + '</span>'; }).join('');
+    }
+    function rememberEmoji(ch) {
+        var list = readRecentEmoji().filter(function (x) { return x !== ch; });
+        list.unshift(ch);
+        try { localStorage.setItem(EMOJI_KEY, JSON.stringify(list.slice(0, 8))); } catch (e) {}
+        renderRecentEmoji();
+    }
+    renderRecentEmoji();
+
     if (emojiBtn && emojiPanel) {
         emojiBtn.addEventListener('click', function (e) {
             e.stopPropagation();
@@ -392,6 +414,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
             var it = e.target.closest('.lb-emoji-item');
             if (!it) return;
             var ch = it.textContent;
+            rememberEmoji(ch);
             var start = inputEl.selectionStart || inputEl.value.length;
             var end = inputEl.selectionEnd || inputEl.value.length;
             inputEl.value = inputEl.value.slice(0, start) + ch + inputEl.value.slice(end);
