@@ -194,6 +194,53 @@ if (!function_exists('lwLotteryDraw')) {
     }
 }
 
+if (!function_exists('lwLotteryPreDrawNotify')) {
+    /**
+     * 「即将开奖」提前提醒：开奖前 10 分钟内、且还没提醒过的抽奖，
+     * 给「设了提醒的人 + 已参与者」各发一条站内通知（同一抽奖只发一次）。
+     * 免费主机没有真 cron，所以挂在页面访问时的 lwLotteryAutoDraw() 里兜底。
+     */
+    function lwLotteryPreDrawNotify(): int
+    {
+        $fs = getFS();
+        $now = time();
+        $sent = 0;
+        foreach ((array) $fs->read('lotteries') as $l) {
+            if (($l['status'] ?? '') !== 'open' || !empty($l['pre_notified'])) { continue; }
+            $ts = strtotime((string) ($l['draw_at'] ?? '')) ?: 0;
+            if ($ts <= 0 || $ts - $now > 600 || $ts <= $now) { continue; }
+            $lid = (int) ($l['id'] ?? 0);
+            if ($lid <= 0) { continue; }
+
+            $targets = [];
+            foreach ((array) $fs->read('lottery_reminders') as $r) {
+                if ((int) ($r['lottery_id'] ?? 0) === $lid) { $targets[(int) $r['user_id']] = true; }
+            }
+            foreach ((array) $fs->read('lottery_entries') as $e) {
+                if ((int) ($e['lottery_id'] ?? 0) === $lid) { $targets[(int) ($e['user_id'] ?? 0)] = true; }
+            }
+            unset($targets[0]);
+
+            foreach (array_keys($targets) as $uid) {
+                try {
+                    $fs->insert('notifications', [
+                        'user_id'    => $uid,
+                        'type'       => 'lottery_result',
+                        'content'    => '⏰ 抽奖「' . (string) ($l['title'] ?? '') . '」即将开奖（10 分钟内），记得回来看结果～',
+                        'post_id'    => 0,
+                        'post_title' => (string) ($l['title'] ?? ''),
+                        'from_user'  => '系统',
+                        'is_read'    => false,
+                    ]);
+                    $sent++;
+                } catch (Throwable $e2) {}
+            }
+            try { $fs->update('lotteries', $lid, ['pre_notified' => true]); } catch (Throwable $e3) {}
+        }
+        return $sent;
+    }
+}
+
 if (!function_exists('lwLotteryRemindSet')) {
     /** 设置/取消「开奖提醒」。返回是否已设置。 */
     function lwLotteryRemindSet(int $userId, int $lotteryId, bool $on = true): bool
@@ -228,6 +275,7 @@ if (!function_exists('lwLotteryAutoDraw')) {
     /** 访问时兜底开奖：到点且未开奖的自动抽。 */
     function lwLotteryAutoDraw(): int
     {
+        try { lwLotteryPreDrawNotify(); } catch (Throwable $e) {}
         $n = 0;
         $now = time();
         foreach (lwLotteryRows() as $l) {
