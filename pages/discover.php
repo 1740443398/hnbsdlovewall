@@ -400,21 +400,42 @@ function bindHotRange() {
         });
     });
 }
-function loadTags(){
-    fetch('/api/tags.php?action=cloud&limit=60', {credentials:'same-origin'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-        var tags = (d.data && d.data.tags) || [];
-        if (!tags.length) { document.getElementById('content').innerHTML = '<div class="empty">还没有标签 —— 发帖时写 #话题# 就会自动聚合</div>'; return; }
-        var html = '<div class="tag-cloud">';
-        tags.forEach(function(t){
+var TAG_ALL = [];
+function loadTags() {
+    fetch('/api/tags.php?action=cloud&limit=60', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            TAG_ALL = (d.data && d.data.tags) || [];
+            if (!TAG_ALL.length) { document.getElementById('content').innerHTML = '<div class="empty">还没有标签 —— 发帖时写 #话题# 就会自动聚合</div>'; return; }
+            renderTags('');
+        });
+}
+function renderTags(q) {
+    q = (q || '').trim().toLowerCase();
+    var tags = q ? TAG_ALL.filter(function (t) { return String(t.slug).toLowerCase().indexOf(q) >= 0; }) : TAG_ALL;
+    var html = '<div style="margin-bottom:12px"><input type="search" id="tagFilter" placeholder="搜索话题…" value="' + esc(q) + '" style="width:100%;max-width:340px;padding:8px 12px;border:1px solid var(--border,#dfe4ea);border-radius:10px;font-size:.86rem"></div>';
+    if (!tags.length) {
+        document.getElementById('content').innerHTML = html + '<div class="empty">没有匹配的话题</div>';
+    } else {
+        html += '<div class="tag-cloud">';
+        tags.forEach(function (t) {
             var size = Math.min(1.3, 0.85 + t.count * 0.05);
             html += '<a class="tag-item" style="font-size:' + size + 'rem" href="/pages/discover.php?tab=tags&tag=' +
                 encodeURIComponent(t.slug) + '">' + esc(t.slug) + '<span class="c">' + t.count + '</span></a>';
         });
         html += '</div>';
         document.getElementById('content').innerHTML = html;
-    });
+    }
+    var input = document.getElementById('tagFilter');
+    if (input) {
+        var timer = null;
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(function () { renderTags(input.value); }, 180);
+        });
+        input.focus();
+        input.selectionStart = input.selectionEnd = input.value.length;
+    }
 }
 var SERIES_SORT = (function () { try { var v = localStorage.getItem('lw_series_sort'); return v === 'count' ? 'count' : 'updated'; } catch (e) { return 'updated'; } })();
 function loadSeries() {
