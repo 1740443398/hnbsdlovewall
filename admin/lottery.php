@@ -234,7 +234,7 @@ usort($__viewLots, function ($a, $b) use ($lotSort, $__entryCnt) {
 <?php endif; ?>
 
 <div class="section lot-stats" style="margin-bottom:14px">
-    <div class="section-body" style="display:flex;gap:10px;flex-wrap:wrap">
+    <div class="section-body lot-stats-grid">
         <?php
         $__cards = [
             ['抽奖总数', $__lotStats['total'], ''],

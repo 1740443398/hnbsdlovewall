@@ -405,3 +405,12 @@ html[data-theme="dark"] .lot-missing-hint a { color: #F0A8A2; }
   .lot-admin-actions input[type="text"] { min-width: 0 !important; flex: 1; }
   .lot-admin-actions form[onsubmit] { flex-wrap: wrap; }
 }
+
+
+/* ===== 后台抽奖统计卡：网格布局 ===== */
+.lot-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.lot-stats-grid > div { padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-bg); }
+@media (max-width: 520px) {
+  .lot-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .lot-stats-grid > div { padding: 10px 12px; }
+}
