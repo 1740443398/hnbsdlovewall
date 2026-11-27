@@ -298,7 +298,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                 $__list = $__byDay[$__d] ?? [];
                 $__isToday = ($__ym === date('Y-m')) && ($__d === (int) date('j'));
             ?>
-            <div style="min-height:58px;border:1px solid <?= $__isToday ? 'var(--primary)' : 'var(--border)' ?>;border-radius:8px;padding:4px 5px;font-size:11px;background:<?= $__isToday ? 'rgba(47,91,154,.06)' : 'var(--card-bg)' ?>">
+            <div data-lotdate="<?= $__ym . '-' . sprintf('%02d', $__d) ?>" style="min-height:58px;border:1px solid <?= $__isToday ? 'var(--primary)' : 'var(--border)' ?>;border-radius:8px;padding:4px 5px;font-size:11px;background:<?= $__isToday ? 'rgba(47,91,154,.06)' : 'var(--card-bg)' ?>;cursor:pointer" title="<?= $__list ? '' : '点击在此日创建抽奖' ?>">
                 <div style="font-weight:700;color:<?= $__isToday ? 'var(--primary)' : 'var(--text-muted)' ?>"><?= $__d ?></div>
                 <?php foreach (array_slice($__list, 0, 2) as $__lc): ?>
                 <a href="/pages/lottery.php?id=<?= (int) $__lc['id'] ?>" title="<?= htmlspecialchars((string) ($__lc['title'] ?? '')) ?>" style="display:block;margin-top:2px;padding:1px 4px;border-radius:5px;background:<?= (($__lc['status'] ?? 'open') === 'open') ? 'rgba(47,91,154,.12)' : 'rgba(107,122,139,.12)' ?>;color:<?= (($__lc['status'] ?? 'open') === 'open') ? 'var(--primary)' : 'var(--text-muted)' ?>;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars((string) ($__lc['title'] ?? '')) ?></a>
