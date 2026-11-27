@@ -242,6 +242,16 @@ $__funnel = [
         <form method="post" class="lot-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <input type="hidden" name="act" value="create">
+            <div class="lot-field" style="margin-bottom:6px">
+                <label>快速模板（可选，自动填表）</label>
+                <select id="tpl-select" class="form-input" style="max-width:260px">
+                    <option value="">— 自定义 —</option>
+                    <option value="praise">👍 点赞抽奖（社区活跃）</option>
+                    <option value="share">🔁 转发抽奖（扩散引流）</option>
+                    <option value="study">📚 学习打卡抽奖（比赛版适用）</option>
+                    <option value="exam">📝 期中加油抽奖（考试季）</option>
+                </select>
+            </div>
             <div class="lot-row">
                 <div class="lot-field"><label>标题</label><input class="form-input" name="title" required placeholder="例如：期中加油抽奖"></div>
                 <div class="lot-field"><label>奖品</label><input class="form-input" name="prize" required placeholder="例如：校园墙限定徽章"></div>
@@ -368,6 +378,39 @@ $__funnel = [
 </div>
 
 <script>
+/* 抽奖模板：一键填标题/说明/规则/名额/开奖时间，减少重复填写 */
+(function () {
+  var TPL = {
+    praise: { title: '社区点赞抽奖', prize: '校园墙限定徽章', count: 3, rules: ['like'], hours: 48,
+      desc: '为你喜欢的动态点个赞，就有机会获得限定徽章～开奖后请主动联系管理员，3 天内未领取视为放弃。' },
+    share: { title: '转发扩散抽奖', prize: '奶茶券', count: 2, rules: ['repost'], hours: 72,
+      desc: '转发本抽奖到你的动态，让更多同学看到校园墙～开奖后请携带学号到管理员处领取。' },
+    study: { title: '学习打卡抽奖', prize: '文具礼包', count: 5, rules: ['comment', 'like'], hours: 120,
+      desc: '在评论区写下你本周的学习打卡内容，即可参与抽奖。坚持打卡的同学更容易被看见哦～' },
+    exam: { title: '期中加油抽奖', prize: '幸运文具盲盒', count: 5, rules: ['follow', 'comment'], hours: 72,
+      desc: '期中将至，写下你的目标或给同学加油，抽 5 位同学送盲盒～中奖后凭学生证领取。' }
+  };
+  var sel = document.getElementById('tpl-select');
+  if (!sel) return;
+  sel.addEventListener('change', function () {
+    var t = TPL[this.value];
+    if (!t) return;
+    var f = this.closest('form');
+    f.querySelector('[name="title"]').value = t.title;
+    f.querySelector('[name="prize"]').value = t.prize;
+    f.querySelector('[name="prize_count"]').value = t.count;
+    f.querySelector('[name="description"]').value = t.desc;
+    ['follow', 'like', 'comment', 'repost'].forEach(function (k) {
+      var el = f.querySelector('[name="rule_' + k + '"]');
+      if (el) el.checked = t.rules.indexOf(k) >= 0;
+    });
+    var d = new Date(Date.now() + t.hours * 3600 * 1000);
+    var pad = function (n) { return n < 10 ? '0' + n : n; };
+    f.querySelector('[name="draw_at"]').value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+      + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  });
+})();
+
 function copyLotLink(id) {
     var url = location.origin + '/pages/lottery.php?id=' + id;
     if (navigator.clipboard && navigator.clipboard.writeText) {
