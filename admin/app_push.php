@@ -105,6 +105,10 @@ adminHeader('App 系统通知推送', $adminUser, $csrfToken);
         <button type="button" class="btn btn-outline btn-sm" onclick="confirmClear()" id="clearBtn" style="display:none;">清空历史</button>
     </div>
     <div class="section-body">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+            <input id="lotFilter" type="text" placeholder="按抽奖 ID 筛选推送（留空显示全部）" style="max-width:260px" inputmode="numeric">
+            <span id="lotFilterHint" style="font-size:12px;color:var(--text-secondary)"></span>
+        </div>
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -193,7 +197,7 @@ adminHeader('App 系统通知推送', $adminUser, $csrfToken);
                     : '<span title="' + esc(p.target) + '" style="color:var(--warning);">指定 ' + String(p.target).split(',').length + ' 人</span>';
                 var content = String(p.content || '');
                 var short = content.length > 36 ? content.slice(0, 36) + '…' : content;
-                return '<tr>' +
+                return '<tr data-url="' + esc(p.url || '') + '">' +
                     '<td>' + esc(p.id || 0) + '</td>' +
                     '<td><strong>' + esc(p.title || '') + '</strong></td>' +
                     '<td title="' + esc(content) + '">' + esc(short) + '</td>' +
@@ -204,6 +208,7 @@ adminHeader('App 系统通知推送', $adminUser, $csrfToken);
                     '<td><button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete(' + (p.id || 0) + ', \'' + esc(String(p.title || '')).replace(/'/g, "\\'") + '\')">删除</button></td>' +
                     '</tr>';
             }).join('');
+            applyLotFilter();
         }).catch(function () {
             document.getElementById('pushBody').innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>加载失败，请检查网络后重试</p><button type="button" class="btn btn-outline btn-sm" onclick="location.reload()">重试</button></div></td></tr>';
         });
