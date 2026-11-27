@@ -135,6 +135,27 @@ if (!function_exists('lwLotteryJoin')) {
         $rules = (array) ($l['rules'] ?? []);
         $needFollow = false;
         foreach ($rules as $r) { if (mb_strpos((string) $r, '关注') !== false) { $needFollow = true; break; } }
+        /* 点赞 / 评论 规则的强校验：只有当抽奖关联了动态（post_id>0）时才能核验，
+         * 没有关联动态的抽奖保持"仅提示"，避免把用户拦在门外却无从操作。 */
+        $needLike = false; $needComment = false;
+        foreach ($rules as $r) {
+            if (mb_strpos((string) $r, '点赞') !== false) { $needLike = true; }
+            if (mb_strpos((string) $r, '评论') !== false) { $needComment = true; }
+        }
+        $lotPostId = (int) ($l['post_id'] ?? 0);
+        if ($lotPostId > 0 && $needLike) {
+            $liked = getFS()->findOne('post_likes', ['post_id' => $lotPostId, 'user_id' => $userId]);
+            if (!$liked) {
+                return ['ok' => false, 'error' => '该抽奖要求先给附带动态点赞', 'need_like' => $lotPostId];
+            }
+        }
+        if ($lotPostId > 0 && $needComment) {
+            $commented = getFS()->findOne('comments', ['post_id' => $lotPostId, 'user_id' => $userId]);
+            if (!$commented) {
+                return ['ok' => false, 'error' => '该抽奖要求先在附带动态下评论', 'need_comment' => $lotPostId];
+            }
+        }
+
         if ($needFollow) {
             $ownerId = (int) ($l['created_by'] ?? 0);
             if ($ownerId > 0 && $ownerId !== $userId) {

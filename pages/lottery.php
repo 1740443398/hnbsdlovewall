@@ -202,7 +202,10 @@ if ($detail):
           toast('参与成功，祝你好运 🍀');
           setTimeout(function () { location.reload(); }, 800);
         } else {
-          if (j && j.need_follow) {
+          if (j && (j.need_like || j.need_comment)) {
+        if (typeof toast === 'function') toast(j.message || '请先完成附带动态的互动');
+        setTimeout(function () { location.href = '/pages/post_detail.php?id=' + (j.need_like || j.need_comment); }, 900);
+      } else if (j && j.need_follow) {
         if (typeof toast === 'function') toast('需要先关注发起人，正在打开 TA 的主页…');
         setTimeout(function () { location.href = '/pages/u.php?id=' + j.need_follow; }, 900);
       } else {
