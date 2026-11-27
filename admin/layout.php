@@ -1765,7 +1765,42 @@ textarea,
             </a>
             <div class="subtitle"><?= SITE_NAME ?></div>
         </div>
-        <nav class="sidebar-nav">
+                <!-- 后台菜单搜索：菜单多了以后用打字定位，比一层层翻快得多 -->
+        <div class="admin-nav-filter">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="search" id="adminNavFilter" placeholder="搜索菜单…" autocomplete="off">
+        </div>
+        <script>
+        (function () {
+            var input = document.getElementById('adminNavFilter');
+            if (!input) return;
+            var links = Array.prototype.slice.call(document.querySelectorAll('.sidebar-nav a'));
+            input.addEventListener('input', function () {
+                var q = (input.value || '').trim().toLowerCase();
+                links.forEach(function (a) {
+                    var t = (a.textContent || '').toLowerCase();
+                    a.style.display = (!q || t.indexOf(q) >= 0) ? '' : 'none';
+                });
+                // 隐藏空分组标题
+                document.querySelectorAll('.sidebar-nav .nav-section, .sidebar-nav .nav-group-title').forEach(function (t) {
+                    var sib = t.nextElementSibling;
+                    var any = false;
+                    while (sib && !sib.classList.contains('nav-section') && !sib.classList.contains('nav-group-title')) {
+                        if (sib.tagName === 'A' && sib.style.display !== 'none') { any = true; break; }
+                        sib = sib.nextElementSibling;
+                    }
+                    t.style.display = any || !q ? '' : 'none';
+                });
+            });
+        })();
+        </script>
+        <style>
+        .admin-nav-filter { display:flex; align-items:center; gap:6px; margin:8px 12px 6px; padding:0 10px; height:34px; border-radius:10px; background:var(--input-bg, #F1F5F9); border:1px solid var(--border, #E2E8F0); color:var(--text-muted, #64748B); }
+        .admin-nav-filter input { flex:1; border:0; outline:none; background:transparent; font-size:13px; color:var(--text, #0F172A); }
+        .admin-nav-filter input::placeholder { color:var(--text-muted, #94A3B8); }
+        </style>
+
+<nav class="sidebar-nav">
         <div class="nav-filter-wrap">
             <input type="text" class="nav-filter" id="adminNavFilter"
                    placeholder="筛选菜单…" autocomplete="off">
