@@ -491,6 +491,23 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
   });
 })();
 
+/* 日历：点击没有排期的日期 → 预填创建表单的开奖时间并滚动过去 */
+document.addEventListener('click', function (e) {
+  var cell = e.target.closest('[data-lotdate]');
+  if (!cell) return;
+  if (e.target.closest('a')) return;
+  if (cell.querySelector('a')) return;
+  var form = document.querySelector('form.lot-form');
+  if (!form) return;
+  var inp = form.querySelector('[name="draw_at"]');
+  if (inp) {
+    inp.value = cell.getAttribute('data-lotdate') + 'T20:00';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    inp.style.outline = '2px solid var(--primary)';
+    setTimeout(function () { inp.style.outline = ''; }, 1600);
+  }
+});
+
 function copyLotLink(id) {
     var url = location.origin + '/pages/lottery.php?id=' + id;
     if (navigator.clipboard && navigator.clipboard.writeText) {
