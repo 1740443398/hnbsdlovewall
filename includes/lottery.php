@@ -128,6 +128,27 @@ if (!function_exists('lwLotteryJoin')) {
         if (strtotime((string) ($l['draw_at'] ?? '')) <= time()) { return ['ok' => false, 'error' => '已到开奖时间']; }
         if (lwLotteryJoined($lotteryId, $userId)) { return ['ok' => false, 'error' => '你已经参与过啦']; }
 
+        /* 「关注才能参与」强校验：规则里含「关注」时，要求已关注发起人。
+         * 原来规则只是提示文案，实际不校验，导致"没关注也能参与"，
+         * 发起人会觉得规则是摆设。这里在唯一入口 lwLotteryJoin 里兜住，
+         * 手动参与和转发附带参与都会走到同一处。 */
+        $rules = (array) ($l['rules'] ?? []);
+        $needFollow = false;
+        foreach ($rules as $r) { if (mb_strpos((string) $r, '关注') !== false) { $needFollow = true; break; } }
+        if ($needFollow) {
+            $ownerId = (int) ($l['created_by'] ?? 0);
+            if ($ownerId > 0 && $ownerId !== $userId) {
+                $follow = getFS()->findOne('follows', ['user_id' => $userId, 'target_id' => $ownerId]);
+                if (!$follow) {
+                    return [
+                        'ok'    => false,
+                        'error' => '该抽奖要求先关注发起人，关注后再来参与吧',
+                        'need_follow' => $ownerId,
+                    ];
+                }
+            }
+        }
+
         $fs = getFS();
         $row = $fs->insert('lottery_entries', [
             'lottery_id' => $lotteryId,
