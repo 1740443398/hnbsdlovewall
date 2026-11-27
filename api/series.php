@@ -53,7 +53,12 @@ if ($action === 'list') {
             'updated_at' => (string)($s['updated_at'] ?? $s['created_at'] ?? ''),
         ];
     }
-    usort($out, static fn($a, $b) => strcmp($b['updated_at'], $a['updated_at']));
+    $sortSeries = (string) ($_GET['sort'] ?? 'updated');
+    if ($sortSeries === 'count') {
+        usort($out, static fn($a, $b) => ($b['count'] <=> $a['count']) ?: strcmp($b['updated_at'], $a['updated_at']));
+    } else {
+        usort($out, static fn($a, $b) => strcmp($b['updated_at'], $a['updated_at']));
+    }
     jsonSuccess(['series' => $out, 'total' => count($out)]);
 }
 

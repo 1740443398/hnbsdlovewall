@@ -416,31 +416,45 @@ function loadTags(){
         document.getElementById('content').innerHTML = html;
     });
 }
-function loadSeries(){
-    fetch('/api/series.php?action=list', {credentials:'same-origin'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-        var list = (d.data && d.data.series) || [];
-        if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">还没有专栏 —— 在发帖页可以把多篇帖子组织成专栏</div>'; return; }
-        var html = '<div class="disc-grid">';
-        list.forEach(function(s){
-            html += '<div class="series-card"><h3>' + esc(s.title) + '</h3>' +
-                '<div class="d">' + esc(s.description||'') + '</div>' +
-                '<div style="font-size:.76rem;color:#a0aec0">' + s.count + ' 篇 · ' + esc(s.author||'') + '</div></div>';
+var SERIES_SORT = (function () { try { var v = localStorage.getItem('lw_series_sort'); return v === 'count' ? 'count' : 'updated'; } catch (e) { return 'updated'; } })();
+function loadSeries() {
+    fetch('/api/series.php?action=list&sort=' + SERIES_SORT, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            var list = (d.data && d.data.series) || [];
+            var box = document.getElementById('content');
+            var chips = '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+                ['updated:最近更新', 'count:篇数最多'].map(function (x) {
+                    var k = x.split(':')[0];
+                    return '<button type="button" class="disc-tab' + (SERIES_SORT === k ? ' on' : '') + '" data-series-sort="' + k + '" style="cursor:pointer' + (SERIES_SORT === k ? ';background:var(--primary);color:#fff;border-color:var(--primary)' : '') + '">' + x.split(':')[1] + '</button>';
+                }).join('') + '</div>';
+            if (!list.length) {
+                box.innerHTML = chips + '<div class="empty">还没有专栏 —— 在发帖页可以把多篇帖子组织成专栏</div>';
+                bindSeriesSort();
+                return;
+            }
+            var html = '<div class="disc-grid">';
+            list.forEach(function (s) {
+                html += '<div class="series-card"><h3>' + esc(s.title) + '</h3>' +
+                    '<div class="d">' + esc(s.description || '') + '</div>' +
+                    '<div style="font-size:.76rem;color:#a0aec0">' + s.count + ' 篇 · ' + esc(s.author || '') + '</div></div>';
+            });
+            html += '</div>';
+            box.innerHTML = chips + html;
+            bindSeriesSort();
         });
-        html += '</div>';
-        document.getElementById('content').innerHTML = html;
+}
+function bindSeriesSort() {
+    document.querySelectorAll('[data-series-sort]').forEach(function (c) {
+        c.addEventListener('click', function () {
+            var k = c.getAttribute('data-series-sort');
+            if (k === SERIES_SORT) return;
+            SERIES_SORT = k;
+            try { localStorage.setItem('lw_series_sort', k); } catch (e) {}
+            loadSeries();
+        });
     });
 }
-document.querySelectorAll('.disc-tab[href*="tab="]').forEach(function (a) {
-    a.addEventListener('click', function () {
-        try {
-            var m = (a.getAttribute('href') || '').match(/tab=([a-z_]+)/);
-            if (m) localStorage.setItem('lw_discover_tab', m[1]);
-        } catch (e) {}
-    });
-});
-
 if (TAB === 'following') loadFollowing();
 else if (TAB === 'hot') loadHot();
 else if (TAB === 'tags') loadTags();
