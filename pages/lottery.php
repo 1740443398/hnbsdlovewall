@@ -128,11 +128,13 @@ if ($detail):
         <div class="lot-actions">
           <button class="btn ghost" disabled>已参与 ✓</button>
           <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
+          <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
         </div>
       <?php else: ?>
         <div class="lot-actions">
           <button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
           <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
+          <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
         </div>
       <?php endif; ?>
     <?php else: ?>
@@ -343,6 +345,36 @@ document.addEventListener('click', function (e) {
   var b = e.target.closest && e.target.closest('.lot-congrats');
   if (b) copyCongrats(b.getAttribute('data-name') || '同学');
 });
+</script>
+
+<script>
+/* 开奖提醒：登录用户可设置/取消，开奖时收到站内通知 */
+(function () {
+  var b = document.getElementById('lotRemind');
+  if (!b) return;
+  b.addEventListener('click', function () {
+    var on = !b.classList.contains('on');
+    var body = new URLSearchParams();
+    body.set('lottery_id', b.getAttribute('data-id'));
+    body.set('on', on ? '1' : '0');
+    b.disabled = true;
+    fetch('/api/lottery/remind.php', { method: 'POST', body: body, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var ok = j && (j.success === true || j.ok === true);
+        if (ok) {
+          var st = j.data ? j.data.on : on;
+          b.classList.toggle('on', !!st);
+          b.textContent = st ? '🔔 已设提醒' : '🔔 提醒我';
+          if (typeof toast === 'function') toast(st ? '开奖时会通知你' : '已取消提醒');
+        } else if (typeof toast === 'function') {
+          toast((j && (j.error || j.message)) || '设置失败');
+        }
+        b.disabled = false;
+      })
+      .catch(function () { b.disabled = false; if (typeof toast === 'function') toast('网络错误'); });
+  });
+})();
 </script>
 </body>
 </html>

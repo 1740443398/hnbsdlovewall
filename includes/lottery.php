@@ -167,7 +167,60 @@ if (!function_exists('lwLotteryDraw')) {
             'winners' => json_encode($winners),
             'drawn_at'=> date('Y-m-d H:i:s'),
         ]);
+
+        /* 给设置了「提醒我」的同学发站内通知（中奖/未中奖文案不同） */
+        try {
+            $winMap = array_flip(array_map('intval', $winners));
+            foreach ((array) getFS()->read('lottery_reminders') as $__r) {
+                if ((int) ($__r['lottery_id'] ?? 0) !== $lotteryId) { continue; }
+                $uid = (int) ($__r['user_id'] ?? 0);
+                if ($uid <= 0) { continue; }
+                $won = isset($winMap[$uid]);
+                getFS()->insert('notifications', [
+                    'user_id'    => $uid,
+                    'type'       => 'lottery_result',
+                    'content'    => $won
+                        ? ('🎉 你参与的抽奖「' . (string) ($l['title'] ?? '') . '」已开奖：恭喜中奖！')
+                        : ('抽奖「' . (string) ($l['title'] ?? '') . '」已开奖，本次未中奖，下次好运～'),
+                    'post_id'    => 0,
+                    'post_title' => (string) ($l['title'] ?? ''),
+                    'from_user'  => '系统',
+                    'is_read'    => false,
+                ]);
+            }
+        } catch (Throwable $__e) { error_log('lottery remind notify: ' . $__e->getMessage()); }
+
         return ['ok' => true, 'winners' => $winners];
+    }
+}
+
+if (!function_exists('lwLotteryRemindSet')) {
+    /** 设置/取消「开奖提醒」。返回是否已设置。 */
+    function lwLotteryRemindSet(int $userId, int $lotteryId, bool $on = true): bool
+    {
+        $fs = getFS();
+        foreach ((array) $fs->read('lottery_reminders') as $r) {
+            if ((int) ($r['user_id'] ?? 0) === $userId && (int) ($r['lottery_id'] ?? 0) === $lotteryId) {
+                if ($on) { return true; }
+                try { $fs->delete('lottery_reminders', (int) ($r['id'] ?? 0)); } catch (Throwable $e) {}
+                return false;
+            }
+        }
+        if (!$on) { return false; }
+        $fs->insert('lottery_reminders', [
+            'user_id'    => $userId,
+            'lottery_id' => $lotteryId,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        return true;
+    }
+
+    function lwLotteryRemindHas(int $userId, int $lotteryId): bool
+    {
+        foreach ((array) getFS()->read('lottery_reminders') as $r) {
+            if ((int) ($r['user_id'] ?? 0) === $userId && (int) ($r['lottery_id'] ?? 0) === $lotteryId) { return true; }
+        }
+        return false;
     }
 }
 
