@@ -319,3 +319,12 @@
 
 .lot-rules--compact { margin: 6px 0 0; gap: 6px; }
 .lot-rules--compact .lot-rule-chip { padding: 2px 8px; font-size: 11.5px; }
+
+
+/* 通知面板：未读优先按钮 */
+.lw-ntf-unread {
+  border: 0; background: transparent; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 999px; cursor: pointer;
+}
+.lw-ntf-unread:hover { background: rgba(47, 91, 154, .08); color: var(--primary); }
+.lw-ntf-unread.is-on { background: rgba(47, 91, 154, .12); color: var(--primary); }

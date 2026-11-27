@@ -3444,7 +3444,7 @@
 
     /* ---------- 静默偏好（本地） ---------- */
     prefs() {
-      const def = { silent: false, silentStart: 23, silentEnd: 7 };
+      const def = { silent: false, silentStart: 23, silentEnd: 7, unreadFirst: false };
       try {
         const o = JSON.parse(localStorage.getItem(this.PREFS_KEY) || '{}');
         return Object.assign(def, o || {});
@@ -3455,6 +3455,15 @@
       // 流体云：通知偏好变更上云
       try { if (window.LWLiquidGlass && typeof window.LWLiquidGlass.syncCloud === 'function') window.LWLiquidGlass.syncCloud(); } catch (e) {}
     },
+    /** 未读优先按钮状态同步 */
+    syncUnreadUI() {
+      if (!this._st || !this._st.unread) return;
+      const on = !!this.prefs().unreadFirst;
+      this._st.unread.classList.toggle('is-on', on);
+      this._st.unread.setAttribute('aria-pressed', on ? 'true' : 'false');
+      this._st.unread.innerHTML = '未读优先' + (on ? ' ✓' : '');
+    },
+
     /** 当前是否处于静默时段（跨零点用 OR 判定） */
     isQuietNow() {
       const p = this.prefs();
@@ -3497,6 +3506,7 @@
           '<button type="button" class="lw-ntf-silent" data-ntf-silent aria-pressed="false" title="静默通知（23:00-次日7:00 不打扰）">' +
             svgIcon('bell', 15) + '<span>静默</span>' +
           '</button>' +
+          '<button type="button" class="lw-ntf-unread" aria-pressed="false" title="未读通知优先显示">未读优先</button>' +
           '<button type="button" class="mark-all-read">全部已读</button>' +
         '</div>' +
         '<div class="lw-ntf-tabs" role="tablist">' +
@@ -3518,9 +3528,11 @@
         list: this.panel.querySelector('.lw-ntf-list'),
         more: this.panel.querySelector('[data-ntf-more]'),
         silent: this.panel.querySelector('[data-ntf-silent]'),
+        unread: this.panel.querySelector('.lw-ntf-unread'),
         tabs: Array.prototype.slice.call(this.panel.querySelectorAll('[data-ntf-tab]')),
       };
       this.syncSilentUI();
+      this.syncUnreadUI();
       this.repositionPanel();
     },
 
@@ -3578,6 +3590,18 @@
           this.renderList();
         });
       });
+
+      // 未读优先排序（本地偏好）
+      if (this._st.unread) {
+        this._st.unread.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const p = this.prefs();
+          p.unreadFirst = !p.unreadFirst;
+          this.savePrefs(p);
+          this.syncUnreadUI();
+          this.renderList();
+        });
+      }
 
       // 静默开关（本地偏好，跨设备由「流体云」同步）
       this._st.silent.addEventListener('click', (e) => {
@@ -3710,6 +3734,9 @@
       if (!this._st) return;
       const all = this._items || [];
       let list = all;
+      if (this.prefs().unreadFirst) {
+        list = list.slice().sort((a, b) => (a.is_read ? 1 : 0) - (b.is_read ? 1 : 0));
+      }
       if (this._tab === 'interact') list = all.filter((n) => this.classify(n)[0] === 'interact');
       else if (this._tab === 'system') list = all.filter((n) => this.classify(n)[0] === 'system');
       else if (this._tab === 'lottery') list = all.filter((n) => this.classify(n)[0] === 'lottery');
