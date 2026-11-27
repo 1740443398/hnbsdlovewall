@@ -93,6 +93,9 @@ if (is_file($__ahJs)) {
     <?php require __DIR__ . '/includes/seo_meta.php'; ?>
     <meta name="description" content="<?= htmlspecialchars(t('site.meta_desc')) ?>">
     <style>
+    .lw-checkin{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:.82rem;cursor:pointer;white-space:nowrap;transition:all .15s}
+    .lw-checkin:hover{border-color:var(--primary);color:var(--primary)}
+    .lw-checkin.done{background:rgba(46,139,87,.10);border-color:rgba(46,139,87,.3);color:#2E8B57;font-weight:600}
     .hs-wrap{position:relative;flex:1}
     .hs-wrap .search-input{width:100%}
     .hs-suggest{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.12);overflow:hidden;z-index:60;display:none}
@@ -207,6 +210,7 @@ if (is_file($__ahJs)) {
                                 <input type="search" id="searchInput" name="q" placeholder="<?= t('home.search_ph') ?>" class="search-input" autocomplete="off">
                                 <div class="hs-suggest" id="hsSuggest"></div>
                             </div>
+                            <button type="button" class="lw-checkin" id="lwCheckin" title="每日签到">📅 <span id="lwCheckinText">签到</span></button>
                             <button class="btn-icon" type="submit" id="searchBtn" aria-label="<?= t('home.search_aria') ?>">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
                             </button>
@@ -436,6 +440,44 @@ if (is_file($__ahJs)) {
         </div>
     </main>
 <script>
+/* 每日签到：状态以服务端为准，按钮直观显示「已签 N 天」 */
+(function () {
+    var btn = document.getElementById('lwCheckin');
+    var txt = document.getElementById('lwCheckinText');
+    if (!btn || !txt) return;
+    function setState(d) {
+        if (!d) return;
+        if (d.checked_today) {
+            btn.classList.add('done');
+            txt.textContent = '已签 ' + (d.streak || 1) + ' 天';
+            btn.title = '连续签到 ' + (d.streak || 1) + ' 天 · 累计 ' + (d.total || 1) + ' 天';
+        } else {
+            btn.classList.remove('done');
+            txt.textContent = '签到';
+            btn.title = '每日签到';
+        }
+    }
+    function post(action) {
+        var fd = new URLSearchParams();
+        fd.set('action', action);
+        fd.set('csrf_token', CSRF_TOKEN);
+        return fetch('/api/checkin.php', { method: 'POST', credentials: 'same-origin', body: fd })
+            .then(function (r) { return r.json(); });
+    }
+    post('status').then(function (d) { if (d && d.success) setState(d.data); }).catch(function () {});
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        post('checkin').then(function (d) {
+            if (d && d.success) {
+                setState(d.data);
+                if (window.App && App.showToast) App.showToast(d.message || '签到成功', 'success');
+            } else if (window.App && App.showToast) {
+                App.showToast((d && d.message) || '签到失败', 'error');
+            }
+        }).catch(function () {}).then(function () { btn.disabled = false; });
+    });
+})();
+
 /* 首页搜索框联想：输入 ≥2 字后查 quick.php，↑↓ 选择、回车/点击进入帖子详情 */
 (function () {
     var box = document.getElementById('hsSuggest');
