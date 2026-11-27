@@ -70,7 +70,8 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-time{font-size:.66rem;color:var(--text-tertiary,#8E9AA8);margin-top:.1875rem;}
         .lb-msg.mine .lb-time{text-align:right;}
 
-        .lb-who-name{cursor:pointer}
+        .lb-at{color:var(--primary,#2F5B9A);font-weight:600}
+    .lb-who-name{cursor:pointer}
     .lb-who-name:hover{color:var(--primary);text-decoration:underline}
     .lb-emoji-panel{position:absolute;bottom:64px;left:12px;right:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);box-shadow:0 10px 30px rgba(0,0,0,.14);z-index:5}
     .lb-emoji-recent{grid-column:1/-1;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding-bottom:6px;margin-bottom:4px;border-bottom:1px dashed var(--border-light,#E4E9F0)}
@@ -240,7 +241,8 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         if (m.kind === 'image' && m.image) {
             inner = '<img src="' + esc(SITE_URL + m.image) + '" alt="图片消息" loading="lazy">';
         } else {
-            inner = esc(m.text);
+            /* @昵称 高亮：先转义再替换，只匹配紧跟在 @ 后、到空白/标点为止的串 */
+            inner = esc(m.text).replace(/@([^\s@,，。!！?？:：;；]{1,20})/g, '<span class="lb-at">@$1</span>');
         }
 
         wrap.innerHTML =
