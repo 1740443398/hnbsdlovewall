@@ -353,6 +353,8 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             font-size: 1rem; font-weight: 700; color: var(--text);
             margin: 0 0 .875rem;
         }
+        .comment-sort-btn { border:1px solid var(--border,#dfe4ea); background:var(--card-bg,#fff); color:var(--text-secondary,#4a5568); font-size:.72rem; padding:3px 10px; border-radius:999px; cursor:pointer; }
+        .comment-sort-btn.on { background:var(--primary,#2F5B9A); border-color:var(--primary,#2F5B9A); color:#fff; font-weight:600; }
         .comment-item {
             display: flex; align-items: flex-start; gap: .625rem;
             padding: .75rem 0;
@@ -784,6 +786,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 <h3 class="comments-title">
                     <span id="commentIcon"></span>
                     <?= t('pd.comment') ?> <span class="comment-total">(<?= intval($post['comments'] ?? 0) ?>)</span>
+                    <span class="comment-sort" style="margin-left:auto;display:flex;gap:6px">
+                        <button type="button" class="comment-sort-btn on" data-cs="asc">最早</button>
+                        <button type="button" class="comment-sort-btn" data-cs="desc">最新</button>
+                    </span>
                 </h3>
                 <div class="comments-list" id="commentsList">
                     <?php
@@ -926,6 +932,43 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 box.style.display = 'block';
             })
             .catch(function () {});
+    })();
+
+    /* 评论排序：最早 / 最新（只重排顶层评论，子回复容器跟着走） */
+    (function () {
+        var wrap = document.getElementById('commentsList');
+        if (!wrap) return;
+        function pairs() {
+            var out = [];
+            var children = wrap.children;
+            for (var i = 0; i < children.length; i++) {
+                var el = children[i];
+                if (el.classList && el.classList.contains('comment-item')) {
+                    var next = el.nextElementSibling;
+                    var chil = (next && next.classList && next.classList.contains('comment-children')) ? next : null;
+                    out.push({ item: el, child: chil, ts: Date.parse(el.getAttribute('data-created-at') || '') || 0 });
+                }
+            }
+            return out;
+        }
+        function apply(mode) {
+            var list = pairs();
+            if (list.length < 2) return;
+            list.sort(function (a, b) { return mode === 'desc' ? (b.ts - a.ts) : (a.ts - b.ts); });
+            var frag = document.createDocumentFragment();
+            list.forEach(function (p) {
+                frag.appendChild(p.item);
+                if (p.child) frag.appendChild(p.child);
+            });
+            wrap.appendChild(frag);
+        }
+        wrap.addEventListener('click', function (e) {
+            var b = e.target.closest('.comment-sort-btn');
+            if (!b) return;
+            document.querySelectorAll('.comment-sort-btn').forEach(function (x) { x.classList.toggle('on', x === b); });
+            apply(b.getAttribute('data-cs'));
+        });
+        apply('asc');
     })();
 
     /* 阅读进度条：按文章卡片滚动进度显示 */
