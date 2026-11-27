@@ -97,6 +97,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $redirect('msg=' . urlencode("导入完成：新增 {$r['added']} 条，更新 {$r['updated']} 条"));
     }
 
+    if ($action === 'keepalive') {
+        $kr = lwQzoneKeepAlive();
+        lwQzoneSaveConfig([
+            'last_keepalive_at' => time(),
+            'last_state'        => $kr['state'] ?? 'cookie_expired',
+            'last_error'        => (string) ($kr['err'] ?? ''),
+        ]);
+        $redirect('msg=' . urlencode(
+            (($kr['state'] ?? '') === 'ok')
+                ? ('保活成功：续期 ' . (int) ($kr['refreshed'] ?? 0) . ' 个密钥字段')
+                : ('保活失败：' . (string) ($kr['err'] ?? 'Cookie 可能已过期，请重新扫码'))
+        ));
+    }
+
     if ($action === 'regen_token') {
         lwQzoneSaveConfig(['cron_token' => bin2hex(random_bytes(16))]);
         $redirect('msg=' . urlencode('定时触发令牌已重置（旧 URL 立即失效）'));
@@ -354,6 +368,11 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
         <div><b>Cookie 保存于：</b><?= !empty($cfg['cookie_at']) ? htmlspecialchars((string) $cfg['cookie_at']) : '<span style="color:var(--text-muted)">—</span>' ?></div>
         <div><b>最后状态：</b><span style="color:<?= (($cfg['last_state'] ?? '') === 'ok') ? 'var(--success,#1E7A4C)' : (($cfg['last_state'] ?? '') === 'cookie_expired' ? 'var(--danger,#C0392B)' : 'var(--text-muted)') ?>"><?= htmlspecialchars((string) ($cfg['last_state'] ?? 'idle')) ?></span></div>
         <div><b>保活节流：</b>每 6 小时一次（由外部 cron 触发）</div>
+        <form method="post" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='保活中…'">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+            <input type="hidden" name="action" value="keepalive">
+            <button class="btn btn-sm btn-primary" type="submit">立即保活一次</button>
+        </form>
     </div>
 
     <div class="section-header"><h3>定时触发（外部 cron）</h3></div>
