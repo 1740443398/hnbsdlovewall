@@ -3769,3 +3769,23 @@ a.lot-rule-chip:hover { filter: brightness(0.96); text-decoration: none; }
   .lot-funnel-row > span:last-child { grid-area: value; text-align: right; }
 }
 
+
+/* ===== 通知面板加载骨架 ===== */
+.lw-ntf-skeleton { display: flex; gap: 10px; align-items: center; padding: 12px 14px; }
+.lw-ntf-skeleton .sk-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto;
+  background: linear-gradient(90deg, rgba(140,150,165,.16), rgba(140,150,165,.30), rgba(140,150,165,.16));
+  background-size: 200% 100%; animation: lwSk 1.2s ease-in-out infinite;
+}
+.lw-ntf-skeleton .sk-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.lw-ntf-skeleton .sk-lines i {
+  display: block; height: 10px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(140,150,165,.16), rgba(140,150,165,.30), rgba(140,150,165,.16));
+  background-size: 200% 100%; animation: lwSk 1.2s ease-in-out infinite;
+}
+.lw-ntf-skeleton .sk-lines i:last-child { width: 55%; }
+@keyframes lwSk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .lw-ntf-skeleton .sk-avatar, .lw-ntf-skeleton .sk-lines i { animation: none; }
+}
+

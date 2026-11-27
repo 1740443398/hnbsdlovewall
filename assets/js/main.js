@@ -3669,8 +3669,19 @@
       });
     },
 
+    /** 加载骨架：避免切标签/首次打开时先闪"暂无通知"再跳成列表 */
+    renderSkeleton() {
+      if (!this._st) return;
+      const row = '<div class="lw-ntf-skeleton"><span class="sk-avatar"></span><span class="sk-lines"><i></i><i></i></span></div>';
+      this._st.list.innerHTML = row + row + row;
+    },
+
     async fetchNotifications(isMore) {
       try {
+        if (!isMore) {
+          this._loading = true;
+          this.renderSkeleton();
+        }
         // 拉取含已读的完整列表（不再用 unread=1），既拿未读数也保留历史记录
         const cat = (this._tab && this._tab !== 'all') ? ('&category=' + encodeURIComponent(this._tab)) : '';
         const data = await fetchAPI(
@@ -3697,6 +3708,7 @@
           this._newIds = fresh;
         }
 
+        this._loading = false;
         this._srvCounts = (data && data.data && data.data.type_counts) || null;
         this._items = isMore ? this._items.concat(batch) : batch;
         this._hasMore = hasMore;
@@ -3780,6 +3792,7 @@
     },
 
     updatePanelList(notifications, isCleared) {
+      if (this._loading) return;
       const listEl = this._st ? this._st.list : this.panel.querySelector('.notification-panel-list');
       if (!notifications || notifications.length === 0) {
         listEl.innerHTML =
