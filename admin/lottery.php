@@ -89,6 +89,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 }
                 $msg = '已发送 ' . $sent . ' 条私信' . ($skip ? ('，跳过 ' . $skip . ' 人') : '');
             }
+        } elseif ($act === 'copy') {
+            $srcId = (int) ($_POST['id'] ?? 0);
+            $src = lwLotteryGet($srcId);
+            if (!$src) {
+                $msg = '源抽奖不存在'; $msgType = 'error';
+            } else {
+                /* 复制一份新抽奖：沿用标题/奖品/名额/规则/说明，
+                 * 开奖时间按原活动的"创建到开奖时长"顺延，最少 24 小时。 */
+                $origTs = (int) (strtotime((string) ($src['draw_at'] ?? '')) ?: 0);
+                $createdTs = (int) (strtotime((string) ($src['created_at'] ?? '')) ?: 0);
+                $dur = ($origTs > 0 && $createdTs > 0 && $origTs > $createdTs) ? ($origTs - $createdTs) : 3 * 86400;
+                $dur = max(86400, min(30 * 86400, $dur));
+                $rules = (array) ($src['rules'] ?? []);
+                $r = lwLotteryCreate((int) $adminUser['id'], [
+                    'title'       => mb_substr(trim((string) ($src['title'] ?? '')) . '（副本）', 0, 120),
+                    'prize'       => (string) ($src['prize'] ?? ''),
+                    'prize_count' => (int) ($src['prize_count'] ?? 1),
+                    'description' => (string) ($src['description'] ?? ''),
+                    'draw_at'     => date('Y-m-d H:i:s', time() + $dur),
+                    'rules'       => $rules,
+                    'rule_like'    => in_array('点赞', $rules, true) ? 1 : 0,
+                    'rule_comment' => in_array('评论', $rules, true) ? 1 : 0,
+                    'rule_repost'  => in_array('转发', $rules, true) ? 1 : 0,
+                    'rule_follow'  => in_array('关注', $rules, true) ? 1 : 0,
+                ]);
+                if (empty($r['ok'])) { $msg = (string) ($r['error'] ?? '复制失败'); $msgType = 'error'; }
+                else { $msg = '已复制为新抽奖（#' . (int) $r['id'] . '）'; }
+            }
         } elseif ($act === 'delete') {
             $id = (int) ($_POST['id'] ?? 0);
             $fs = getFS();
@@ -337,6 +365,12 @@ $__funnel = [
                     <div style="display:flex;gap:6px">
                         <a class="btn btn-sm" href="/pages/lottery.php?id=<?= (int) $l['id'] ?>">查看</a>
                         <a class="btn btn-sm" href="/admin/lottery_export.php?id=<?= (int) $l['id'] ?>">导出 CSV</a>
+                        <form method="post" style="display:inline" onsubmit="return confirm('按原配置复制一个新抽奖？')">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                            <input type="hidden" name="act" value="copy">
+                            <input type="hidden" name="id" value="<?= (int) $l['id'] ?>">
+                            <button class="btn btn-sm" type="submit">复制</button>
+                        </form>
                         <button class="btn btn-sm" type="button" onclick="copyLotLink(<?= (int) $l['id'] ?>)">复制链接</button>
                         <?php if ($status === 'open'): ?>
                         <form method="post" onsubmit="return confirm('立即开奖？开奖后不能再参与')">
