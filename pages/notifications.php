@@ -23,6 +23,7 @@ $pageTitle = '通知中心 · ' . SITE_NAME;
 .ntf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .ntf-head h1{font-size:19px;margin:0}
 .ntf-head button{background:none;border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--primary);cursor:pointer;background:var(--card-bg)}
+.ntf-head .ntf-toggle.on{background:var(--primary);border-color:var(--primary);color:#fff}
 .ntf-tabs{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px}
 .ntf-tab{flex:0 0 auto;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);font-size:12.5px;cursor:pointer}
 .ntf-tab.on{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -44,7 +45,10 @@ $pageTitle = '通知中心 · ' . SITE_NAME;
 <main class="ntf-page">
   <div class="ntf-head">
     <h1>🔔 通知中心</h1>
-    <button type="button" id="markAll">全部已读</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button type="button" id="unreadOnlyBtn" class="ntf-toggle" aria-pressed="false">只看未读</button>
+      <button type="button" id="markAll">全部已读</button>
+    </div>
   </div>
   <div class="ntf-tabs" id="tabs">
     <button class="ntf-tab on" data-tab="all">全部</button>
@@ -58,6 +62,9 @@ $pageTitle = '通知中心 · ' . SITE_NAME;
 <script>
 var CSRF = <?= json_encode(generateCSRFToken()) ?>;
 var TAB = 'all', PAGE = 1, HAS_MORE = false, ITEMS = [];
+var UNREAD_ONLY = false;
+try { UNREAD_ONLY = localStorage.getItem('lw_ntf_unread_only') === '1'; } catch (e) {}
+var UOB = document.getElementById('unreadOnlyBtn');
 var CAT_NAME = { comment: '评论', reply: '回复', mention: '@我', follow: '关注', like: '点赞',
   pm: '私信', admin: '管理', system: '系统', lottery_result: '抽奖' };
 
@@ -82,7 +89,7 @@ function render(append) {
 }
 var curr = [];
 function load(page, append) {
-  var url = '/api/user/notifications.php?page=' + page + '&limit=20' + (TAB !== 'all' ? '&category=' + TAB : '');
+  var url = '/api/user/notifications.php?page=' + page + '&limit=20' + (TAB !== 'all' ? '&category=' + TAB : '') + (UNREAD_ONLY ? '&unread=1' : '');
   if (!append) document.getElementById('list').innerHTML = '<div class="sk"></div><div class="sk"></div><div class="sk"></div>';
   fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.success) { document.getElementById('list').innerHTML = '<div class="ntf-empty">' + esc(d.message || '加载失败') + '</div>'; return; }
@@ -115,6 +122,22 @@ document.getElementById('tabs').addEventListener('click', function (e) {
   load(1, false);
 });
 document.getElementById('more').addEventListener('click', function () { if (HAS_MORE) load(PAGE + 1, true); });
+function syncUnreadBtn() {
+  if (!UOB) return;
+  UOB.classList.toggle('on', UNREAD_ONLY);
+  UOB.setAttribute('aria-pressed', UNREAD_ONLY ? 'true' : 'false');
+  UOB.textContent = UNREAD_ONLY ? '只看未读 ✓' : '只看未读';
+}
+if (UOB) {
+  UOB.addEventListener('click', function () {
+    UNREAD_ONLY = !UNREAD_ONLY;
+    try { localStorage.setItem('lw_ntf_unread_only', UNREAD_ONLY ? '1' : '0'); } catch (e) {}
+    syncUnreadBtn();
+    load(1, false);
+  });
+  syncUnreadBtn();
+}
+
 document.getElementById('markAll').addEventListener('click', function () {
   var fd = new URLSearchParams(); fd.set('action', 'read_all'); fd.set('csrf_token', CSRF);
   fetch('/api/user/notifications.php', { method: 'POST', credentials: 'same-origin', body: fd })
