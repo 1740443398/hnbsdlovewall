@@ -31,5 +31,26 @@ if ((int) $cfg['auto_sync'] !== 1) {
     exit;
 }
 
+/* 【保活优先】外部 cron 每 5~24 小时打一次这个地址：先让 QQ 会话续期、吸收新密钥，
+ * 再跑增量同步。这样即使没人访问、即使自动同步判断为「无需同步」，
+ * Cookie 也会被持续刷新，避免「隔几周打开一看 Cookie 已过期」。
+ * 节流：6 小时内不重复保活，避免把外部定时打得太频繁。 */
+$keep = ['ok' => false, 'skipped' => true];
+try {
+    $ck = lwQzoneGetCookie();
+    $lastKeep = (int) ($cfg['last_keepalive_at'] ?? 0);
+    if ($ck !== '' && (time() - $lastKeep) > 6 * 3600) {
+        $keep = lwQzoneKeepAlive();
+        lwQzoneSaveConfig([
+            'last_keepalive_at' => time(),
+            'last_state'        => ($keep['state'] ?? 'idle'),
+            'last_error'        => (string) ($keep['err'] ?? ''),
+        ]);
+    }
+} catch (Throwable $e) {
+    error_log('qzone keepalive cron: ' . $e->getMessage());
+}
+
 $res = lwQzoneSync(['pages' => 1]);
+$res['keepalive'] = $keep;
 echo json_encode($res, JSON_UNESCAPED_UNICODE);
