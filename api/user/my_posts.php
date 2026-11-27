@@ -17,7 +17,15 @@ usort($posts, function($a, $b) {
 });
 
 $page = max(1, intval($_REQUEST['page'] ?? 1));
+$statusFilter = sanitizeInput($_REQUEST['status'] ?? '');
+if (!in_array($statusFilter, ['published', 'pending', 'rejected'], true)) { $statusFilter = ''; }
 $limit = 10;
+$total = count($posts);
+if ($statusFilter !== '') {
+    $posts = array_values(array_filter($posts, function ($p) use ($statusFilter) {
+        return (string) ($p['status'] ?? 'published') === $statusFilter;
+    }));
+}
 $total = count($posts);
 $posts = array_slice($posts, ($page - 1) * $limit, $limit);
 

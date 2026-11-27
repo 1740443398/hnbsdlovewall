@@ -24,6 +24,9 @@ foreach ((array) getFS()->read('follows') as $__f) {
 $pendingQqChange = getFS()->findOne('qq_change_requests', ['user_id' => $user['id'], 'status' => 'pending']);
 $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
 
+$myPostStatus = (string) ($_GET['status'] ?? '');
+if (!in_array($myPostStatus, ['published', 'pending', 'rejected'], true)) { $myPostStatus = ''; }
+
 $validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'invite'];
 if (!in_array($tab, $validTabs)) {
     $tab = 'profile';
@@ -1345,6 +1348,12 @@ if ($inviteEnabled && $tab === 'invite') {
 
                 <div class="uc-section" id="tab-posts" <?= $tab !== 'posts' ? 'style="display:none"' : '' ?>>
                     <h2><?= t('uc.tab.posts') ?></h2>
+                    <div class="posts-status-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                        <a class="uc-btn uc-btn-sm <?= $myPostStatus === '' ? 'uc-btn-primary' : 'uc-btn-outline' ?>" href="?tab=posts">全部</a>
+                        <a class="uc-btn uc-btn-sm <?= $myPostStatus === 'published' ? 'uc-btn-primary' : 'uc-btn-outline' ?>" href="?tab=posts&status=published">已发布</a>
+                        <a class="uc-btn uc-btn-sm <?= $myPostStatus === 'pending' ? 'uc-btn-primary' : 'uc-btn-outline' ?>" href="?tab=posts&status=pending">审核中</a>
+                        <a class="uc-btn uc-btn-sm <?= $myPostStatus === 'rejected' ? 'uc-btn-primary' : 'uc-btn-outline' ?>" href="?tab=posts&status=rejected">已拒绝</a>
+                    </div>
                     <div id="myPostsList"></div>
                     <div class="uc-pagination" id="myPostsPagination"></div>
                 </div>
@@ -2038,7 +2047,8 @@ if ($inviteEnabled && $tab === 'invite') {
             page = page || 1;
             const container = document.getElementById(containerId);
             container.innerHTML = '<div class="uc-empty">' + (typeof window.__t === 'function' ? __t('uc.loading') : '加载中...') + '</div>';
-            fetch(apiUrl + '?page=' + page)
+            const _sep = apiUrl.indexOf('?') >= 0 ? '&' : '?';
+            fetch(apiUrl + _sep + 'page=' + page)
                 .then(r => r.json())
                 .then(d => {
                     if (d.success) {
@@ -2121,7 +2131,8 @@ if ($inviteEnabled && $tab === 'invite') {
         }
 
         if (document.getElementById('tab-posts').style.display !== 'none') {
-            loadList(SITE_URL + '/api/user/my_posts.php', 'myPostsList', 'myPostsPagination', function(data) {
+            var MYPOST_STATUS = <?= json_encode($myPostStatus) ?>;
+            loadList(SITE_URL + '/api/user/my_posts.php' + (MYPOST_STATUS ? ('?status=' + MYPOST_STATUS) : ''), 'myPostsList', 'myPostsPagination', function(data) {
                 return data.posts.map(p => `
                     <div class="uc-data-item">
                         <div class="uc-data-main">
