@@ -734,6 +734,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                     <span class="action-icon" id="linkIcon"></span>
                     <span class="action-count"><?= t('pd.copy_link') ?></span>
                 </button>
+                <button class="action-btn" id="shareBtn" style="display:none" onclick="sharePost()" aria-label="分享">
+                    <span class="action-icon" id="shareIcon"></span>
+                    <span class="action-count">分享</span>
+                </button>
                 <button class="action-btn copy-content-btn" onclick="copyPost()" aria-label="<?= t('pd.copy_content') ?>">
                     <span class="action-icon" id="copyIcon"></span>
                     <span class="action-count"><?= t('pd.copy') ?></span>
@@ -1195,6 +1199,24 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 fallbackCopy(url);
             }
         }
+
+        /* 系统分享（手机浏览器 / PWA 支持才显示按钮；桌面无 navigator.share 就隐藏） */
+        function sharePost() {
+            var data = {
+                title: document.title,
+                text: <?= json_encode((string)($post['title'] ?? '')) ?>,
+                url: window.location.href
+            };
+            if (navigator.share) {
+                navigator.share(data).catch(function () {});
+            } else {
+                copyPostLink();
+            }
+        }
+        (function () {
+            var b = document.getElementById('shareBtn');
+            if (b && navigator.share) { b.style.display = ''; }
+        })();
 
         function fallbackCopy(text) {
             var textarea = document.createElement('textarea');
