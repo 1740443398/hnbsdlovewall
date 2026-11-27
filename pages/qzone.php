@@ -39,12 +39,17 @@ $perPage = 10;
 $pageNo  = max(1, (int) ($_GET['p'] ?? 1));
 $offset  = ($pageNo - 1) * $perPage;
 $q       = trim((string) ($_GET['q'] ?? ''));
-if ($q !== '') {
+$kind    = (string) ($_GET['kind'] ?? '');
+if (!in_array($kind, ['image', 'text'], true)) { $kind = ''; }
+if ($q !== '' || $kind !== '') {
     /* 搜索：在本地镜像数据里过滤正文与评论，再分页（数据量小，无需索引） */
     $fsAll = getFS()->read('qzone_items');
     $__all = is_array($fsAll) ? $fsAll : [];
     usort($__all, function ($a, $b) { return (int) ($b['posted_ts'] ?? 0) <=> (int) ($a['posted_ts'] ?? 0); });
-    $__hit = array_values(array_filter($__all, function ($it) use ($q) {
+    $__hit = array_values(array_filter($__all, function ($it) use ($q, $kind) {
+        if ($kind === 'image' && empty($it['images_arr'])) { return false; }
+        if ($kind === 'text' && !empty($it['images_arr'])) { return false; }
+        if ($q === '') { return true; }
         if (mb_stripos((string) ($it['content'] ?? ''), $q) !== false) { return true; }
         foreach ((array) ($it['comments_arr'] ?? []) as $c) {
             if (mb_stripos((string) ($c['content'] ?? ''), $q) !== false) { return true; }
@@ -170,8 +175,17 @@ require __DIR__ . '/../includes/site_header.php';
 <main id="main-content" class="qz-main">
     <div class="qz-wrap">
         <div class="qz-head">
+            <div class="qz-chips" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                <?php
+                $__kinds = ['' => '全部', 'image' => '有图', 'text' => '纯文字'];
+                foreach ($__kinds as $__k => $__label): ?>
+                <a href="?kind=<?= $__k ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?>"
+                   style="padding:5px 12px;border-radius:999px;font-size:.8rem;text-decoration:none;border:1px solid var(--border-glass);<?= $kind === $__k ? 'background:var(--primary);color:#fff;border-color:var(--primary)' : 'color:var(--text-secondary)' ?>"><?= $__label ?></a>
+                <?php endforeach; ?>
+            </div>
             <form class="qz-search" method="get">
                 <input type="search" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="搜索说说内容或评论…">
+                <?php if ($kind !== ''): ?><input type="hidden" name="kind" value="<?= htmlspecialchars($kind) ?>"><?php endif; ?>
                 <button type="submit">搜索</button>
                 <?php if ($q !== ''): ?><a href="/pages/qzone.php" style="align-self:center;font-size:.82rem">清除</a><?php endif; ?>
             </form>
@@ -185,7 +199,7 @@ require __DIR__ . '/../includes/site_header.php';
 
         <?php if (!$items): ?>
         <div class="qz-empty">
-            <p><?= $q !== '' ? '没有找到包含「' . htmlspecialchars($q) . '」的说说。' : '还没有同步到内容。' ?></p>
+            <p><?= ($q !== '' || $kind !== '') ? '没有符合筛选条件的说说。' : '还没有同步到内容。' ?></p>
             <?php if ($q !== ''): ?><p style="font-size:.82rem;"><a href="/pages/qzone.php">清除搜索</a></p><?php endif; ?>
             <p style="font-size:.82rem;">管理员在后台「QQ 空间转发」里配置 Cookie 后即可同步。</p>
         </div>
@@ -240,11 +254,11 @@ require __DIR__ . '/../includes/site_header.php';
         <?php if ($total > $perPage): ?>
         <div class="qz-pager">
             <?php if ($pageNo > 1): ?>
-            <a href="?p=<?= $pageNo - 1 ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?>">上一页</a>
+            <a href="?p=<?= $pageNo - 1 ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?><?= $kind !== '' ? '&kind=' . urlencode($kind) : '' ?>">上一页</a>
             <?php else: ?><span class="qz-off">上一页</span><?php endif; ?>
             <span><?= $pageNo ?></span>
             <?php if ($hasNext): ?>
-            <a href="?p=<?= $pageNo + 1 ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?>">下一页</a>
+            <a href="?p=<?= $pageNo + 1 ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?><?= $kind !== '' ? '&kind=' . urlencode($kind) : '' ?>">下一页</a>
             <?php else: ?><span class="qz-off">下一页</span><?php endif; ?>
         </div>
         <?php endif; ?>
