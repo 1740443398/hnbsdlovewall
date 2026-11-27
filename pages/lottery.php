@@ -17,6 +17,15 @@ lwLotteryAutoDraw();
 $id = max(0, (int) ($_GET['id'] ?? 0));
 $detail = $id > 0 ? lwLotteryGet($id) : null;
 if ($detail) { lwLotteryTrackView($id); }
+/* 分享来源浏览：同会话只记一次 */
+if ($detail && (string) ($_GET['from'] ?? '') === 'share') {
+    $__seenShare = $_SESSION['lottery_share_viewed'] ?? [];
+    if (empty($__seenShare[$id])) {
+        $__seenShare[$id] = 1;
+        $_SESSION['lottery_share_viewed'] = $__seenShare;
+        try { getFS()->update('lotteries', $id, ['share_views' => (int) ($detail['share_views'] ?? 0) + 1]); } catch (Throwable $e) {}
+    }
+}
 
 $userIndex = [];
 foreach ((array) getFS()->read('users') as $u) { $userIndex[(int) ($u['id'] ?? 0)] = $u; }
@@ -240,7 +249,8 @@ if ($detail):
       var self = this;
       self.disabled = true;
       self.textContent = '参与中…';
-      var body = 'lottery_id=' + encodeURIComponent(self.getAttribute('data-id'));
+      var body = 'lottery_id=' + encodeURIComponent(self.getAttribute('data-id'))
+        + '&via=' + ((new URLSearchParams(location.search)).get('from') === 'share' ? 'share' : 'manual');
       fetch('/api/lottery/join.php', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -269,7 +279,11 @@ if ($detail):
     });
 
     function copyShare() {
-      var url = location.href;
+      /* 分享链接带来源标记：?from=share —— 参与者通过分享链接进入时会被记一次分享浏览，
+       * 参与时 entry.via 也会写成 share，后台能看到分享带来的转化。 */
+      var u = new URL(location.href);
+      u.searchParams.set('from', 'share');
+      var url = u.toString();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function () { toast('分享链接已复制'); },
           function () { prompt('手动复制：', url); });

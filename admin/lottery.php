@@ -126,6 +126,10 @@ foreach ($all as $__lw) {
     if (is_array($__wn)) { $__lotStats['winners'] += count($__wn); }
 }
 $__lotStats['reminds'] = count((array) getFS()->read('lottery_reminders'));
+$__lotStats['share_views'] = 0;
+foreach ($all as $__ls) { $__lotStats['share_views'] += (int) ($__ls['share_views'] ?? 0); }
+$__lotStats['share_entries'] = 0;
+foreach ((array) getFS()->read('lottery_entries') as $__se2) { if ((string) ($__se2['via'] ?? '') === 'share') { $__lotStats['share_entries']++; } }
 $__lotStats['views'] = 0;
 foreach ($all as $__lv2) { $__lotStats['views'] += (int) ($__lv2['views'] ?? 0); }
 $__lotStats['rate'] = $__lotStats['views'] > 0 ? round($__lotStats['entries'] * 100 / $__lotStats['views'], 1) : 0;
@@ -192,6 +196,8 @@ usort($__viewLots, function ($a, $b) use ($lotSort, $__entryCnt) {
             ['中奖人数', $__lotStats['winners'], ''],
             ['浏览总数', $__lotStats['views'], ''],
             ['参与转化', $__lotStats['rate'] . '%', ''],
+            ['分享浏览', $__lotStats['share_views'], ''],
+            ['分享参与', $__lotStats['share_entries'], ''],
         ];
         foreach ($__cards as $__c):
         ?>

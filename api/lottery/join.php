@@ -9,7 +9,9 @@ if ((($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST')) { jsonError('请求方式�
 $id = (int) ($_POST['lottery_id'] ?? 0);
 if ($id <= 0) { jsonError('缺少抽奖 ID'); }
 
-$r = lwLotteryJoin($id, (int) $user['id'], 'manual');
+$__via = (string) ($_POST['via'] ?? 'manual');
+if (!in_array($__via, ['manual', 'share'], true)) { $__via = 'manual'; }
+$r = lwLotteryJoin($id, (int) $user['id'], $__via);
 if (empty($r['ok'])) {
     /* 需要先关注发起人时，把 owner_id 一并回传，前端可直接给「去关注」入口 */
     if (!empty($r['need_follow'])) {
