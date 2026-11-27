@@ -83,6 +83,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
             $noticeType = 'danger';
         } else {
             $ids = $matchUsers();
+
+            /* 定时发送：先入队，由 includes/scheduled_broadcast.php 在心跳里到点执行 */
+            $sendAtRaw = trim((string) ($_POST['send_at'] ?? ''));
+            $sendAtTs = $sendAtRaw !== '' ? strtotime(str_replace('T', ' ', $sendAtRaw)) : false;
+            if ($sendAtTs !== false && $sendAtTs > time() + 30) {
+                try {
+                    getFS()->insert('scheduled_broadcasts', [
+                        'admin_id'   => (int) $adminUser['id'],
+                        'admin_name' => (string) ($adminUser['nickname'] ?? ''),
+                        'target'     => $target,
+                        'single_id'  => $target === 'single' ? $singleId : 0,
+                        'content'    => $content,
+                        'link'       => $link,
+                        'app_push'   => !empty($_POST['app_push']) ? 1 : 0,
+                        'push_title' => trim((string) ($_POST['push_title'] ?? '')) ?: '站内公告',
+                        'send_at'    => date('Y-m-d H:i:s', $sendAtTs),
+                        'status'     => 'pending',
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    logOperation($adminUser['id'], $adminUser['qq'], 'schedule_notify', 'scheduled_broadcast', 0, '定时群发 @ ' . date('Y-m-d H:i:s', $sendAtTs));
+                    $notice = '已加入定时队列，将于 ' . date('m-d H:i', $sendAtTs) . ' 前触达（约 1 分钟内）';
+                } catch (Throwable $__se) {
+                    $notice = '定时任务写入失败：' . $__se->getMessage();
+                    $noticeType = 'danger';
+                }
+                $ids = [];
+                $__scheduled = true;
+            }
+
             $ok = 0;
             foreach ($ids as $uid) {
                 try {
@@ -100,12 +129,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
                     $ok++;
                 } catch (Throwable $e) {}
             }
-            logOperation($adminUser['id'], $adminUser['qq'], 'broadcast_notify', 'notification', 0, '群发通知至 ' . $ok . ' 人');
+            if (empty($__scheduled)) {
+                logOperation($adminUser['id'], $adminUser['qq'], 'broadcast_notify', 'notification', 0, '群发通知至 ' . $ok . ' 人');
+            }
 
             /* App 推送：直接写 app_pushes（App 的 NotificationWorker 轮询消费）。
              * target 为空 = 全体；指定用户时写 user_id 白名单（最多 500，与 App 侧一致）。 */
             $__pushOk = 0;
-            if (!empty($_POST['app_push'])) {
+            if (empty($__scheduled) && !empty($_POST['app_push'])) {
                 try {
                     $__pushTitle = trim((string) ($_POST['push_title'] ?? ''));
                     if ($__pushTitle === '') { $__pushTitle = '站内公告'; }
@@ -121,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
                     error_log('broadcast app push failed: ' . $__pe->getMessage());
                 }
             }
-            try {
+            if (empty($__scheduled)) try {
                 getFS()->insert('broadcast_logs', [
                     'admin_id'   => (int) $adminUser['id'],
                     'admin_name' => (string) ($adminUser['nickname'] ?? ''),
@@ -135,7 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
                 ]);
             } catch (Throwable $__le) {}
 
-            $notice = '已发送给 ' . $ok . ' 位用户' . ($__pushOk ? '，App 推送已排队（约 15 分钟内到达）' : '');
+            if (empty($__scheduled)) {
+                $notice = '已发送给 ' . $ok . ' 位用户' . ($__pushOk ? '，App 推送已排队（约 15 分钟内到达）' : '');
+            }
         }
     }
 }
@@ -177,6 +210,11 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                 </div>
                 <textarea name="content" rows="4" maxlength="500" placeholder="例：今晚 23:00-24:00 站点维护，期间可能无法访问"
                     style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical"></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:14px">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">定时发送（可选，留空立即发送）</label>
+                <input type="datetime-local" name="send_at" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px">
+                <span style="font-size:12px;color:var(--text-secondary);margin-left:8px">到点后由站点访问自动触达（约 1 分钟内）</span>
             </div>
             <div class="form-group" style="margin-bottom:18px">
                 <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">点击跳转（可选，站内路径）</label>

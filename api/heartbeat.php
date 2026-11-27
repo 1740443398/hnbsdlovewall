@@ -19,6 +19,14 @@ require_once __DIR__ . '/../includes/online.php';
  */
 require_once __DIR__ . '/../includes/visit_stats.php';
 
+/* 定时群发执行：共享主机没有 cron，挂在每页都会打的心跳上，60 秒节流 */
+try {
+    require_once __DIR__ . '/../includes/scheduled_broadcast.php';
+    lwBroadcastTickThrottled();
+} catch (Throwable $__e) {
+    error_log('broadcast tick failed: ' . $__e->getMessage());
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
