@@ -34,6 +34,10 @@ $pageTitle = '通知中心 · ' . SITE_NAME;
 .ntf-item .txt{flex:1;font-size:13.5px;line-height:1.55}
 .ntf-item .tm{font-size:11.5px;color:var(--text-muted);margin-top:4px}
 .ntf-empty{text-align:center;color:var(--text-muted);padding:60px 16px;font-size:13.5px}
+.ntf-item{position:relative;overflow:hidden;will-change:transform}
+.ntf-item.is-swiped{transition:transform .15s ease}
+.ntf-item .ntf-swipe-act{position:absolute;top:0;right:0;bottom:0;width:74px;display:flex;align-items:center;justify-content:center;background:#1E7A4C;color:#fff;font-size:13px;font-weight:600;transform:translateX(100%);transition:transform .15s ease}
+.ntf-item.is-swiped .ntf-swipe-act{transform:translateX(0)}
 .ntf-more{display:block;width:100%;margin-top:12px;padding:10px;border-radius:12px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);font-size:13px;cursor:pointer}
 .sk{height:64px;border-radius:14px;background:linear-gradient(90deg,rgba(140,150,165,.14),rgba(140,150,165,.28),rgba(140,150,165,.14));background-size:200% 100%;animation:skm 1.2s infinite}
 @keyframes skm{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -75,7 +79,8 @@ function itemHtml(n) {
   var link = n.link ? (n.link.charAt(0) === '/' ? n.link : '') : (n.post_id ? '/pages/post_detail.php?id=' + n.post_id : '/');
   return '<a class="ntf-item' + (n.is_read ? '' : ' unread') + '" href="' + esc(link) + '" data-id="' + n.id + '">' +
     '<div class="txt"><span class="cat">' + esc(CAT_NAME[n.type] || '通知') + '</span>' + esc(n.content || '') +
-    '<div class="tm">' + esc(n.timeAgo || n.created_at || '') + '</div></div></a>';
+    '<div class="tm">' + esc(n.timeAgo || n.created_at || '') + '</div></div>' +
+    '<span class="ntf-swipe-act" role="button" aria-label="标为已读">已读</span></a>';
 }
 
 function render(append) {
@@ -103,6 +108,49 @@ function load(page, append) {
 /* 点击通知项：先标已读（服务端即删），再跳转；失败也照常跳转 */
 function bindItemClicks() {
   document.querySelectorAll('#list .ntf-item').forEach(function (a) {
+    /* 左滑显示「已读」动作条：只标已读，不跳转 */
+    (function (item) {
+      var act = item.querySelector('.ntf-swipe-act');
+      if (!act) return;
+      var sx = 0, sy = 0, dx = 0, swiping = false, decided = false;
+      var reset = function () { item.style.transform = ''; item.classList.remove('is-swiped'); dx = 0; swiping = false; decided = false; };
+      var markRead = function () {
+          var id = item.getAttribute('data-id');
+          var fd = new URLSearchParams(); fd.set('action', 'read'); fd.set('id', id); fd.set('csrf_token', CSRF);
+          fetch('/api/user/notifications.php', { method: 'POST', credentials: 'same-origin', body: fd })
+            .then(function () {
+              ITEMS = ITEMS.filter(function (x) { return String(x.id) !== String(id); });
+              curr = ITEMS.slice();
+              if (ITEMS.length) { render(false); }
+              else { document.getElementById('list').innerHTML = '<div class="ntf-empty">暂无未读通知</div>'; document.getElementById('more').style.display = 'none'; }
+            })
+            .catch(function () {});
+      };
+      item.addEventListener('touchstart', function (e) {
+        if (e.touches.length !== 1) return;
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; decided = false; swiping = false;
+      }, { passive: true });
+      item.addEventListener('touchmove', function (e) {
+        if (e.touches.length !== 1) return;
+        var cx = e.touches[0].clientX - sx, cy = e.touches[0].clientY - sy;
+        if (!decided) {
+          if (Math.abs(cx) < 8 && Math.abs(cy) < 8) return;
+          decided = true;
+          swiping = Math.abs(cx) > Math.abs(cy) && cx < 0;
+          if (!swiping) return;
+        }
+        if (!swiping) return;
+        dx = Math.max(-80, Math.min(0, cx));
+        item.style.transform = 'translateX(' + dx + 'px)';
+        item.classList.add('is-swiped');
+      }, { passive: true });
+      item.addEventListener('touchend', function () {
+        if (!swiping) { reset(); return; }
+        if (dx <= -46) { markRead(); }
+        reset();
+      });
+      act.addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); markRead(); reset(); });
+    })(a);
     a.addEventListener('click', function (e) {
       e.preventDefault();
       var href = a.getAttribute('href') || '/';
