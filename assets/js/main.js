@@ -3754,6 +3754,9 @@
         pm: svgIcon('mail', 14),
         admin: svgIcon('shield', 14),
         system: svgIcon('info', 14),
+        lottery_result: '🎁',
+        achievement: '🏅',
+        invite: '🎫',
       };
       const fresh = this._newIds || new Set();
       listEl.innerHTML = notifications
@@ -3844,6 +3847,8 @@
             target = SITE_URL + '/pages/notifications.php';
           } else if (ntfType === 'pm') {
             target = SITE_URL + '/pages/messages.php';
+          } else if (ntfType === 'lottery_result') {
+            target = SITE_URL + '/pages/lottery.php';
           }
 
           if (target) {
