@@ -221,6 +221,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         require __DIR__ . '/../includes/seo_meta.php';
     ?>
     <?php if (!empty($__bundleOffForPage)): ?>
+    <script src="/assets/js/qrcode.min.js"></script>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/widgets.css') ?>?v=<?= asset_ver('/assets/css/widgets.css') ?>">
@@ -741,6 +742,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                     <span class="action-icon" id="linkIcon"></span>
                     <span class="action-count"><?= t('pd.copy_link') ?></span>
                 </button>
+                <button class="action-btn" onclick="buildPoster()" aria-label="生成分享海报">
+                    <span class="action-icon" id="posterIcon"></span>
+                    <span class="action-count">海报</span>
+                </button>
                 <button class="action-btn" id="shareBtn" style="display:none" onclick="sharePost()" aria-label="分享">
                     <span class="action-icon" id="shareIcon"></span>
                     <span class="action-count">分享</span>
@@ -962,6 +967,19 @@ require_once __DIR__ . '/../includes/text_linkify.php';
     $mobileNavActive = '';
     require __DIR__ . '/../includes/mobile_bottom_nav.php';
     ?>
+
+    <div class="modal-overlay" id="posterModal" style="display:none">
+        <div class="modal" style="max-width:560px">
+            <div class="modal-header"><h3 class="modal-title">分享海报</h3></div>
+            <div style="padding:0 1rem 1rem;text-align:center">
+                <canvas id="postPosterCanvas" style="max-width:100%;height:auto;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14)"></canvas>
+                <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.875rem;flex-wrap:wrap">
+                    <a class="btn btn-primary" id="posterDownload" download="校园墙分享.png">保存图片</a>
+                    <button class="btn" type="button" onclick="document.getElementById('posterModal').style.display='none'">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="modal-overlay" id="confirmModal" style="display:none">
         <div class="modal confirm-modal">
@@ -1227,6 +1245,79 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             } else {
                 fallbackCopy(url);
             }
+        }
+
+        /* 生成分享海报：纯 canvas，无需后端；二维码用本地 qrcode.min.js */
+        function buildPoster() {
+            var qrlib = window.qrcode || (typeof qrcode !== 'undefined' ? qrcode : null);
+            if (!qrlib) { App.showToast('二维码组件加载失败，请刷新重试', 'error'); return; }
+            var title = <?= json_encode((string)($post['title'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+            var content = <?= json_encode(mb_substr(strip_tags((string)($post['content'] ?? '')), 0, 160, 'UTF-8'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+            var author = <?= json_encode(!empty($post['is_anonymous']) ? '匿名同学' : (string)(($usersIndex[(int)($post['user_id'] ?? 0)]['nickname'] ?? '') ?: '校园墙同学'), JSON_UNESCAPED_UNICODE) ?>;
+            var cat = <?= json_encode((string)($post['category'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+            var url = window.location.href.split('#')[0];
+
+            var W = 640, H = 900;
+            var c = document.getElementById('postPosterCanvas');
+            c.width = W; c.height = H;
+            var g = c.getContext('2d');
+            var grad = g.createLinearGradient(0, 0, W, H);
+            grad.addColorStop(0, '#2F5B9A'); grad.addColorStop(1, '#5B8BD0');
+            g.fillStyle = grad; g.fillRect(0, 0, W, H);
+
+            g.fillStyle = '#fff'; g.textAlign = 'center';
+            g.font = 'bold 30px "Microsoft YaHei", sans-serif';
+            g.fillText('校园墙 · 精彩分享', W / 2, 64);
+
+            // 白卡
+            var r = 22, x0 = 28, y0 = 100, x1 = W - 28, y1 = H - 28;
+            g.fillStyle = '#fff';
+            g.beginPath();
+            g.moveTo(x0 + r, y0); g.lineTo(x1 - r, y0); g.quadraticCurveTo(x1, y0, x1, y0 + r);
+            g.lineTo(x1, y1 - r); g.quadraticCurveTo(x1, y1, x1 - r, y1);
+            g.lineTo(x0 + r, y1); g.quadraticCurveTo(x0, y1, x0, y1 - r);
+            g.lineTo(x0, y0 + r); g.quadraticCurveTo(x0, y0, x0 + r, y0);
+            g.closePath(); g.fill();
+
+            g.textAlign = 'left';
+            var tx = x0 + 30;
+            g.fillStyle = '#2F5B9A'; g.font = 'bold 22px "Microsoft YaHei", sans-serif';
+            g.fillText(cat || '动态', tx, y0 + 44);
+
+            g.fillStyle = '#1C2733'; g.font = 'bold 34px "Microsoft YaHei", sans-serif';
+            var lines = [], t = title || '（无标题）';
+            while (t.length > 0 && lines.length < 2) {
+                var n = t.length > 13 ? 13 : t.length;
+                lines.push(t.slice(0, n)); t = t.slice(n);
+            }
+            lines.forEach(function (ln, i) { g.fillText(ln, tx, y0 + 100 + i * 46); });
+
+            g.fillStyle = '#44566C'; g.font = '22px "Microsoft YaHei", sans-serif';
+            var y = y0 + 100 + lines.length * 46 + 10;
+            var rest = content || '';
+            while (rest.length > 0 && y < y0 + 330) {
+                var slice = rest.slice(0, 24); rest = rest.slice(24);
+                g.fillText(slice, tx, y); y += 34;
+                if (rest.length) { g.fillText(rest.slice(0, 24), tx, y); y += 34; rest = rest.slice(24); }
+            }
+
+            g.fillStyle = '#6B7A8B'; g.font = '20px "Microsoft YaHei", sans-serif';
+            g.fillText('—— ' + author, tx, y0 + 360);
+
+            var qr = qrlib(0, 'M'); qr.addData(url); qr.make();
+            var n2 = qr.getModuleCount(), size = 260;
+            var cell = Math.floor(size / n2), ox = W / 2 - cell * n2 / 2, oy = y0 + 400;
+            g.fillStyle = '#fff'; g.fillRect(ox - 8, oy - 8, cell * n2 + 16, cell * n2 + 16);
+            g.fillStyle = '#1C2733';
+            for (var i = 0; i < n2; i++) for (var j = 0; j < n2; j++) {
+                if (qr.isDark(i, j)) g.fillRect(ox + i * cell, oy + j * cell, cell, cell);
+            }
+            g.textAlign = 'center'; g.fillStyle = '#6B7A8B'; g.font = '18px "Microsoft YaHei", sans-serif';
+            g.fillText('长按识别二维码 · 查看原文', W / 2, oy + cell * n2 + 34);
+
+            var a = document.getElementById('posterDownload');
+            try { a.href = c.toDataURL('image/png'); } catch (e) {}
+            document.getElementById('posterModal').style.display = 'flex';
         }
 
         /* 系统分享（手机浏览器 / PWA 支持才显示按钮；桌面无 navigator.share 就隐藏） */
