@@ -3600,6 +3600,17 @@
         if (this.panel.classList.contains('show')) this.repositionPanel();
       });
 
+      // 设置行整行可点（点文字也切换，触屏更省事）
+      if (this._st.settings) {
+        this._st.settings.querySelectorAll('.lw-ntf-set-row').forEach((row) => {
+          row.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            const btn = row.querySelector('button');
+            if (btn) btn.click();
+          });
+        });
+      }
+
       // 通知设置展开/收起
       if (this._st.gear && this._st.settings) {
         this._st.gear.addEventListener('click', (e) => {
