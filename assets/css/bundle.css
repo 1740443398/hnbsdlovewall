@@ -3753,3 +3753,19 @@ html[data-theme="dark"] .lot-missing-hint a { color: #F0A8A2; }
   .lot-cal-list { display: block; }
 }
 
+
+/* ===== 后台转化漏斗：窄屏纵向堆叠 ===== */
+@media (max-width: 520px) {
+  .lot-funnel-row {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label value" "bar bar";
+    row-gap: 5px;
+    column-gap: 8px;
+    align-items: center;
+  }
+  .lot-funnel-row > span:first-child { grid-area: label; }
+  .lot-funnel-row > div { grid-area: bar; }
+  .lot-funnel-row > span:last-child { grid-area: value; text-align: right; }
+}
+

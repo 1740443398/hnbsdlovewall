@@ -271,7 +271,7 @@ $__funnel = [
     <div class="section-header"><h3>参与转化漏斗</h3></div>
     <div class="section-body" style="display:flex;flex-direction:column;gap:8px">
         <?php foreach ($__funnel as $__i => $__f): ?>
-        <div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+        <div class="lot-funnel-row" style="display:flex;align-items:center;gap:10px;font-size:12.5px">
             <span style="flex:0 0 96px;color:var(--text-muted)"><?= htmlspecialchars($__f[0]) ?></span>
             <div style="flex:1;height:16px;background:var(--bg-secondary);border-radius:8px;overflow:hidden">
                 <div style="height:100%;width:<?= (int) round($__f[1] * 100 / $__base) ?>%;min-width:<?= $__f[1] > 0 ? '6px' : '0' ?>;background:linear-gradient(90deg,#2F5B9A,#5B8BD0);border-radius:8px"></div>
