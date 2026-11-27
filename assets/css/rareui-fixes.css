@@ -151,3 +151,39 @@
   }
 }
 @keyframes ru-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+
+/* ---------- 窄屏后台：表格 → 卡片堆叠 ---------- */
+@media (max-width: 720px) {
+  .admin-body table.admin-cards { display: block !important; width: 100% !important; border: 0 !important; }
+  .admin-body table.admin-cards thead { display: none !important; }
+  .admin-body table.admin-cards tbody { display: block !important; }
+  .admin-body table.admin-cards tbody tr {
+    display: block !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px;
+    background: var(--card-bg);
+    padding: 10px 12px;
+    margin: 0 0 10px;
+    box-shadow: var(--ru-shadow-1);
+  }
+  .admin-body table.admin-cards tbody td {
+    display: flex !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0 !important;
+    padding: 6px 0 !important;
+    font-size: 13px;
+    white-space: normal !important;
+    word-break: break-word;
+  }
+  .admin-body table.admin-cards tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .admin-body table.admin-cards tbody td:empty { display: none !important; }
+}

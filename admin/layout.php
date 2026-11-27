@@ -1755,7 +1755,7 @@ textarea,
     <link rel="stylesheet" href="/assets/css/lw_chart.css?v=<?= @filemtime(__DIR__ . '/../assets/css/lw_chart.css') ?: 1 ?>">
     <script src="/assets/js/lw_chart.js?v=<?= @filemtime(__DIR__ . '/../assets/js/lw_chart.js') ?: 1 ?>"></script>
 </head>
-<body>
+<body class="admin-body">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -2457,6 +2457,29 @@ function adminFooter() {
         });
     };
 })();
+</script>
+<script>
+  /* 窄屏后台：表格自动转「卡片堆叠」——每行一张卡，td 前显示列名。
+     表格列多时横向滚动在小屏上很难用，卡片化后一屏能看清一条记录。 */
+  function adminTablesToCards() {
+    var mq = window.matchMedia('(max-width: 720px)');
+    var tables = Array.prototype.slice.call(document.querySelectorAll('.admin-body table'));
+    tables.forEach(function (t) {
+      if (!t.querySelector('thead')) return;
+      var heads = Array.prototype.map.call(t.querySelectorAll('thead th'), function (th) {
+        return (th.textContent || '').trim();
+      });
+      Array.prototype.forEach.call(t.querySelectorAll('tbody tr'), function (tr) {
+        Array.prototype.forEach.call(tr.children, function (td, i) {
+          if (td.tagName !== 'TD') return;
+          if (!td.getAttribute('data-label') && heads[i]) td.setAttribute('data-label', heads[i]);
+        });
+      });
+      if (mq.matches) t.classList.add('admin-cards');
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', adminTablesToCards);
+  else adminTablesToCards();
 </script>
 </body>
 </html>
