@@ -789,6 +789,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                     <span class="comment-sort" style="margin-left:auto;display:flex;gap:6px">
                         <button type="button" class="comment-sort-btn on" data-cs="asc">最早</button>
                         <button type="button" class="comment-sort-btn" data-cs="desc">最新</button>
+                        <button type="button" class="comment-sort-btn" data-cs="hot">最热</button>
                     </span>
                 </h3>
                 <div class="comments-list" id="commentsList">
@@ -811,7 +812,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                         $cNick = !$cAnonymous && $cUser ? ($cUser['nickname'] ?? t('pd.anonymous_user')) : t('pd.anonymous_user');
                         $replyCount = count($commentChildren[$c['id']] ?? []);
                     ?>
-                    <div class="comment-item" id="comment-<?= $c['id'] ?>" data-user-id="<?= (int)($c['user_id'] ?? 0) ?>" data-created-at="<?= htmlspecialchars((string)($c['created_at'] ?? '')) ?>" data-reply-count="<?= $replyCount ?>">
+                    <div class="comment-item" id="comment-<?= $c['id'] ?>" data-user-id="<?= (int)($c['user_id'] ?? 0) ?>" data-likes="<?= (int)($c['likes'] ?? 0) ?>" data-created-at="<?= htmlspecialchars((string)($c['created_at'] ?? '')) ?>" data-reply-count="<?= $replyCount ?>">
                         <?php
                         // 评论头像同样走复合件；复用进程内用户缓存，避免逐条查库。
                         // 非匿名评论的头像包 <a> 跳个人主页，复合件结构不动。
@@ -946,7 +947,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 if (el.classList && el.classList.contains('comment-item')) {
                     var next = el.nextElementSibling;
                     var chil = (next && next.classList && next.classList.contains('comment-children')) ? next : null;
-                    out.push({ item: el, child: chil, ts: Date.parse(el.getAttribute('data-created-at') || '') || 0 });
+                    out.push({ item: el, child: chil, ts: Date.parse(el.getAttribute('data-created-at') || '') || 0, likes: parseInt(el.getAttribute('data-likes') || '0', 10) || 0 });
                 }
             }
             return out;
@@ -954,7 +955,10 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         function apply(mode) {
             var list = pairs();
             if (list.length < 2) return;
-            list.sort(function (a, b) { return mode === 'desc' ? (b.ts - a.ts) : (a.ts - b.ts); });
+            list.sort(function (a, b) {
+                if (mode === 'hot') { return (b.likes - a.likes) || (a.ts - b.ts); }
+                return mode === 'desc' ? (b.ts - a.ts) : (a.ts - b.ts);
+            });
             var frag = document.createDocumentFragment();
             list.forEach(function (p) {
                 frag.appendChild(p.item);
