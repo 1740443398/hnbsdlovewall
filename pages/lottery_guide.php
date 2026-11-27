@@ -74,6 +74,8 @@ h1{font-size:20px;margin:8px 0 6px}
           <button class="btn" onclick="doFollow(<?= (int) $ownerId ?>, this)">去关注</button>
         <?php elseif (mb_strpos($r, '点赞') !== false && $postId > 0): ?>
           <button class="btn" onclick="doLike(<?= (int) $postId ?>, this)">去点赞</button>
+        <?php elseif (mb_strpos($r, '转发') !== false && $postId > 0): ?>
+          <button class="btn" onclick="openRepost(<?= (int) $postId ?>, this)">写转发</button>
         <?php elseif (mb_strpos($r, '评论') !== false && $postId > 0): ?>
           <button class="btn" onclick="openComment(<?= (int) $postId ?>, this)">写评论</button>
         <?php elseif ($postId > 0): ?>
@@ -129,6 +131,41 @@ function openComment(postId, btn) {
           alert((j && (j.message || j.error)) || '评论失败');
         }
       }).catch(() => { self.disabled = false; self.textContent = '发送'; });
+  });
+}
+
+/* 转发条件内联完成：写一条引用附带动态的帖子 */
+function openRepost(postId, btn) {
+  var row = btn.closest('.row');
+  if (row.querySelector('.rpt-box')) return;
+  btn.style.display = 'none';
+  var box = document.createElement('div');
+  box.className = 'rpt-box';
+  box.style.cssText = 'width:100%;margin-top:8px;display:flex;gap:8px;align-items:flex-start';
+  box.innerHTML = '<textarea placeholder="说点什么，转发这条动态即可完成条件…" maxlength="500" style="flex:1;min-height:64px;padding:8px 10px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:13px;resize:vertical;background:var(--card-bg,#fff);color:var(--text,#1C2733)"></textarea>'
+    + '<button class="btn" type="button">转发</button>';
+  row.appendChild(box);
+  box.querySelector('textarea').focus();
+  box.querySelector('button').addEventListener('click', function () {
+    var ta = box.querySelector('textarea');
+    var text = (ta.value || '').trim();
+    if (!text) { ta.focus(); return; }
+    var self = this;
+    self.disabled = true; self.textContent = '发送中…';
+    var body = new URLSearchParams({
+      csrf_token: CSRF, category: 'social_chat', title: '转发抽奖',
+      content: text, quote_post_id: postId, visibility: 'public'
+    });
+    fetch('/api/posts/create.php', { method: 'POST', credentials: 'same-origin', body: body })
+      .then(r => r.json()).then(j => {
+        if (j && (j.success === true || j.ok === true)) {
+          box.remove();
+          btn.outerHTML = '<span class="ok">已完成 ✓</span>';
+        } else {
+          self.disabled = false; self.textContent = '转发';
+          alert((j && (j.message || j.error)) || '转发失败');
+        }
+      }).catch(() => { self.disabled = false; self.textContent = '转发'; });
   });
 }
 
