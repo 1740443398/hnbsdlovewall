@@ -4997,4 +4997,31 @@
 
   initProgressBar();
 
+
+  /* 信息流骨架屏：首屏空白期先给三张占位卡，真实卡片/DOM 变化后自动移除 */
+  function initFeedSkeleton() {
+    var box = document.getElementById('postsContainer');
+    if (!box || box.querySelector('.post-card, .post-item, .ssr-card')) return;
+    if (box.__skel) return;
+    box.__skel = true;
+    var tpl = '<div class="ru-skeleton-card"><div class="sk-row"><span class="sk-avatar"></span><span class="sk-line sk-short"></span></div>' +
+      '<div class="sk-line sk-mid"></div><div class="sk-line sk-block"></div></div>';
+    var holder = document.createElement('div');
+    holder.className = 'ru-skeleton-holder';
+    holder.innerHTML = tpl + tpl + tpl;
+    box.appendChild(holder);
+    function clear() {
+      if (holder.parentNode) holder.parentNode.removeChild(holder);
+      box.__skel = false;
+    }
+    var mo = new MutationObserver(function () {
+      if (box.querySelector('.post-card, .post-item, .ssr-card')) { mo.disconnect(); clear(); }
+    });
+    mo.observe(box, { childList: true, subtree: true });
+    setTimeout(function () { mo.disconnect(); clear(); }, 8000);
+  }
+
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', initFeedSkeleton);
+  else initFeedSkeleton();
+
 })();

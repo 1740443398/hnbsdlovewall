@@ -92,3 +92,26 @@
   transition: width .2s ease, opacity .3s ease;
 }
 .ru-progress.is-done { opacity: 0; }
+
+
+/* ---------- 信息流骨架屏（首屏加载占位，避免长时间空白） ---------- */
+.ru-skeleton-card {
+  border-radius: var(--ru-r-lg, 18px);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.ru-skeleton-card .sk-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ru-skeleton-card .sk-avatar { width: 36px; height: 36px; border-radius: 50%; }
+.ru-skeleton-card .sk-line { height: 12px; border-radius: 6px; }
+.ru-skeleton-card .sk-line.sk-short { width: 40%; }
+.ru-skeleton-card .sk-line.sk-mid { width: 72%; }
+.ru-skeleton-card .sk-line.sk-block { height: 120px; margin-top: 12px; border-radius: 12px; }
+.ru-skeleton-card .sk-block-wrap { display: block; }
+.ru-skeleton-card .sk-line, .ru-skeleton-card .sk-avatar { position: relative; overflow: hidden; background: var(--input-bg, #F1F5F9); }
+.ru-skeleton-card .sk-line::after, .ru-skeleton-card .sk-avatar::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+  animation: ru-shimmer 1.4s infinite;
+}
