@@ -49,7 +49,16 @@ if ($action === 'for_you') {
 }
 
 if ($action === 'hot') {
-    $sorted = lwSortByHot($all);
+    $range = (string) ($_GET['range'] ?? 'all');
+    $__all = $all;
+    if ($range === 'week' || $range === 'month') {
+        $__since = strtotime($range === 'week' ? '-7 days' : '-30 days');
+        $__all = array_values(array_filter($all, function ($p) use ($__since) {
+            $ts = strtotime((string) ($p['created_at'] ?? ''));
+            return $ts !== false && $ts >= $__since;
+        }));
+    }
+    $sorted = lwSortByHot($__all);
     jsonSuccess([
         'posts' => lwPostListPayload(array_slice($sorted, $offset, $limit)),
         'count' => min($limit, max(0, count($sorted) - $offset)),
