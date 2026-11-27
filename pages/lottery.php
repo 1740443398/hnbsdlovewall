@@ -39,6 +39,19 @@ $pageTitle = $detail ? ($detail['title'] ?? '抽奖') : '站内抽奖';
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <?php require_once __DIR__ . '/../includes/theme_boot.php'; ?>
 <title><?= htmlspecialchars((string) $pageTitle) ?> · <?= htmlspecialchars(SITE_NAME) ?></title>
+<?php if ($detail): ?>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="<?= htmlspecialchars(SITE_NAME) ?>">
+<meta property="og:title" content="🎁 <?= htmlspecialchars((string) ($detail['title'] ?? '')) ?>">
+<meta property="og:description" content="奖品：<?= htmlspecialchars((string) ($detail['prize'] ?? '')) ?> × <?= (int) ($detail['prize_count'] ?? 1) ?> · 开奖：<?= htmlspecialchars((string) ($detail['draw_at'] ?? '')) ?> · 快来参与">
+<?php
+  $__ogImg = trim((string) ($detail['cover_image'] ?? ''));
+  if ($__ogImg === '') { $__ogImg = SITE_URL . '/icon.ico'; }
+  elseif ($__ogImg[0] === '/') { $__ogImg = SITE_URL . $__ogImg; }
+?>
+<meta property="og:image" content="<?= htmlspecialchars($__ogImg) ?>">
+<meta name="twitter:card" content="summary_large_image">
+<?php endif; ?>
 <link rel="icon" href="/icon.ico" type="image/x-icon">
 <style>
 :root { --primary:#2F5B9A; --card:#fff; --bg:#F4F6F9; --text:#1C2733; --muted:#6B7A8B; --border:#E3E7EC; }
