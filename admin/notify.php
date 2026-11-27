@@ -191,6 +191,7 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                     style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;width:260px">
             </div>
             <button class="btn btn-primary" type="submit" onclick="return confirm('确认向当前筛选的用户群发通知？')">立即发送</button>
+            <button class="btn btn-outline" type="button" id="previewBtn" style="margin-left:8px">预览</button>
         </form>
 
         <details style="margin-top:16px">
@@ -291,6 +292,45 @@ adminHeader('通知群发', $adminUser, $csrfToken);
             if (pushTitle && !pushTitle.value) { pushTitle.value = t.title; }
         });
     });
+})();
+</script>
+<div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:9999;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--card-bg,#fff);border-radius:16px;max-width:420px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.22);overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-light,#E4E9F0)">
+            <b style="font-size:14px">通知预览</b>
+            <button type="button" id="previewClose" style="border:none;background:none;font-size:18px;cursor:pointer;color:var(--text-secondary)">×</button>
+        </div>
+        <div style="padding:14px 16px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;border-radius:50%;background:rgba(47,91,154,.12);display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto">🔔</div>
+                <div style="flex:1;min-width:0">
+                    <div id="previewContent" style="font-size:14px;line-height:1.6;color:var(--text,#1a202c);word-break:break-word"></div>
+                    <div style="margin-top:6px;font-size:11.5px;color:var(--text-muted,#9AA7B8)">刚刚 · 系统通知</div>
+                </div>
+            </div>
+            <div id="previewLink" style="display:none;margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg-secondary,#F7F9FC);font-size:12.5px;color:var(--primary)"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var btn = document.getElementById('previewBtn');
+    var modal = document.getElementById('previewModal');
+    if (!btn || !modal) return;
+    btn.addEventListener('click', function () {
+        var form = document.querySelector('form[method="post"]');
+        if (!form) return;
+        var content = (form.querySelector('textarea[name="content"]') || {}).value || '';
+        var link = (form.querySelector('input[name="link"]') || {}).value || '';
+        document.getElementById('previewContent').textContent = content || '（未填写内容）';
+        var linkEl = document.getElementById('previewLink');
+        if (link) { linkEl.style.display = 'block'; linkEl.textContent = '跳转：' + link; }
+        else { linkEl.style.display = 'none'; }
+        modal.style.display = 'flex';
+    });
+    document.getElementById('previewClose').addEventListener('click', function () { modal.style.display = 'none'; });
+    modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
 })();
 </script>
 <?php adminFooter(); ?>
