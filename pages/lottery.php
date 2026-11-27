@@ -354,6 +354,16 @@ if ($detail):
             return $listStatus === 'open' ? ($st === 'open') : ($st !== 'open');
         }));
     }
+    /* 分页：每页 10 条，筛选/排序后再切页 */
+    $__perPage = 10;
+    $__totalLots = count($all);
+    $__pages = max(1, (int) ceil($__totalLots / $__perPage));
+    $__page = max(1, min($__pages, (int) ($_GET['page'] ?? 1)));
+    if ($__totalLots > 0) {
+        $all = array_slice($all, ($__page - 1) * $__perPage, $__perPage);
+    }
+    $__keepQ = 'view=' . urlencode($listView) . '&status=' . urlencode($listStatus) . '&sort=' . urlencode($listSort);
+
     if (!$all): ?>
   <div class="card"><div class="empty">还没有抽奖活动<br><span style="font-size:12px">管理员可以在后台「抽奖管理」创建</span></div></div>
     <?php else: foreach ($all as $l):
@@ -395,6 +405,13 @@ if ($detail):
     <?php endif; ?>
   </a>
     <?php endforeach; endif; ?>
+    <?php if ($__pages > 1): ?>
+    <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin:14px 0 4px;font-size:12.5px">
+        <?php if ($__page > 1): ?><a href="?<?= $__keepQ ?>&page=<?= $__page - 1 ?>" style="padding:4px 10px;border-radius:999px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);text-decoration:none">上一页</a><?php endif; ?>
+        <span style="color:var(--text-muted)"><?= (int) $__page ?> / <?= (int) $__pages ?> 页 · 共 <?= (int) $__totalLots ?> 个</span>
+        <?php if ($__page < $__pages): ?><a href="?<?= $__keepQ ?>&page=<?= $__page + 1 ?>" style="padding:4px 10px;border-radius:999px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);text-decoration:none">下一页</a><?php endif; ?>
+    </div>
+    <?php endif; ?>
     <?php if ($user && $myLotIds): ?>
       <div class="card">
         <h2 style="font-size:15px">我参与的抽奖</h2>
