@@ -66,6 +66,14 @@ $all = lwLotteryAll();
 $userIndex = [];
 foreach ((array) getFS()->read('users') as $u) { $userIndex[(int) ($u['id'] ?? 0)] = $u; }
 
+/* 数据概览：抽奖数 / 参与 / 提醒 / 中奖 —— 只做聚合读，不做写入 */
+$__lotStats = ['total' => count($all), 'open' => 0, 'drawn' => 0, 'entries' => 0, 'reminds' => 0, 'winners' => 0];
+foreach ($all as $__l0) {
+    if ((string) ($__l0['status'] ?? 'open') === 'open') { $__lotStats['open']++; } else { $__lotStats['drawn']++; }
+}
+foreach ((array) getFS()->read('lottery_entries') as $__e0) { if ((int) ($__e0['lottery_id'] ?? 0) > 0) { $__lotStats['entries']++; } }
+$__lotStats['reminds'] = count((array) getFS()->read('lottery_reminders'));
+
 /* 每个抽奖设置了多少「开奖提醒」——开奖时会按这个数量群发站内通知 */
 $remindCount = [];
 foreach ((array) getFS()->read('lottery_reminders') as $__r) {
@@ -81,6 +89,26 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
     <?= htmlspecialchars($msg) ?>
 </div>
 <?php endif; ?>
+
+<div class="section lot-stats" style="margin-bottom:14px">
+    <div class="section-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <?php
+        $__cards = [
+            ['抽奖总数', $__lotStats['total'], ''],
+            ['进行中', $__lotStats['open'], ''],
+            ['已开奖', $__lotStats['drawn'], ''],
+            ['参与人次', $__lotStats['entries'], ''],
+            ['提醒人次', $__lotStats['reminds'], ''],
+        ];
+        foreach ($__cards as $__c):
+        ?>
+        <div style="flex:1 1 120px;min-width:110px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card-bg)">
+            <div style="font-size:12px;color:var(--text-muted)"><?= htmlspecialchars($__c[0]) ?></div>
+            <div style="font-size:22px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums"><?= (int) $__c[1] ?></div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
 
 <div class="section">
     <div class="section-header"><h3>创建抽奖</h3></div>
