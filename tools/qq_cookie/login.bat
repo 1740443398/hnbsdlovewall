@@ -1,0 +1,1 @@
+@echo off\r\ncd /d %~dp0\r\nnode qq_cookie_capture.mjs --login\r\npause\r\n

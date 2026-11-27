@@ -1,0 +1,1 @@
+@echo off\r\ncd /d %~dp0\r\nnode qq_cookie_capture.mjs >> push.log 2>&1\r\n

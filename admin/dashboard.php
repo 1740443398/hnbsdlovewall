@@ -6,6 +6,10 @@ $adminUser = requireAdmin();
 $adminUser = checkBanned($adminUser);
 $csrfToken = generateCSRFToken();
 
+/* QQ 同步 Cookie 过期提醒：同步引擎会在失败时写 last_state=cookie_expired，
+ * 这里直接在看板顶部提示，点一下去扫码/粘贴，避免「同步悄悄停了好几天」。 */
+$__qzCfg = function_exists('lwQzoneConfig') ? lwQzoneConfig() : [];
+$__qzExpired = (($__qzCfg['last_state'] ?? '') === 'cookie_expired');
 $fs = getFS();
 
 $users = $fs->read('users') ?: [];
@@ -242,6 +246,13 @@ $__visMax = 1;
 foreach ($__visTrend as $__t) { $__visMax = max($__visMax, (int)$__t['total']); }
 
 adminHeader('数据看板', $adminUser, $csrfToken);
+
+if ($__qzExpired) {
+    echo '<div class="section" style="margin-bottom:14px;padding:12px 16px;border-left:4px solid var(--warning, #B7791F);background:rgba(183,121,31,.08)">'
+        . '⚠️ <b>QQ 空间同步 Cookie 已过期</b>，同步已停止。'
+        . ' <a href="/admin/qzone.php" style="font-weight:700">去扫码 / 粘贴 Cookie →</a>'
+        . '</div>';
+}
 ?>
 
 <div class="stats-grid">
