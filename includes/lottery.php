@@ -298,11 +298,11 @@ if (!function_exists('lwLotteryDraw')) {
         /* 给设置了「提醒我」的同学发站内通知（中奖/未中奖文案不同） */
         try {
             $winMap = array_flip(array_map('intval', $winners));
-            $__appUids = array_map('intval', $uids);
+            $__appUids = array_values(array_filter(array_map('intval', $uids), function ($__u) { return lwLotteryPushEnabled($__u); }));
             foreach ((array) getFS()->read('lottery_reminders') as $__r) {
                 if ((int) ($__r['lottery_id'] ?? 0) !== $lotteryId) { continue; }
                 $uid = (int) ($__r['user_id'] ?? 0);
-                if ($uid <= 0) { continue; }
+                if ($uid <= 0 || !lwLotteryPushEnabled($uid)) { continue; }
                 $__appUids[] = $uid;
                 $won = isset($winMap[$uid]);
                 getFS()->insert('notifications', [
@@ -335,6 +335,33 @@ if (!function_exists('lwLotteryDraw')) {
         }
 
         return ['ok' => true, 'winners' => $winners];
+    }
+}
+
+if (!function_exists('lwLotteryPushEnabled')) {
+    /** 该用户是否还接收抽奖推送（用户可在详情页关闭） */
+    function lwLotteryPushEnabled(int $userId): bool
+    {
+        if ($userId <= 0) { return false; }
+        foreach ((array) getFS()->read('lottery_push_off') as $r) {
+            if ((int) ($r['user_id'] ?? 0) === $userId) { return false; }
+        }
+        return true;
+    }
+
+    /** 开/关抽奖推送。返回当前是否开启（true=接收） */
+    function lwLotteryPushSet(int $userId, bool $on): bool
+    {
+        $fs = getFS();
+        foreach ((array) $fs->read('lottery_push_off') as $r) {
+            if ((int) ($r['user_id'] ?? 0) === $userId) {
+                if ($on) { $fs->delete('lottery_push_off', (int) ($r['id'] ?? 0)); return true; }
+                return false;
+            }
+        }
+        if ($on) { return true; }
+        $fs->insert('lottery_push_off', ['user_id' => $userId, 'created_at' => date('Y-m-d H:i:s')]);
+        return false;
     }
 }
 
@@ -382,10 +409,10 @@ if (!function_exists('lwLotteryPreDrawNotify')) {
 
             $targets = [];
             foreach ((array) $fs->read('lottery_reminders') as $r) {
-                if ((int) ($r['lottery_id'] ?? 0) === $lid) { $targets[(int) $r['user_id']] = true; }
+                if ((int) ($r['lottery_id'] ?? 0) === $lid && lwLotteryPushEnabled((int) $r['user_id'])) { $targets[(int) $r['user_id']] = true; }
             }
             foreach ((array) $fs->read('lottery_entries') as $e) {
-                if ((int) ($e['lottery_id'] ?? 0) === $lid) { $targets[(int) ($e['user_id'] ?? 0)] = true; }
+                if ((int) ($e['lottery_id'] ?? 0) === $lid && lwLotteryPushEnabled((int) ($e['user_id'] ?? 0))) { $targets[(int) ($e['user_id'] ?? 0)] = true; }
             }
             unset($targets[0]);
 

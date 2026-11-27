@@ -213,7 +213,7 @@ if ($detail):
           <button class="btn ghost" disabled>已参与 ✓</button>
           <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
           <button class="btn ghost" onclick="buildPoster()">生成海报</button>
-          <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
+          <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php $__pushOn = lwLotteryPushEnabled((int) $user['id']); ?><button class="btn ghost" id="lotPushPref" data-on="<?= $__pushOn ? 1 : 0 ?>" style="font-size:12px"><?= $__pushOn ? '🔔 推送已开' : '🔕 推送已关' ?></button><?php endif; ?>
         </div>
       <?php else: ?>
         <?php if (!empty($__missingRules)): ?>
@@ -281,6 +281,25 @@ if ($detail):
       setTimeout(tick, 1000);
     }
     tick();
+
+        (function () {
+      var pb = document.getElementById('lotPushPref');
+      if (!pb) return;
+      pb.addEventListener('click', function () {
+        var on = pb.getAttribute('data-on') !== '1';
+        var body = new URLSearchParams();
+        body.set('on', on ? '1' : '0');
+        fetch('/api/lottery/notify_pref.php', { method: 'POST', credentials: 'same-origin', body: body })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            var st = j && j.push_on;
+            if (st === undefined) { st = on; }
+            pb.setAttribute('data-on', st ? '1' : '0');
+            pb.textContent = st ? '🔔 推送已开' : '🔕 推送已关';
+            if (typeof toast === 'function') toast(st ? '已开启抽奖推送' : '已关闭抽奖推送');
+          }).catch(function () { if (typeof toast === 'function') toast('网络错误'); });
+      });
+    })();
 
     /* 自定义条款：勾选后才开放参与按钮 */
     (function () {
