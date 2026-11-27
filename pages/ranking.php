@@ -201,6 +201,16 @@ if ($user) {
     $myRanks = ['post' => $rPost, 'active' => $rActive, 'points' => $rPoints];
 }
 
+// ---- 我关注了谁（快捷关注按钮用） ------------------------------------------
+$myFollowing = [];
+if ($user) {
+    foreach ($fs->read('follows') as $f) {
+        if ((int) ($f['user_id'] ?? 0) === (int) $user['id']) {
+            $myFollowing[(int) ($f['target_id'] ?? 0)] = true;
+        }
+    }
+}
+
 // ---- 昵称 / 头像：一次读全表建索引，避免循环里逐条查询 ----------------------
 $users = [];
 foreach ($fs->read('users') as $u) {
@@ -254,6 +264,7 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
         window.IS_LOGGED_IN = IS_LOGGED_IN;
         window.IS_GUEST = IS_GUEST;
         window.USER_DATA = USER_DATA;
+        window.RK_CSRF = '<?= generateCSRFToken() ?>';
     </script>
     <style>
         .rk-page{max-width:var(--content-max-width,900px);margin:0 auto;padding:1.5rem 1rem 3rem;}
@@ -291,6 +302,10 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
         .rk-me b{color:var(--primary);font-variant-numeric:tabular-nums;}
         .rk-me .rk-me-item{display:inline-flex;gap:.35rem;align-items:center}
         .rk-me .none{color:var(--text-tertiary)}
+        .rk-follow{flex:0 0 auto;padding:.25rem .7rem;border-radius:9999px;border:1px solid var(--border-focus,#2F5B9A);background:transparent;color:var(--primary);font-size:.74rem;cursor:pointer;transition:all .15s ease}
+        .rk-follow:hover{background:var(--primary);color:#fff}
+        .rk-follow.on{background:var(--bg-secondary,#F4F7FA);border-color:var(--border-light,#E4E9F0);color:var(--text-tertiary)}
+        .rk-follow:disabled{opacity:.55;cursor:default}
         @media (max-width:480px){
             .rk-page{padding:1rem .75rem 2.5rem;}
             .rk-title{font-size:1.3rem;}
@@ -412,6 +427,12 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
                             <span><?= (int)$pu['posts'] ?>篇动态</span>
                         </div>
                     </div>
+                    <?php if ($user && (int)($pu['id'] ?? 0) !== (int)$user['id']): ?>
+                    <button type="button" class="rk-follow<?= !empty($myFollowing[(int)($pu['id'] ?? 0)]) ? ' on' : '' ?>"
+                        data-uid="<?= (int)($pu['id'] ?? 0) ?>" data-on="<?= !empty($myFollowing[(int)($pu['id'] ?? 0)]) ? 1 : 0 ?>">
+                        <?= !empty($myFollowing[(int)($pu['id'] ?? 0)]) ? '已关注' : '关注' ?>
+                    </button>
+                    <?php endif; ?>
                     <span class="rk-score"><?= (int)$pu['points'] ?></span>
                 </div>
                 <?php endforeach; ?>
@@ -445,6 +466,12 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
                             <span><?= (int)$u['comments'] ?><?= t('rank.u_comment') ?></span>
                         </div>
                     </div>
+                    <?php if ($user && (int)$u['id'] !== (int)$user['id']): ?>
+                    <button type="button" class="rk-follow<?= !empty($myFollowing[(int)$u['id']]) ? ' on' : '' ?>"
+                        data-uid="<?= (int)$u['id'] ?>" data-on="<?= !empty($myFollowing[(int)$u['id']]) ? 1 : 0 ?>">
+                        <?= !empty($myFollowing[(int)$u['id']]) ? '已关注' : '关注' ?>
+                    </button>
+                    <?php endif; ?>
                     <span class="rk-score"><?= (int)$u['score'] ?></span>
                 </div>
                 <?php endforeach; ?>
