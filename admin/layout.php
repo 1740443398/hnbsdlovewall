@@ -1852,6 +1852,9 @@ textarea,
             <a href="/admin/comments.php" class="<?= $page === 'comments.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> 评论管理
             </a>
+            <a href="/admin/room.php" class="<?= $page === 'room.php' ? 'active' : '' ?>">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/></svg></span> 聊天室管理
+            </a>
             <a href="/admin/post_votes.php" class="<?= $page === 'post_votes.php' ? 'active' : '' ?>">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 帖子投票
             </a>
