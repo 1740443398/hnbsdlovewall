@@ -966,13 +966,39 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             });
             wrap.appendChild(frag);
         }
+        /* 评论分页：默认只显示前 10 条，避免长帖一次铺满 */
+        var LIMIT = 10;
+        var limitEl = document.getElementById('commentMoreBtn');
+        if (!limitEl) {
+            limitEl = document.createElement('button');
+            limitEl.type = 'button';
+            limitEl.id = 'commentMoreBtn';
+            limitEl.className = 'comment-more-btn';
+            limitEl.style.cssText = 'display:block;width:100%;margin:10px 0 0;padding:9px 0;border-radius:10px;border:1px dashed var(--border,#dfe4ea);background:transparent;color:var(--primary,#2F5B9A);font-size:13px;cursor:pointer';
+            wrap.parentNode.insertBefore(limitEl, wrap.nextSibling);
+            limitEl.addEventListener('click', function () { LIMIT += 10; applyLimit(); });
+        }
+        function applyLimit() {
+            var list = pairs();
+            var shown = 0;
+            list.forEach(function (p) {
+                var visible = shown < LIMIT;
+                p.item.style.display = visible ? '' : 'none';
+                if (p.child) p.child.style.display = (!visible) ? 'none' : (p.child.getAttribute('data-loaded') === '1' ? '' : 'none');
+                if (visible) shown++;
+            });
+            limitEl.style.display = list.length > LIMIT ? '' : 'none';
+            limitEl.textContent = '展开更多评论（还有 ' + Math.max(0, list.length - LIMIT) + ' 条）';
+        }
         wrap.addEventListener('click', function (e) {
             var b = e.target.closest('.comment-sort-btn');
             if (!b) return;
             document.querySelectorAll('.comment-sort-btn').forEach(function (x) { x.classList.toggle('on', x === b); });
             apply(b.getAttribute('data-cs'));
+            applyLimit();
         });
         apply('asc');
+        applyLimit();
     })();
 
     /* 阅读进度条：按文章卡片滚动进度显示 */
