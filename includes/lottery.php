@@ -298,10 +298,12 @@ if (!function_exists('lwLotteryDraw')) {
         /* 给设置了「提醒我」的同学发站内通知（中奖/未中奖文案不同） */
         try {
             $winMap = array_flip(array_map('intval', $winners));
+            $__appUids = array_map('intval', $uids);
             foreach ((array) getFS()->read('lottery_reminders') as $__r) {
                 if ((int) ($__r['lottery_id'] ?? 0) !== $lotteryId) { continue; }
                 $uid = (int) ($__r['user_id'] ?? 0);
                 if ($uid <= 0) { continue; }
+                $__appUids[] = $uid;
                 $won = isset($winMap[$uid]);
                 getFS()->insert('notifications', [
                     'user_id'    => $uid,
@@ -316,8 +318,35 @@ if (!function_exists('lwLotteryDraw')) {
                 ]);
             }
         } catch (Throwable $__e) { error_log('lottery remind notify: ' . $__e->getMessage()); }
+        if (!empty($__appUids)) {
+            lwLotteryAppPush($__appUids, '🎁 抽奖开奖：' . (string) ($l['title'] ?? ''), '抽奖已开奖，点开查看中奖结果', '/pages/lottery.php?id=' . $lotteryId);
+        }
 
         return ['ok' => true, 'winners' => $winners];
+    }
+}
+
+if (!function_exists('lwLotteryAppPush')) {
+    /**
+     * 把抽奖通知写进 App 推送队列（客户端轮询拉取）。
+     * 共享主机没有推送服务凭据，站内通知之外再入队一条，App 下一次轮询即可弹出。
+     * 失败绝不阻断主流程。
+     */
+    function lwLotteryAppPush(array $uids, string $title, string $content, string $url): void
+    {
+        $uids = array_values(array_unique(array_filter(array_map('intval', $uids), function ($n) { return $n > 0; })));
+        if (!$uids) { return; }
+        try {
+            getFS()->insert('app_pushes', [
+                'title'      => mb_substr($title, 0, 40),
+                'content'    => mb_substr($content, 0, 300),
+                'url'        => $url,
+                'target'     => implode(',', array_slice($uids, 0, 500)),
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (Throwable $e) {
+            error_log('lwLotteryAppPush failed: ' . $e->getMessage());
+        }
     }
 }
 
@@ -361,6 +390,9 @@ if (!function_exists('lwLotteryPreDrawNotify')) {
                     ]);
                     $sent++;
                 } catch (Throwable $e2) {}
+            }
+            if (!empty($targets)) {
+                lwLotteryAppPush(array_keys($targets), '⏰ 抽奖即将开奖', '「' . (string) ($l['title'] ?? '') . '」10 分钟内开奖，记得来看结果', '/pages/lottery.php?id=' . $lid);
             }
             try { $fs->update('lotteries', $lid, ['pre_notified' => true]); } catch (Throwable $e3) {}
         }
