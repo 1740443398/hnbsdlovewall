@@ -224,7 +224,14 @@ foreach ($all as $__lv) {
                             <button class="btn btn-sm btn-success" type="submit">立即开奖</button>
                         </form>
                         <?php endif; ?>
-                        <form method="post" onsubmit="return confirm('删除这个抽奖及其参与记录？')">
+                        <form method="post" style="display:inline-flex;gap:6px;align-items:center;margin-right:6px" onsubmit="return confirm('给全部参与者群发这条私信？')">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="action" value="pm_entries">
+                        <input type="hidden" name="lottery_id" value="<?= (int) $l['id'] ?>">
+                        <input type="text" name="pm_text" placeholder="私信参与者内容…" maxlength="200" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);min-width:150px">
+                        <button class="btn btn-sm" type="submit">群发</button>
+                    </form>
+                    <form method="post" onsubmit="return confirm('删除这个抽奖及其参与记录？')">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                             <input type="hidden" name="act" value="delete">
                             <input type="hidden" name="id" value="<?= (int) $l['id'] ?>">
