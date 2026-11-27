@@ -271,6 +271,16 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
 
 <script>
 var TAB = <?php echo json_encode($tab === 'following' && !$user ? 'recommend' : $tab); ?>;
+/* 记住上次浏览的标签：无 ?tab 参数时自动回到上次的标签 */
+(function () {
+    try {
+        var params = new URLSearchParams(location.search);
+        if (!params.get('tab')) {
+            var saved = localStorage.getItem('lw_discover_tab');
+            if (saved && saved !== 'recommend') { location.replace('/pages/discover.php?tab=' + encodeURIComponent(saved)); return; }
+        }
+    } catch (e) {}
+})();
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function postCard(p){
@@ -346,7 +356,7 @@ function loadFollowing(page) {
 }
 
 var HOT_PAGE = 1, HOT_MORE = false, HOT_ITEMS = [];
-var HOT_RANGE = 'all';
+var HOT_RANGE = (function () { try { var v = localStorage.getItem('lw_hot_range'); return (v === 'week' || v === 'month') ? v : 'all'; } catch (e) { return 'all'; } })();
 function loadHot(page) {
     page = page || 1;
     if (page === 1) { HOT_ITEMS = []; document.getElementById('content').innerHTML = '<div class="empty">加载中…</div>'; }
@@ -385,6 +395,7 @@ function bindHotRange() {
             var k = c.getAttribute('data-hot-range');
             if (k === HOT_RANGE) return;
             HOT_RANGE = k;
+            try { localStorage.setItem('lw_hot_range', k); } catch (e) {}
             loadHot(1);
         });
     });
@@ -421,6 +432,15 @@ function loadSeries(){
         document.getElementById('content').innerHTML = html;
     });
 }
+document.querySelectorAll('.disc-tab[href*="tab="]').forEach(function (a) {
+    a.addEventListener('click', function () {
+        try {
+            var m = (a.getAttribute('href') || '').match(/tab=([a-z_]+)/);
+            if (m) localStorage.setItem('lw_discover_tab', m[1]);
+        } catch (e) {}
+    });
+});
+
 if (TAB === 'following') loadFollowing();
 else if (TAB === 'hot') loadHot();
 else if (TAB === 'tags') loadTags();
