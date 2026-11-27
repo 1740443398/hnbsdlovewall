@@ -156,6 +156,14 @@ if ($detail):
         $__ruleState = $user ? lwLotteryRuleStatus($l, (int) $user['id']) : [];
         $__missingRules = 0;
         foreach ($__ruleState as $__v) { if (!$__v) { $__missingRules++; } }
+        $__customRules = [];
+        foreach ($rules as $__crr) {
+            $__crr = (string) $__crr;
+            if (mb_strpos($__crr, '关注') === false && mb_strpos($__crr, '点赞') === false
+                && mb_strpos($__crr, '评论') === false && mb_strpos($__crr, '转发') === false) {
+                $__customRules[] = $__crr;
+            }
+        }
       ?>
       <?php if ($rules): foreach ($rules as $__r):
           $__icon = '✅';
@@ -188,6 +196,12 @@ if ($detail):
       <?php endif; ?>
       <span class="lot-rules-note">每人一次</span>
     </div>
+    <?php if (!empty($__customRules) && $status === 'open' && !$isGuest): ?>
+    <label class="lot-custom-ack" style="display:flex;align-items:flex-start;gap:8px;margin:8px 0 0;font-size:12.5px;color:var(--text);cursor:pointer">
+      <input type="checkbox" id="customAck" style="margin-top:2px;flex:0 0 auto">
+      <span>我已阅读并知晓：<?= htmlspecialchars(implode('；', $__customRules)) ?></span>
+    </label>
+    <?php endif; ?>
 
     <?php if ($status === 'open'): ?>
       <?php if ($isGuest): ?>
@@ -208,6 +222,8 @@ if ($detail):
         <div class="lot-actions">
           <?php if (!empty($__missingRules)): ?>
           <button class="btn" type="button" disabled title="请先完成参与条件">还差 <?= (int) $__missingRules ?> 项条件</button>
+          <?php elseif (!empty($__customRules)): ?>
+          <button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>" data-need-ack="1" disabled title="请先勾选已知晓条款">参与抽奖</button>
           <?php else: ?>
           <button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
           <?php endif; ?>
@@ -265,6 +281,16 @@ if ($detail):
       setTimeout(tick, 1000);
     }
     tick();
+
+    /* 自定义条款：勾选后才开放参与按钮 */
+    (function () {
+      var ack = document.getElementById('customAck');
+      var jb = document.getElementById('joinBtn');
+      if (!ack || !jb || !jb.getAttribute('data-need-ack')) return;
+      function sync() { jb.disabled = !ack.checked; }
+      ack.addEventListener('change', sync);
+      sync();
+    })();
 
     var btn = document.getElementById('joinBtn');
     if (btn) btn.addEventListener('click', function () {
