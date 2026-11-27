@@ -3556,3 +3556,19 @@ html.dark-theme .post-content img:hover {
   .pm-messages { padding-bottom: 4px; }
 }
 
+
+/* ---------- 抽奖列表：开奖倒计时徽章 ---------- */
+.lot-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: rgba(47, 91, 154, .10); color: var(--primary);
+}
+.lot-badge i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; display: inline-block;
+}
+.lot-badge.urgent { background: rgba(192, 57, 43, .10); color: #C0392B; }
+.lot-badge.urgent i { animation: lot-blink 1.2s infinite; }
+@keyframes lot-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+

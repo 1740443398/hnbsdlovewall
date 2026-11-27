@@ -218,8 +218,18 @@ if ($detail):
     <div class="meta">
       <span class="prize"><?= htmlspecialchars((string) $l['prize']) ?> × <?= (int) $l['prize_count'] ?></span>
       <span>参与 <?= $cnt ?> 人</span>
-      <?php if ($status === 'open'): ?>
-        <span>开奖时间：<?= htmlspecialchars((string) $l['draw_at']) ?></span>
+      <?php if ($status === 'open'):
+          $__left = max(0, $drawTs - time());
+          if ($__left > 0) {
+              $__h = (int) floor($__left / 3600);
+              $__m = (int) floor(($__left % 3600) / 60);
+              if ($__h >= 24) { $__txt = (int) floor($__h / 24) . ' 天后开奖'; }
+              elseif ($__h > 0) { $__txt = '剩 ' . $__h . ' 小时 ' . $__m . ' 分'; }
+              else { $__txt = '剩 ' . $__m . ' 分'; }
+          } else { $__txt = '即将开奖'; }
+      ?>
+        <span class="lot-badge<?= $__left > 0 && $__left < 86400 ? ' urgent' : '' ?>"><i></i><?= htmlspecialchars($__txt) ?></span>
+        <span style="font-size:12px;color:var(--text-muted)"><?= htmlspecialchars((string) $l['draw_at']) ?></span>
       <?php else: ?><span>已开奖</span><?php endif; ?>
     </div>
   </a>
