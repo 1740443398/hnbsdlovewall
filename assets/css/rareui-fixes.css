@@ -269,3 +269,26 @@
   font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
 .lot-expand:hover { background: rgba(47, 91, 154, .12); }
+
+
+/* ---------- 排行榜：每组前三名渐变底 + 轻微高亮 ---------- */
+.rk-panel > .rk-item:nth-of-type(1),
+.rk-list > .rk-item:nth-of-type(1) {
+  background: linear-gradient(90deg, rgba(240, 198, 116, .16), transparent 70%);
+  border-radius: 12px;
+  padding-left: 8px;
+}
+.rk-panel > .rk-item:nth-of-type(2),
+.rk-list > .rk-item:nth-of-type(2) {
+  background: linear-gradient(90deg, rgba(180, 190, 203, .16), transparent 70%);
+  border-radius: 12px;
+  padding-left: 8px;
+}
+.rk-panel > .rk-item:nth-of-type(3),
+.rk-list > .rk-item:nth-of-type(3) {
+  background: linear-gradient(90deg, rgba(198, 138, 92, .14), transparent 70%);
+  border-radius: 12px;
+  padding-left: 8px;
+}
+.rk-item { transition: background .18s ease, transform .18s ease; }
+.rk-item:hover { transform: translateX(2px); }
