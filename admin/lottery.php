@@ -439,6 +439,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                     </div>
                     <div style="display:flex;gap:6px">
                         <a class="btn btn-sm" href="/pages/lottery.php?id=<?= (int) $l['id'] ?>">查看</a>
+                        <a class="btn btn-sm" href="/admin/lottery_edit.php?id=<?= (int) $l['id'] ?>">编辑</a>
                         <a class="btn btn-sm" href="/admin/lottery_export.php?id=<?= (int) $l['id'] ?>">导出 CSV</a>
                         <form method="post" style="display:inline" onsubmit="return confirm('按原配置复制一个新抽奖？')">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">

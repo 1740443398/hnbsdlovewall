@@ -139,6 +139,58 @@ if (!function_exists('lwLotteryJoined')) {
     }
 }
 
+if (!function_exists('lwLotteryUpdate')) {
+    /** 编辑抽奖配置（标题/奖品/名额/开奖时间/说明/规则/封面）。已开奖的也能改，但不允许把时间改回过去。 */
+    function lwLotteryUpdate(int $lotteryId, array $d): array
+    {
+        $l = lwLotteryGet($lotteryId);
+        if (!$l) { return ['ok' => false, 'error' => '抽奖不存在']; }
+
+        $title = trim((string) ($d['title'] ?? ($l['title'] ?? '')));
+        $prize = trim((string) ($d['prize'] ?? ($l['prize'] ?? '')));
+        if ($title === '' || $prize === '') { return ['ok' => false, 'error' => '标题和奖品不能为空']; }
+        $count = max(1, min(100, (int) ($d['prize_count'] ?? ($l['prize_count'] ?? 1))));
+
+        $drawAt = trim((string) ($d['draw_at'] ?? ''));
+        $ts = $drawAt !== '' ? strtotime($drawAt) : (int) (strtotime((string) ($l['draw_at'] ?? '')) ?: 0);
+        if (!$ts) { return ['ok' => false, 'error' => '开奖时间格式不对']; }
+        if (($l['status'] ?? 'open') === 'open' && $ts <= time()) {
+            return ['ok' => false, 'error' => '进行中的抽奖，开奖时间必须晚于现在'];
+        }
+
+        $rulesIn = (array) ($d['rules'] ?? []);
+        if (!$rulesIn) {
+            if (!empty($d['rule_follow']))  { $rulesIn[] = '关注'; }
+            if (!empty($d['rule_repost']))  { $rulesIn[] = '转发'; }
+            if (!empty($d['rule_comment'])) { $rulesIn[] = '评论'; }
+            if (!empty($d['rule_like']))    { $rulesIn[] = '点赞'; }
+        }
+        $customRules = (string) ($d['rule_custom'] ?? '');
+        if ($customRules !== '') {
+            foreach (preg_split('/[\n,，、;；]+/u', $customRules) as $__cr) {
+                $__cr = trim($__cr);
+                if ($__cr !== '') { $rulesIn[] = mb_substr($__cr, 0, 40); }
+            }
+        }
+        $rulesIn = array_values(array_unique(array_filter(array_map('strval', $rulesIn), function ($x) { return trim($x) !== ''; })));
+
+        $patch = [
+            'title'         => mb_substr($title, 0, 120),
+            'prize'         => mb_substr($prize, 0, 120),
+            'prize_count'   => $count,
+            'description'   => mb_substr(trim((string) ($d['description'] ?? ($l['description'] ?? ''))), 0, 2000),
+            'draw_at'       => date('Y-m-d H:i:s', $ts),
+            'rule_like'     => in_array('点赞', $rulesIn, true) ? 1 : 0,
+            'rule_comment'  => in_array('评论', $rulesIn, true) ? 1 : 0,
+            'rule_repost'   => in_array('转发', $rulesIn, true) ? 1 : 0,
+            'rules'         => $rulesIn,
+        ];
+        if (!empty($d['cover_image'])) { $patch['cover_image'] = (string) $d['cover_image']; }
+        getFS()->update('lotteries', $lotteryId, $patch);
+        return ['ok' => true, 'id' => $lotteryId];
+    }
+}
+
 if (!function_exists('lwLotteryJoin')) {
     function lwLotteryJoin(int $lotteryId, int $userId, string $via = 'manual'): array
     {
