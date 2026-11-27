@@ -70,7 +70,10 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-time{font-size:.66rem;color:var(--text-tertiary,#8E9AA8);margin-top:.1875rem;}
         .lb-msg.mine .lb-time{text-align:right;}
 
-        .lb-more{position:sticky;top:0;align-self:center;margin:6px auto 8px;padding:5px 14px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:12px;cursor:pointer;z-index:2}
+        .lb-emoji-panel{position:absolute;bottom:64px;left:12px;right:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);box-shadow:0 10px 30px rgba(0,0,0,.14);z-index:5}
+    .lb-emoji-item{font-size:22px;line-height:1;text-align:center;padding:5px 0;border-radius:8px;cursor:pointer;user-select:none}
+    .lb-emoji-item:hover{background:rgba(47,91,154,.10)}
+    .lb-more{position:sticky;top:0;align-self:center;margin:6px auto 8px;padding:5px 14px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:12px;cursor:pointer;z-index:2}
     .lb-more:hover{border-color:var(--primary);color:var(--primary)}
     .lb-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;color:var(--text-secondary);font-size:.85rem;padding:2rem;}
         .lb-compose{flex:0 0 auto;border-top:1px solid var(--border-light,#E4E9F0);padding:.625rem;display:flex;gap:.5rem;align-items:flex-end;background:var(--surface,#fff);}
@@ -129,7 +132,10 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         </div>
 
         <?php if ($user): ?>
-        <div class="lb-compose">
+        <div class="lb-compose" style="position:relative">
+            <button type="button" class="lb-icon-btn" id="lbEmojiBtn" title="表情" aria-label="表情">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </button>
             <button type="button" class="lb-icon-btn" id="lbImgBtn" title="发送图片或 GIF" aria-label="发送图片或 GIF">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -138,6 +144,14 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
                 </svg>
             </button>
             <input type="file" id="lbFile" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+            <div class="lb-emoji-panel" id="lbEmojiPanel" hidden>
+                <span class="lb-emoji-item">😀</span><span class="lb-emoji-item">😂</span><span class="lb-emoji-item">😊</span><span class="lb-emoji-item">😍</span>
+                <span class="lb-emoji-item">😎</span><span class="lb-emoji-item">🤔</span><span class="lb-emoji-item">😭</span><span class="lb-emoji-item">😡</span>
+                <span class="lb-emoji-item">👍</span><span class="lb-emoji-item">👏</span><span class="lb-emoji-item">🙏</span><span class="lb-emoji-item">💪</span>
+                <span class="lb-emoji-item">🎉</span><span class="lb-emoji-item">❤️</span><span class="lb-emoji-item">🔥</span><span class="lb-emoji-item">🌙</span>
+                <span class="lb-emoji-item">🍚</span><span class="lb-emoji-item">📚</span><span class="lb-emoji-item">⚽</span><span class="lb-emoji-item">🎵</span>
+                <span class="lb-emoji-item">🐱</span><span class="lb-emoji-item">🌸</span><span class="lb-emoji-item">✨</span><span class="lb-emoji-item">👀</span>
+            </div>
             <textarea class="lb-input" id="lbInput" rows="1" maxlength="1000" placeholder="说点什么…（Enter 发送，Shift+Enter 换行）"></textarea>
             <button type="button" class="lb-send" id="lbSend">发送</button>
         </div>
@@ -367,7 +381,30 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
     }
 
     if (inputEl && sendBtn) {
-        sendBtn.addEventListener('click', function () { send(inputEl.value); });
+        var emojiBtn = document.getElementById('lbEmojiBtn');
+    var emojiPanel = document.getElementById('lbEmojiPanel');
+    if (emojiBtn && emojiPanel) {
+        emojiBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            emojiPanel.hidden = !emojiPanel.hidden;
+        });
+        emojiPanel.addEventListener('click', function (e) {
+            var it = e.target.closest('.lb-emoji-item');
+            if (!it) return;
+            var ch = it.textContent;
+            var start = inputEl.selectionStart || inputEl.value.length;
+            var end = inputEl.selectionEnd || inputEl.value.length;
+            inputEl.value = inputEl.value.slice(0, start) + ch + inputEl.value.slice(end);
+            inputEl.selectionStart = inputEl.selectionEnd = start + ch.length;
+            inputEl.focus();
+            emojiPanel.hidden = true;
+        });
+        document.addEventListener('click', function (e) {
+            if (!emojiPanel.hidden && !e.target.closest('#lbEmojiPanel') && !e.target.closest('#lbEmojiBtn')) emojiPanel.hidden = true;
+        });
+    }
+
+    sendBtn.addEventListener('click', function () { send(inputEl.value); });
 
         inputEl.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
