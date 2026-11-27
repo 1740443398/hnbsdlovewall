@@ -222,6 +222,7 @@ document.querySelectorAll('.sr-cat').forEach(function (a) {
         document.querySelectorAll('.sr-cat').forEach(function (x) { x.classList.remove('on'); });
         a.classList.add('on');
         CAT = a.getAttribute('data-cat') || '';
+        try { localStorage.setItem('lw_search_cat', CAT); } catch (e) {}
         if (document.getElementById('q').value.trim()) search();
     });
 });
@@ -284,6 +285,12 @@ document.querySelectorAll('.sr-tab').forEach(function(a){
     });
 });
 
+(function initCatUI() {
+    var cur = CAT;
+    document.querySelectorAll('.sr-cat').forEach(function (x) {
+        x.classList.toggle('on', (x.getAttribute('data-cat') || '') === cur);
+    });
+})();
 <?php if ($q === ''): ?>
 renderHistory();
 <?php endif; ?>
