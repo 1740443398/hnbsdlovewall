@@ -66,6 +66,13 @@ $all = lwLotteryAll();
 $userIndex = [];
 foreach ((array) getFS()->read('users') as $u) { $userIndex[(int) ($u['id'] ?? 0)] = $u; }
 
+/* 每个抽奖设置了多少「开奖提醒」——开奖时会按这个数量群发站内通知 */
+$remindCount = [];
+foreach ((array) getFS()->read('lottery_reminders') as $__r) {
+    $__lid = (int) ($__r['lottery_id'] ?? 0);
+    if ($__lid > 0) { $remindCount[$__lid] = ($remindCount[$__lid] ?? 0) + 1; }
+}
+
 adminHeader('抽奖管理', $adminUser, $csrfToken);
 ?>
 
@@ -127,6 +134,7 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
                             奖品：<?= htmlspecialchars((string) $l['prize']) ?> × <?= (int) $l['prize_count'] ?>
                             · 开奖：<?= htmlspecialchars((string) $l['draw_at']) ?>
                             · 参与：<?= count($entries) ?> 人
+                            · 提醒：<?= (int) ($remindCount[(int) $l['id']] ?? 0) ?> 人
                             · <?php if ($postId > 0 && $postRow): ?>
                                 <a href="/pages/post_detail.php?id=<?= $postId ?>" style="font-weight:600">附带动态 #<?= $postId ?></a>
                               <?php elseif ($postId > 0): ?>
