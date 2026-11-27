@@ -145,6 +145,14 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
 ?>
 
 <?php
+/* 排序：默认按创建时间倒序；可按参与人数 / 最近开奖时间 */
+$lotSort = (string) ($_GET['sort'] ?? 'new');
+if (!in_array($lotSort, ['new', 'entries', 'draw_at'], true)) { $lotSort = 'new'; }
+$__entryCnt = [];
+foreach ((array) getFS()->read('lottery_entries') as $__e2) {
+    $__eLid = (int) ($__e2['lottery_id'] ?? 0);
+    if ($__eLid > 0) { $__entryCnt[$__eLid] = ($__entryCnt[$__eLid] ?? 0) + 1; }
+}
 $__viewLots = [];
 foreach ($all as $__lv) {
     $__stv = (string) ($__lv['status'] ?? 'open');
@@ -152,6 +160,18 @@ foreach ($all as $__lv) {
     if ($lotFilter === 'drawn' && $__stv === 'open') { continue; }
     $__viewLots[] = $__lv;
 }
+usort($__viewLots, function ($a, $b) use ($lotSort, $__entryCnt) {
+    if ($lotSort === 'entries') {
+        $ca = $__entryCnt[(int) ($a['id'] ?? 0)] ?? 0;
+        $cb = $__entryCnt[(int) ($b['id'] ?? 0)] ?? 0;
+        if ($ca === $cb) { return (int) ($b['id'] ?? 0) <=> (int) ($a['id'] ?? 0); }
+        return $cb <=> $ca;
+    }
+    if ($lotSort === 'draw_at') {
+        return strcmp((string) ($a['draw_at'] ?? ''), (string) ($b['draw_at'] ?? ''));
+    }
+    return (int) ($b['id'] ?? 0) <=> (int) ($a['id'] ?? 0);
+});
 ?>
 
 <?php if ($msg): ?>
@@ -215,6 +235,10 @@ foreach ($all as $__lv) {
             <a href="?status=all" style="padding:3px 10px;border-radius:999px;text-decoration:none;<?= $lotFilter === 'all' ? 'background:#2F5B9A;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)' ?>">全部</a>
             <a href="?status=open" style="padding:3px 10px;border-radius:999px;text-decoration:none;<?= $lotFilter === 'open' ? 'background:#2F5B9A;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)' ?>">进行中</a>
             <a href="?status=drawn" style="padding:3px 10px;border-radius:999px;text-decoration:none;<?= $lotFilter === 'drawn' ? 'background:#2F5B9A;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)' ?>">已开奖</a>
+            <span style="color:var(--border);margin:0 2px">|</span>
+            <a href="?status=<?= urlencode($lotFilter) ?>&sort=new" style="padding:3px 8px;text-decoration:none;<?= $lotSort === 'new' ? 'color:#2F5B9A;font-weight:700' : 'color:var(--text-muted)' ?>">最新创建</a>
+            <a href="?status=<?= urlencode($lotFilter) ?>&sort=entries" style="padding:3px 8px;text-decoration:none;<?= $lotSort === 'entries' ? 'color:#2F5B9A;font-weight:700' : 'color:var(--text-muted)' ?>">参与人数</a>
+            <a href="?status=<?= urlencode($lotFilter) ?>&sort=draw_at" style="padding:3px 8px;text-decoration:none;<?= $lotSort === 'draw_at' ? 'color:#2F5B9A;font-weight:700' : 'color:var(--text-muted)' ?>">开奖时间</a>
         </div>
     </div>
     <div class="section-body">
@@ -223,7 +247,7 @@ foreach ($all as $__lv) {
         <?php else: ?>
         <div style="display:flex;flex-direction:column;gap:10px">
         <?php $postIndex = []; // 只缓存本页用到的帖子，避免每行都查一次
-        foreach ($all as $l):
+        foreach ($__viewLots as $l):
             $entries = lwLotteryEntries((int) $l['id']);
             $winners = json_decode((string) ($l['winners'] ?? '[]'), true) ?: [];
             $status = (string) ($l['status'] ?? 'open');
