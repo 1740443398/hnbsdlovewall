@@ -4954,4 +4954,47 @@
   initCommandPalette();
 
 
+
+  /* 顶部加载进度条：跳转/提交时先给 30%，页面加载完成收尾到 100% 并淡出 */
+  function initProgressBar() {
+    if (document.getElementById('ruProgress')) return;
+    var bar = document.createElement('div');
+    bar.id = 'ruProgress';
+    bar.className = 'ru-progress';
+    document.body.appendChild(bar);
+    var timer = null, val = 0;
+    function start() {
+      clearInterval(timer);
+      bar.classList.remove('is-done');
+      val = 8;
+      bar.style.width = val + '%';
+      timer = setInterval(function () {
+        val = Math.min(90, val + Math.max(0.4, (90 - val) * 0.06));
+        bar.style.width = val + '%';
+      }, 180);
+    }
+    function done() {
+      clearInterval(timer);
+      bar.style.width = '100%';
+      setTimeout(function () { bar.classList.add('is-done'); bar.style.width = '0'; }, 260);
+    }
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      if (!href || href[0] === '#' || a.target === '_blank' || /^(javascript|mailto|tel):/i.test(href)) return;
+      if (a.hasAttribute('download')) return;
+      start();
+    }, true);
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || f.target === '_blank') return;
+      start();
+    }, true);
+    window.addEventListener('load', done);
+    window.addEventListener('pageshow', done);
+  }
+
+  initProgressBar();
+
 })();

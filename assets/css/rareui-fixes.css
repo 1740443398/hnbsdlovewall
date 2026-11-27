@@ -81,3 +81,14 @@
 .ru-cmd-item { padding: 9px 12px; border-radius: 10px; font-size: 14px; cursor: pointer; color: var(--text); }
 .ru-cmd-item.is-sel, .ru-cmd-item:hover { background: rgba(47,91,154,.10); color: var(--primary); }
 .ru-cmd-empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+
+/* ---------- 顶部加载进度条（页面跳转时给即时反馈，减少“点了没反应”的错觉） ---------- */
+.ru-progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: linear-gradient(90deg, var(--primary, #2F5B9A), #5B8BD0);
+  box-shadow: 0 0 8px rgba(47, 91, 154, .55);
+  z-index: 6000; pointer-events: none;
+  transition: width .2s ease, opacity .3s ease;
+}
+.ru-progress.is-done { opacity: 0; }
