@@ -16,8 +16,17 @@ usort($comments, function($a, $b) {
     return strtotime($b['created_at']) - strtotime($a['created_at']);
 });
 
+$qFilter = trim(sanitizeInput($_REQUEST['q'] ?? ''));
 $page = max(1, intval($_REQUEST['page'] ?? 1));
 $limit = 10;
+if ($qFilter !== '') {
+    $__inPost = [];
+    foreach ((array) $fs->read('posts') as $__p) { $__inPost[(int)($__p['id'] ?? 0)] = (string)($__p['title'] ?? ''); }
+    $comments = array_values(array_filter($comments, function ($cm) use ($qFilter, $__inPost) {
+        return mb_stripos((string) ($cm['content'] ?? ''), $qFilter) !== false
+            || mb_stripos($__inPost[(int) ($cm['post_id'] ?? 0)] ?? '', $qFilter) !== false;
+    }));
+}
 $total = count($comments);
 $comments = array_slice($comments, ($page - 1) * $limit, $limit);
 

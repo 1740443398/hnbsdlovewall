@@ -10,6 +10,7 @@ if ($user['is_banned']) {
 }
 
 $fs = getFS();
+$qFilter = trim(sanitizeInput($_REQUEST['q'] ?? ''));
 $page = max(1, intval($_REQUEST['page'] ?? 1));
 $limit = 10;
 
@@ -18,6 +19,14 @@ usort($favorites, function($a, $b) {
     return strtotime($b['created_at'] ?? '') - strtotime($a['created_at'] ?? '');
 });
 
+if ($qFilter !== '') {
+    $favorites = array_values(array_filter($favorites, function ($fav) use ($qFilter, $fs) {
+        $p = $fs->findById('posts', (int) ($fav['post_id'] ?? 0));
+        if (!$p) { return false; }
+        return mb_stripos((string) ($p['title'] ?? ''), $qFilter) !== false
+            || mb_stripos((string) ($p['content'] ?? ''), $qFilter) !== false;
+    }));
+}
 $total = count($favorites);
 $favorites = array_slice($favorites, ($page - 1) * $limit, $limit);
 

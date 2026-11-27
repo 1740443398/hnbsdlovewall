@@ -26,6 +26,8 @@ $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
 
 $myPostStatus = (string) ($_GET['status'] ?? '');
 $myPostQuery = trim((string) ($_GET['q'] ?? ''));
+$myCommentQuery = trim((string) ($_GET['q'] ?? ''));
+$myFavoriteQuery = trim((string) ($_GET['q'] ?? ''));
 if (!in_array($myPostStatus, ['published', 'pending', 'rejected'], true)) { $myPostStatus = ''; }
 
 $validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'invite'];
@@ -1510,12 +1512,26 @@ if ($inviteEnabled && $tab === 'invite') {
 
                 <div class="uc-section" id="tab-comments" <?= $tab !== 'comments' ? 'style="display:none"' : '' ?>>
                     <h2><?= t('uc.tab.comments') ?></h2>
+                    <form method="get" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                        <input type="hidden" name="tab" value="comments">
+                        <input type="search" name="q" value="<?= htmlspecialchars($myCommentQuery) ?>" placeholder="搜索我的评论或帖子标题…"
+                            style="flex:1 1 240px;padding:8px 12px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:.86rem;background:var(--bg)">
+                        <button class="uc-btn uc-btn-primary uc-btn-sm" type="submit">搜索</button>
+                        <?php if ($myCommentQuery !== ''): ?><a class="uc-btn uc-btn-outline uc-btn-sm" href="?tab=comments">清除</a><?php endif; ?>
+                    </form>
                     <div id="myCommentsList"></div>
                     <div class="uc-pagination" id="myCommentsPagination"></div>
                 </div>
 
                 <div class="uc-section" id="tab-favorites" <?= $tab !== 'favorites' ? 'style="display:none"' : '' ?>>
                     <h2><?= t('uc.tab.favorites') ?></h2>
+                    <form method="get" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                        <input type="hidden" name="tab" value="favorites">
+                        <input type="search" name="q" value="<?= htmlspecialchars($myFavoriteQuery) ?>" placeholder="搜索收藏的帖子…"
+                            style="flex:1 1 240px;padding:8px 12px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:.86rem;background:var(--bg)">
+                        <button class="uc-btn uc-btn-primary uc-btn-sm" type="submit">搜索</button>
+                        <?php if ($myFavoriteQuery !== ''): ?><a class="uc-btn uc-btn-outline uc-btn-sm" href="?tab=favorites">清除</a><?php endif; ?>
+                    </form>
                     <div id="myFavoritesList"></div>
                     <div class="uc-pagination" id="myFavoritesPagination"></div>
                 </div>
@@ -2168,7 +2184,8 @@ if ($inviteEnabled && $tab === 'invite') {
         }
 
         if (document.getElementById('tab-comments').style.display !== 'none') {
-            loadList(SITE_URL + '/api/user/my_comments.php', 'myCommentsList', 'myCommentsPagination', function(data) {
+            var MYCOMMENT_Q = <?= json_encode($myCommentQuery) ?>;
+            loadList(SITE_URL + '/api/user/my_comments.php' + (MYCOMMENT_Q ? ('?q=' + encodeURIComponent(MYCOMMENT_Q)) : ''), 'myCommentsList', 'myCommentsPagination', function(data) {
                 return data.comments.map(c => `
                     <div class="uc-data-item">
                         <div class="uc-data-main">
@@ -2189,7 +2206,8 @@ if ($inviteEnabled && $tab === 'invite') {
         }
 
         if (document.getElementById('tab-favorites').style.display !== 'none') {
-            loadList(SITE_URL + '/api/user/my_favorites.php', 'myFavoritesList', 'myFavoritesPagination', function(data) {
+            var MYFAV_Q = <?= json_encode($myFavoriteQuery) ?>;
+            loadList(SITE_URL + '/api/user/my_favorites.php' + (MYFAV_Q ? ('?q=' + encodeURIComponent(MYFAV_Q)) : ''), 'myFavoritesList', 'myFavoritesPagination', function(data) {
                 return data.favorites.map(f => `
                     <div class="uc-data-item">
                         <div class="uc-data-main">
