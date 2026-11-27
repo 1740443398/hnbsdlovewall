@@ -4833,6 +4833,15 @@
   }
 
   initRuToast();
+
+  /* 全局提示：优先用 RareUI Toast，浏览器过老/异常时退回原生 alert。
+     各页面脚本里的 alert('xxx') 统一改成 window.lwAlert('xxx')，避免每个页面都弹系统框。 */
+  window.lwAlert = function (msg) {
+    try {
+      if (window.ruToast) { window.ruToast(String(msg == null ? '' : msg)); return; }
+    } catch (e) {}
+    try { alert(msg); } catch (e) {}
+  };
   initCardSpotlight();
   document.addEventListener('DOMContentLoaded', initCardSpotlight);
 

@@ -114,9 +114,9 @@ adminHeader('功能投票', $adminUser, $csrfToken);
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     if (res.success) { showToast(res.message || '已更新'); loadFeatureVotes(); }
-                    else { alert(res.message || '操作失败'); }
+                    else { window.lwAlert(res.message || '操作失败'); }
                 })
-                .catch(function () { alert('操作失败'); });
+                .catch(function () { window.lwAlert('操作失败'); });
         });
     }
 
@@ -130,9 +130,9 @@ adminHeader('功能投票', $adminUser, $csrfToken);
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     if (res.success) { showToast(res.message || '已删除'); loadFeatureVotes(); }
-                    else { alert(res.message || '操作失败'); }
+                    else { window.lwAlert(res.message || '操作失败'); }
                 })
-                .catch(function () { alert('操作失败'); });
+                .catch(function () { window.lwAlert('操作失败'); });
         });
     }
 

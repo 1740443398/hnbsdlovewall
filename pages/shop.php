@@ -193,7 +193,7 @@ $pageTitle = '装扮商城 - ' . SITE_NAME;
     }
     function toast(msg, type) {
         if (window.App && App.showToast) App.showToast(msg, type || 'info');
-        else alert(msg);
+        else window.lwAlert(msg);
     }
     function daysLeft(ts) {
         if (!ts || ts <= 0) return '永久';

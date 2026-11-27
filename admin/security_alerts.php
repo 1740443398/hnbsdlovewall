@@ -143,8 +143,8 @@ function clearAlerts() {
         credentials: 'same-origin'
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.message || '清空失败');
-    }).catch(() => alert('网络错误'));
+        else window.lwAlert(d.message || '清空失败');
+    }).catch(() => window.lwAlert('网络错误'));
 }
 </script>
 <?php adminFooter(); ?>

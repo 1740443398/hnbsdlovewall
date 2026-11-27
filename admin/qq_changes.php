@@ -164,10 +164,10 @@ adminHeader('QQ修改审核', $adminUser, $csrfToken);
         fetch('/api/admin/qq_change_review.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
             .then(function (r) { return r.json(); })
             .then(function (res) {
-                alert(res.message || (res.success ? '操作成功' : '操作失败'));
+                window.lwAlert(res.message || (res.success ? '操作成功' : '操作失败'));
                 if (res.success) loadList();
             })
-            .catch(function () { alert('网络错误'); });
+            .catch(function () { window.lwAlert('网络错误'); });
     }
 
     // ===== SMTP 测试邮件：类型由接口下发，前端不硬编码 =====

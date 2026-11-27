@@ -301,13 +301,13 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         }).then(function (r) { return r.json(); })
           .then(function (res) {
               sendBtn.disabled = false;
-              if (!res.success) { alert(res.message || '发送失败'); inputEl.value = text; return; }
+              if (!res.success) { window.lwAlert(res.message || '发送失败'); inputEl.value = text; return; }
               inputEl.value = '';
               inputEl.style.height = 'auto';
               inputEl.focus();
               fetchList(true);
           })
-          .catch(function () { sendBtn.disabled = false; alert('网络错误，发送失败'); inputEl.value = text; });
+          .catch(function () { sendBtn.disabled = false; window.lwAlert('网络错误，发送失败'); inputEl.value = text; });
     }
 
     function upload(file) {
@@ -324,11 +324,11 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         }).then(function (r) { return r.json(); })
           .then(function (res) {
               imgBtn.disabled = false;
-              if (!res.success) { alert(res.message || '上传失败'); return; }
+              if (!res.success) { window.lwAlert(res.message || '上传失败'); return; }
               setQuota(res.data.quota_left);
               fetchList(true);
           })
-          .catch(function () { imgBtn.disabled = false; alert('网络错误，上传失败'); });
+          .catch(function () { imgBtn.disabled = false; window.lwAlert('网络错误，上传失败'); });
     }
 
     if (inputEl && sendBtn) {

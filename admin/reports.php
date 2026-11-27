@@ -434,12 +434,12 @@ adminHeader('举报处理', $admin, $csrfToken);
                 if (window.showToast) showToast(d.message || '已处理');
                 load();
             } else {
-                alert(d.message || '处理失败');
+                window.lwAlert(d.message || '处理失败');
             }
         }).catch(function () {
             btn.disabled = false;
             btn.textContent = '确定';
-            alert('网络错误');
+            window.lwAlert('网络错误');
         });
     });
 
@@ -447,7 +447,7 @@ adminHeader('举报处理', $admin, $csrfToken);
         if (!confirm('删除这条举报记录？记录会被永久移除（不影响已执行的处置）。')) return;
         api({ action: 'delete', kind: kind, id: id }).then(function (d) {
             if (d.success) load();
-            else alert(d.message || '删除失败');
+            else window.lwAlert(d.message || '删除失败');
         });
     };
 
@@ -456,7 +456,7 @@ adminHeader('举报处理', $admin, $csrfToken);
         api({ action: 'handle', kind: kind, id: id, verdict: 'resolved', note: '重新打开' })
             .then(function (d) {
                 if (d.success) load();
-                else alert(d.message || '操作失败');
+                else window.lwAlert(d.message || '操作失败');
             });
     };
 

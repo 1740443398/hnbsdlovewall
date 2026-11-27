@@ -178,7 +178,7 @@ function doAction(action, id, btn) {
             if (el) { el.style.opacity = '.3'; setTimeout(function () { el.remove(); }, 200); }
         } else if (btn) {
             btn.disabled = false; btn.textContent = action === 'approve' ? '通过' : '拒绝';
-            alert('操作失败，请刷新重试');
+            window.lwAlert('操作失败，请刷新重试');
         }
     });
 }
@@ -190,7 +190,7 @@ function previewPostReal(id) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body
     }).then(function (r) { return r.json(); }).then(function (j) {
-        if (!j || !j.success) { alert((j && (j.error || j.message)) || '加载失败'); return; }
+        if (!j || !j.success) { window.lwAlert((j && (j.error || j.message)) || '加载失败'); return; }
         var d = j.data || j;
         document.getElementById('pvTitle').textContent = d.title || '（无标题）';
         document.getElementById('pvMeta').textContent =
@@ -207,7 +207,7 @@ function previewPostReal(id) {
         });
         document.getElementById('pvBody').innerHTML = html || '<div style="opacity:.6">（无内容）</div>';
         document.getElementById('pvMask').classList.add('is-open');
-    }).catch(function () { alert('加载失败'); });
+    }).catch(function () { window.lwAlert('加载失败'); });
 }
 
 function zoomPreview(img) {
@@ -240,7 +240,7 @@ function approveAll() {
     });
     if (!ids.length) return;
     postApi({ action: 'batch', post_ids: JSON.stringify(ids.map(Number)), batch_action: 'approve' }, function (ok) {
-        if (ok) { location.reload(); } else { alert('批量通过失败，请稍后重试'); }
+        if (ok) { location.reload(); } else { window.lwAlert('批量通过失败，请稍后重试'); }
     });
 }
 </script>

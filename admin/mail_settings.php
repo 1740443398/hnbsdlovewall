@@ -718,7 +718,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
             var total = counts[scope] || 0;
 
             if (!resumeTaskId && total === 0) {
-                alert('该范围内没有可发送的收件人');
+                window.lwAlert('该范围内没有可发送的收件人');
                 return;
             }
 
@@ -831,7 +831,7 @@ adminHeader('邮件设置', $admin, $csrfToken);
                 if (text) text.textContent = summary;
 
                 if (isError) {
-                    alert(summary);
+                    window.lwAlert(summary);
                 } else {
                     setTimeout(function () {
                         if (confirm(summary + '\n\n是否刷新页面查看发送记录？')) {

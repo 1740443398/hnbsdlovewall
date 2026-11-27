@@ -516,14 +516,14 @@ select.pc-input {
         if (!txt) return;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(txt).then(function () {
-                alert('已复制 ' + txt.split('\n').length + ' 个兑换码');
-            }, function () { alert('复制失败，请手动选中复制'); });
+                window.lwAlert('已复制 ' + txt.split('\n').length + ' 个兑换码');
+            }, function () { window.lwAlert('复制失败，请手动选中复制'); });
         } else {
             var ta = document.createElement('textarea');
             ta.value = txt;
             document.body.appendChild(ta);
             ta.select();
-            try { document.execCommand('copy'); alert('已复制'); } catch (e) { alert('复制失败'); }
+            try { document.execCommand('copy'); window.lwAlert('已复制'); } catch (e) { window.lwAlert('复制失败'); }
             document.body.removeChild(ta);
         }
     }
