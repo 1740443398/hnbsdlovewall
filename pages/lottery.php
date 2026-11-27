@@ -50,6 +50,7 @@ $pageTitle = $detail ? ($detail['title'] ?? '抽奖') : '站内抽奖';
 <?php require_once __DIR__ . '/../includes/theme_boot.php'; ?>
 <title><?= htmlspecialchars((string) $pageTitle) ?> · <?= htmlspecialchars(SITE_NAME) ?></title>
 <?php if ($detail): ?>
+<script src="/assets/js/qrcode.min.js"></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="<?= htmlspecialchars(SITE_NAME) ?>">
 <meta property="og:title" content="🎁 <?= htmlspecialchars((string) ($detail['title'] ?? '')) ?>">
@@ -178,6 +179,7 @@ if ($detail):
         <div class="lot-actions">
           <button class="btn ghost" disabled>已参与 ✓</button>
           <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
+          <button class="btn ghost" onclick="buildPoster()">生成海报</button>
           <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
         </div>
       <?php else: ?>
@@ -191,6 +193,7 @@ if ($detail):
           <button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
           <?php endif; ?>
           <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
+          <button class="btn ghost" onclick="buildPoster()">生成海报</button>
           <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
         </div>
       <?php endif; ?>
@@ -453,6 +456,97 @@ document.addEventListener('click', function (e) {
       .catch(function () { b.disabled = false; if (typeof toast === 'function') toast('网络错误'); });
   });
 })();
+</script>
+<script>
+/* 抽奖分享海报：Canvas 合成标题/奖品/开奖时间 + 二维码，可下载 PNG */
+function buildPoster() {
+  var qrlib = window.qrcode ? window.qrcode : (typeof qrcode !== 'undefined' ? qrcode : null);
+  if (!qrlib) { alert('二维码组件加载失败，请刷新重试'); return; }
+  var u = new URL(location.href);
+  u.searchParams.set('from', 'share');
+  var url = u.toString();
+  var title = <?= json_encode((string) ($detail['title'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+  var prize = <?= json_encode((string) ($detail['prize'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+  var count = <?= (int) ($detail['prize_count'] ?? 1) ?>;
+  var drawAt = <?= json_encode((string) ($detail['draw_at'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+
+  var W = 640, H = 880;
+  var c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  var g = c.getContext('2d');
+
+  var grad = g.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, '#2F5B9A'); grad.addColorStop(1, '#5B8BD0');
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+
+  // 白色内容卡
+  g.fillStyle = '#fff';
+  var r = 24, x0 = 28, y0 = 120, x1 = W - 28, y1 = H - 28;
+  g.beginPath();
+  g.moveTo(x0 + r, y0); g.lineTo(x1 - r, y0); g.quadraticCurveTo(x1, y0, x1, y0 + r);
+  g.lineTo(x1, y1 - r); g.quadraticCurveTo(x1, y1, x1 - r, y1);
+  g.lineTo(x0 + r, y1); g.quadraticCurveTo(x0, y1, x0, y1 - r);
+  g.lineTo(x0, y0 + r); g.quadraticCurveTo(x0, y0, x0 + r, y0);
+  g.closePath(); g.fill();
+
+  g.fillStyle = '#fff'; g.textAlign = 'center';
+  g.font = 'bold 34px "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillText('🎁 校园墙抽奖', W / 2, 78);
+
+  g.fillStyle = '#1C2733'; g.textAlign = 'left';
+  g.font = 'bold 36px "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  var lines = [];
+  var t = title || '抽奖活动';
+  while (t.length > 0 && lines.length < 2) {
+    var n = t.length > 14 ? 14 : t.length;
+    lines.push(t.slice(0, n)); t = t.slice(n);
+  }
+  lines.forEach(function (ln, i) { g.fillText(ln, x0 + 28, y0 + 70 + i * 48); });
+
+  g.fillStyle = '#C0392B';
+  g.font = 'bold 40px "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillText('奖品：' + prize + ' × ' + count, x0 + 28, y0 + 200);
+
+  g.fillStyle = '#44566C';
+  g.font = '24px "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillText('开奖时间：' + drawAt, x0 + 28, y0 + 248);
+
+  g.fillStyle = '#6B7A8B';
+  g.font = '22px "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillText('扫码或长按识别，立即参与', x0 + 28, y0 + 300);
+
+  // 二维码
+  var qr = qrlib(0, 'M');
+  qr.addData(url); qr.make();
+  var n2 = qr.getModuleCount();
+  var size = 300, cell = Math.floor(size / n2);
+  var ox = W / 2 - (cell * n2) / 2, oy = y0 + 340;
+  g.fillStyle = '#fff'; g.fillRect(ox - 8, oy - 8, cell * n2 + 16, cell * n2 + 16);
+  g.fillStyle = '#111';
+  for (var row = 0; row < n2; row++) {
+    for (var col = 0; col < n2; col++) {
+      if (qr.isDark(row, col)) g.fillRect(ox + col * cell, oy + row * cell, cell, cell);
+    }
+  }
+
+  g.fillStyle = '#9AA7B4'; g.textAlign = 'center';
+  g.font = '18px "Noto Sans SC", sans-serif';
+  g.fillText('来自校园墙 · 公平公正公开', W / 2, H - 52);
+
+  // 展示 + 下载
+  var dataUrl = c.toDataURL('image/png');
+  var mask = document.createElement('div');
+  mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:18px;padding:12px;max-width:92vw;max-height:92vh;overflow:auto;text-align:center';
+  box.innerHTML = '<img src="' + dataUrl + '" style="width:100%;max-width:420px;border-radius:12px;display:block;margin:0 auto 10px">'
+    + '<div style="display:flex;gap:10px;justify-content:center">'
+    + '<a class="btn" href="' + dataUrl + '" download="lottery-poster.png">保存海报</a>'
+    + '<button class="btn ghost" type="button" onclick="this.closest(\'div[style*=fixed]\').remove()">关闭</button></div>';
+  mask.appendChild(box);
+  mask.addEventListener('click', function (e) { if (e.target === mask) mask.remove(); });
+  document.body.appendChild(mask);
+}
 </script>
 </body>
 </html>
