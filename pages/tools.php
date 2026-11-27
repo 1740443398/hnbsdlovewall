@@ -1501,6 +1501,53 @@ require __DIR__ . '/../includes/site_header.php';
             });
             recentBox.hidden = arr.length === 0;
         }
+        var favBox = document.getElementById('tools-fav');
+        var favList = document.getElementById('tools-fav-list');
+        var FAV_KEY = 'tools_fav';
+        function readFavs() { try { var a = JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+        function loadFavs() {
+            if (!favBox || !favList) return;
+            var arr = readFavs();
+            favList.innerHTML = '';
+            arr.slice(0, 8).forEach(function (k) {
+                var card = cards.filter(function (c) { return toolKey(c) === k; })[0];
+                if (!card) return;
+                var b = document.createElement('button');
+                b.textContent = toolLabel(card);
+                b.onclick = function () { if (window.openTool) window.openTool(k); };
+                favList.appendChild(b);
+            });
+            favBox.hidden = arr.length === 0;
+        }
+        function toggleFav(k) {
+            var arr = readFavs();
+            var i = arr.indexOf(k);
+            if (i >= 0) { arr.splice(i, 1); } else { arr.unshift(k); }
+            try { localStorage.setItem(FAV_KEY, JSON.stringify(arr.slice(0, 20))); } catch (e) {}
+            loadFavs();
+            syncFavStars();
+        }
+        function syncFavStars() {
+            var arr = readFavs();
+            cards.forEach(function (c) {
+                var b = c.querySelector('.tool-fav');
+                if (b) { b.classList.toggle('on', arr.indexOf(toolKey(c)) >= 0); b.textContent = arr.indexOf(toolKey(c)) >= 0 ? '★' : '☆'; }
+            });
+        }
+        cards.forEach(function (c) {
+            var k = toolKey(c);
+            if (!k) return;
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'tool-fav';
+            b.textContent = '☆';
+            b.title = '收藏到常用';
+            b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); toggleFav(k); });
+            c.appendChild(b);
+        });
+        loadFavs();
+        syncFavStars();
+
         function markRecent(k) {
             if (!k) return;
             var arr = [];
