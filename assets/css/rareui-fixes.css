@@ -508,3 +508,14 @@ a.lot-rule-chip:hover { filter: brightness(0.96); text-decoration: none; }
   color: var(--text-secondary, #4a5568); font-size: 12px; cursor: pointer;
 }
 .lw-ntf-set-row button.is-on { background: var(--primary, #2F5B9A); border-color: var(--primary, #2F5B9A); color: #fff; }
+
+
+/* 首页新动态提示条 */
+.lw-new-pill {
+  display: block; width: 100%; margin: 0 0 10px; padding: 9px 12px;
+  border-radius: 999px; border: 1px solid var(--primary, #2F5B9A);
+  background: var(--primary-light, #EEF3FB); color: var(--primary, #2F5B9A);
+  font-size: 13px; font-weight: 600; text-align: center; cursor: pointer;
+  transition: filter .15s ease;
+}
+.lw-new-pill:hover { filter: brightness(.97); }

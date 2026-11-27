@@ -1397,6 +1397,9 @@
             this.updatePostStats(postId, stats);
           }
         }
+        if (data.data && data.data.new_count > 0) {
+          this.showNewPill(data.data.new_count);
+        }
         if (data.data && data.data.new_comments) {
           for (const [postId, comments] of Object.entries(data.data.new_comments)) {
             this.addNewCommentsInline(postId, comments);
@@ -1406,6 +1409,23 @@
       } finally {
         this._polling = false;
       }
+    },
+
+    /** 顶部「有 N 条新动态」提示条：点击刷新列表，不打断当前阅读位置 */
+    showNewPill(count) {
+      if (!this.container) return;
+      var pill = this.container.parentNode.querySelector('.lw-new-pill');
+      if (!pill) {
+        pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'lw-new-pill';
+        pill.addEventListener('click', () => {
+          pill.remove();
+          this.loadPosts(true);
+        });
+        this.container.parentNode.insertBefore(pill, this.container);
+      }
+      pill.textContent = '↑ 有 ' + count + ' 条新动态，点我刷新';
     },
 
     updatePostStats(postId, stats) {
