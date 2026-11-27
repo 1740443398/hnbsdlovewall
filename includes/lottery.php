@@ -85,6 +85,14 @@ if (!function_exists('lwLotteryCreate')) {
             if (!empty($d['rule_comment'])) { $rulesIn[] = '评论'; }
             if (!empty($d['rule_like']))    { $rulesIn[] = '点赞'; }
         }
+        /* 自定义提示条款：不参与自动核验，仅展示给参与者（如"需为本校学生"） */
+        $customRules = (string) ($d['rule_custom'] ?? '');
+        if ($customRules !== '') {
+            foreach (preg_split('/[\n,，、;；]+/u', $customRules) as $__cr) {
+                $__cr = trim($__cr);
+                if ($__cr !== '') { $rulesIn[] = mb_substr($__cr, 0, 40); }
+            }
+        }
         $rulesIn = array_values(array_unique(array_filter(array_map('strval', $rulesIn), function ($x) { return trim($x) !== ''; })));
 
         $row = $fs->insert('lotteries', [

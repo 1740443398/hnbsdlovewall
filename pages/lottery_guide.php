@@ -112,6 +112,24 @@ h1{font-size:20px;margin:8px 0 6px}
     <?php endforeach; ?>
     <?php if (!$any): ?><div class="row">本抽奖没有可自动核验的参与条件，直接去参与即可。</div><?php endif; ?>
   </div>
+  <?php
+  $__custom = [];
+  foreach ((array) ($l['rules'] ?? []) as $__cr2) {
+      $__cr2 = (string) $__cr2;
+      if (mb_strpos($__cr2, '关注') === false && mb_strpos($__cr2, '点赞') === false
+          && mb_strpos($__cr2, '评论') === false && mb_strpos($__cr2, '转发') === false) {
+          $__custom[] = $__cr2;
+      }
+  }
+  ?>
+  <?php if ($__custom): ?>
+  <div class="card" style="background:#FFF8E6;border-color:#F0D9A8">
+    <div style="font-size:13px;font-weight:700;color:#8A5B00;margin-bottom:6px">📌 自定义条款</div>
+    <ul style="margin:0;padding-left:18px;font-size:13px;color:#6B4E00">
+      <?php foreach ($__custom as $__cr2): ?><li><?= htmlspecialchars($__cr2) ?></li><?php endforeach; ?>
+    </ul>
+  </div>
+  <?php endif; ?>
 
   <a class="btn" href="/pages/lottery.php?id=<?= (int) $id ?>" style="width:100%;justify-content:center">返回抽奖详情</a>
   <div class="tip">完成后点返回，条件会实时更新；若仍未通过，刷新一下页面。</div>

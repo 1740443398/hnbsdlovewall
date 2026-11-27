@@ -366,7 +366,8 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                 <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_follow" value="1"> 关注发起人</label>
                 <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_like" value="1" checked> 点赞</label>
                 <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_comment" value="1"> 评论</label>
-                <label style="font-weight:400"><input type="checkbox" name="rule_repost" value="1"> 转发</label>
+                <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_repost" value="1"> 转发</label>
+                <div style="margin-top:6px"><input class="form-input" name="rule_custom" placeholder="自定义提示条款（可选，如：需为本校学生 / 领奖需带学生证）" style="font-size:12.5px"></div>
             </div>
             <button class="btn btn-primary" type="submit">创建抽奖</button>
         </form>
