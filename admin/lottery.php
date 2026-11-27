@@ -52,6 +52,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             } else {
                 /* 变量替换：{title} {prize} {prize_count} {draw_at} —— 群发文案不用手抄奖品信息 */
                 $__lot = lwLotteryGet($lid);
+                $__scope = (string) ($_POST['pm_scope'] ?? 'all');
+                $__winnerIds = array_map('intval', (array) json_decode((string) ($__lot['winners'] ?? '[]'), true));
+                $__pick = function (int $uid) use ($__scope, $__winnerIds): bool {
+                    $isWin = in_array($uid, $__winnerIds, true);
+                    if ($__scope === 'winner') { return $isWin; }
+                    if ($__scope === 'loser') { return !$isWin; }
+                    return true;
+                };
                 $text = strtr($text, [
                     '{title}'       => (string) ($__lot['title'] ?? ''),
                     '{prize}'       => (string) ($__lot['prize'] ?? ''),
@@ -63,7 +71,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $fsPm = getFS();
                 foreach ((array) $fsPm->read('lottery_entries') as $__en) {
                     if ((int) ($__en['lottery_id'] ?? 0) !== $lid) { continue; }
-                    $tu = $fsPm->findById('users', (int) ($__en['user_id'] ?? 0));
+                    $__uid = (int) ($__en['user_id'] ?? 0);
+                    if (!$__pick($__uid)) { continue; }
+                    $tu = $fsPm->findById('users', $__uid);
                     $tq = (string) ($tu['qq'] ?? '');
                     if (!$tu || $tq === '' || $tq === $adminQq || !empty($tu['is_banned'])) { $skip++; continue; }
                     $fsPm->insert('pm_messages', [
@@ -272,6 +282,11 @@ foreach ($all as $__lv) {
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <input type="hidden" name="act" value="pm_entries">
                         <input type="hidden" name="lottery_id" value="<?= (int) $l['id'] ?>">
+                        <select name="pm_scope" style="padding:5px 6px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text)">
+                            <option value="all">全部参与者</option>
+                            <option value="winner">仅中奖者</option>
+                            <option value="loser">仅未中奖</option>
+                        </select>
                         <input type="text" name="pm_text" placeholder="私信内容（可用 {title}/{prize}/{prize_count}/{draw_at}）" maxlength="200" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);min-width:150px">
                         <button class="btn btn-sm" type="submit">群发</button>
                     </form>
