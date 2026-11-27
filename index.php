@@ -92,6 +92,15 @@ if (is_file($__ahJs)) {
     <title><?= htmlspecialchars($siteName) ?></title>
     <?php require __DIR__ . '/includes/seo_meta.php'; ?>
     <meta name="description" content="<?= htmlspecialchars(t('site.meta_desc')) ?>">
+    <style>
+    .hs-wrap{position:relative;flex:1}
+    .hs-wrap .search-input{width:100%}
+    .hs-suggest{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.12);overflow:hidden;z-index:60;display:none}
+    .hs-item{display:block;padding:9px 12px;font-size:.85rem;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border-light,#edf1f5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hs-item:last-child{border-bottom:none}
+    .hs-item:hover,.hs-item.is-sel{background:rgba(47,91,154,.08)}
+    .hs-empty{padding:10px 12px;font-size:.82rem;color:var(--text-muted,#a0aec0)}
+    </style>
     <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
@@ -193,7 +202,10 @@ if (is_file($__ahJs)) {
                     <div class="feed-sticky">
                     <div class="feed-toolbar">
                         <form class="search-box" action="/pages/search.php" method="get" style="display:flex;gap:6px">
-                            <input type="search" id="searchInput" name="q" placeholder="<?= t('home.search_ph') ?>" class="search-input">
+                            <div class="hs-wrap">
+                                <input type="search" id="searchInput" name="q" placeholder="<?= t('home.search_ph') ?>" class="search-input" autocomplete="off">
+                                <div class="hs-suggest" id="hsSuggest"></div>
+                            </div>
                             <button class="btn-icon" type="submit" id="searchBtn" aria-label="<?= t('home.search_aria') ?>">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
                             </button>
@@ -422,6 +434,44 @@ if (is_file($__ahJs)) {
             </div>
         </div>
     </main>
+<script>
+/* 首页搜索框联想：输入 ≥2 字后查 quick.php，点击直接进帖子详情 */
+(function () {
+    var box = document.getElementById('hsSuggest');
+    var input = document.getElementById('searchInput');
+    if (!box || !input) return;
+    var timer = null, lastQ = '';
+
+    function hide() { box.style.display = 'none'; box.innerHTML = ''; }
+    function render(posts, q) {
+        if (!posts.length) { box.innerHTML = '<div class="hs-empty">没有相关帖子，回车搜索「' + q.replace(/[<>&]/g, '') + '」</div>'; box.style.display = 'block'; return; }
+        box.innerHTML = posts.slice(0, 6).map(function (p) {
+            return '<a class="hs-item" href="/pages/post_detail.php?id=' + encodeURIComponent(p.id) + '">📄 ' + (p.title || '（无标题）').replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }) + '</a>';
+        }).join('');
+        box.style.display = 'block';
+    }
+    function query(q) {
+        if (q.length < 2 || q === lastQ) { if (q.length < 2) hide(); return; }
+        lastQ = q;
+        fetch('/api/search/quick.php?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var posts = (d && d.data && d.data.posts) || (d && d.posts) || [];
+                render(posts, q);
+            })
+            .catch(function () { hide(); });
+    }
+    input.addEventListener('input', function () {
+        var q = (input.value || '').trim();
+        clearTimeout(timer);
+        if (!q) { hide(); return; }
+        timer = setTimeout(function () { query(q); }, 260);
+    });
+    input.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+    document.addEventListener('click', function (e) { if (!e.target.closest('.hs-wrap')) hide(); });
+    document.getElementById('searchBtn').addEventListener('click', function () { hide(); });
+})();
+</script>
 
     <div class="modal-overlay" id="guideModal" style="display:none;">
         <div class="modal" style="max-width:520px;">
