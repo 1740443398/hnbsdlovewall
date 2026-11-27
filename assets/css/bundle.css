@@ -3525,6 +3525,12 @@ html.dark-theme .post-content img:hover {
     background: linear-gradient(to top, var(--card-bg, #fff) 78%, rgba(255,255,255,0));
   }
   .lot-actions .btn { flex: 1 1 auto; height: 44px; font-size: 15px; }
+  /* 详情页操作按钮较多（参与/分享/海报/提醒/推送），窄屏下自动换行避免挤成一条 */
+  .lot-actions { flex-wrap: wrap; }
+  .lot-actions .btn { flex: 1 1 calc(50% - 8px); min-width: 130px; }
+  @media (max-width: 420px) {
+    .lot-actions .btn { flex: 1 1 100%; min-width: 0; }
+  }
   .page-lottery, body { padding-bottom: 46px; }
 }
 
