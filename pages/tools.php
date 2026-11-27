@@ -1501,6 +1501,34 @@ require __DIR__ . '/../includes/site_header.php';
             });
             recentBox.hidden = arr.length === 0;
         }
+        var usageBox = document.getElementById('tools-usage');
+        var usageList = document.getElementById('tools-usage-list');
+        var USAGE_KEY = 'tools_usage';
+        function readUsage() { try { var o = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
+        function bumpUsage(k) {
+            if (!k) return;
+            var o = readUsage();
+            o[k] = (o[k] || 0) + 1;
+            try { localStorage.setItem(USAGE_KEY, JSON.stringify(o)); } catch (e) {}
+            loadUsage();
+        }
+        function loadUsage() {
+            if (!usageBox || !usageList) return;
+            var o = readUsage();
+            var arr = Object.keys(o).filter(function (k) { return (o[k] || 0) >= 2; })
+                .sort(function (a, b) { return (o[b] || 0) - (o[a] || 0); }).slice(0, 6);
+            usageList.innerHTML = '';
+            arr.forEach(function (k) {
+                var card = cards.filter(function (c) { return toolKey(c) === k; })[0];
+                if (!card) return;
+                var b = document.createElement('button');
+                b.textContent = toolLabel(card);
+                b.title = '使用 ' + (o[k] || 0) + ' 次';
+                b.onclick = function () { if (window.openTool) window.openTool(k); };
+                usageList.appendChild(b);
+            });
+            usageBox.hidden = arr.length === 0;
+        }
         var favBox = document.getElementById('tools-fav');
         var favList = document.getElementById('tools-fav-list');
         var FAV_KEY = 'tools_fav';
@@ -1547,6 +1575,7 @@ require __DIR__ . '/../includes/site_header.php';
         });
         loadFavs();
         syncFavStars();
+        loadUsage();
 
         function markRecent(k) {
             if (!k) return;
@@ -1558,11 +1587,11 @@ require __DIR__ . '/../includes/site_header.php';
         }
         if (window.openTool) {
             var orig = window.openTool;
-            window.openTool = function (name) { markRecent(name); return orig.apply(this, arguments); };
+            window.openTool = function (name) { markRecent(name); bumpUsage(name); return orig.apply(this, arguments); };
         }
         if (input) { input.addEventListener('input', function () { filter(input.value); }); }
         if (compactBtn) { compactBtn.addEventListener('click', function () { compact = !compact; localStorage.setItem('tools_compact', compact ? '1' : '0'); applyCompact(); }); }
-        if (resetBtn) { resetBtn.addEventListener('click', function () { localStorage.removeItem('tools_recent'); loadRecent(); }); }
+        if (resetBtn) { resetBtn.addEventListener('click', function () { localStorage.removeItem('tools_recent'); localStorage.removeItem(USAGE_KEY); loadRecent(); loadUsage(); }); }
         applyCompact();
         loadRecent();
     })();
