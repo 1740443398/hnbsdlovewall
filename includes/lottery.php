@@ -327,10 +327,10 @@ if (!function_exists('lwLotteryDraw')) {
                 if (isset($__winSet[$__pu])) { $__wonPush[] = $__pu; } else { $__losePush[] = $__pu; }
             }
             if ($__wonPush) {
-                lwLotteryAppPush($__wonPush, '🎉 恭喜中奖：' . (string) ($l['title'] ?? ''), '你参与的抽奖已开奖，恭喜中奖！点开查看领奖方式', '/pages/lottery.php?id=' . $lotteryId);
+                lwLotteryAppPush($__wonPush, '🎉 恭喜中奖：' . (string) ($l['title'] ?? ''), '奖品：' . (string) ($l['prize'] ?? '') . ' × ' . (int) ($l['prize_count'] ?? 1) . '，点开查看领奖方式', '/pages/lottery.php?id=' . $lotteryId);
             }
             if ($__losePush) {
-                lwLotteryAppPush($__losePush, '🎁 抽奖开奖：' . (string) ($l['title'] ?? ''), '抽奖已开奖，本次未中奖，下次好运～', '/pages/lottery.php?id=' . $lotteryId);
+                lwLotteryAppPush($__losePush, '🎁 抽奖开奖：' . (string) ($l['title'] ?? ''), '奖品：' . (string) ($l['prize'] ?? '') . ' × ' . (int) ($l['prize_count'] ?? 1) . '，本次未中奖，下次好运～', '/pages/lottery.php?id=' . $lotteryId);
             }
         }
 
