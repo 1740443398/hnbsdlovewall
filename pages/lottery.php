@@ -145,7 +145,10 @@ if ($detail):
         <b>🎉 中奖名单：</b>
         <?php if ($winnerIds): ?>
           <?php foreach ($winnerIds as $wi): $wu = lwLUser($userIndex, (int) $wi); ?>
-            <a href="/pages/u.php?id=<?= (int) $wu['id'] ?>"><?= htmlspecialchars($wu['nickname']) ?></a>
+            <span class="lot-winner">
+              <a href="/pages/u.php?id=<?= (int) $wu['id'] ?>"><?= htmlspecialchars($wu['nickname']) ?></a>
+              <button type="button" class="lot-congrats" data-name="<?= htmlspecialchars($wu['nickname'], ENT_QUOTES) ?>">🎉 恭喜</button>
+            </span>
           <?php endforeach; ?>
         <?php else: ?>
           无人参与，本轮流抽
@@ -312,6 +315,21 @@ if ($detail):
     btn.textContent = opened ? ('展开全部 ' + total + ' 人') : '收起参与者';
   });
 })();
+</script>
+
+<script>
+/* 中奖名单：一键复制恭喜语（避免直接评论带来的骚扰与刷屏） */
+function copyCongrats(name) {
+  var text = '恭喜 ' + name + ' 中奖啦 🎉 记得找管理员领奖～';
+  var done = function () { if (typeof toast === 'function') { toast('恭喜语已复制，去评论区送上祝福吧'); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { prompt('手动复制：', text); });
+  } else { prompt('手动复制：', text); }
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('.lot-congrats');
+  if (b) copyCongrats(b.getAttribute('data-name') || '同学');
+});
 </script>
 </body>
 </html>
