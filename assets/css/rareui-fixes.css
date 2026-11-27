@@ -371,3 +371,24 @@ html[data-theme="dark"] .lot-missing-hint a { color: #F0A8A2; }
   /* 最近开奖横滑卡窄屏略收 */
   .lot-recent a { flex: 0 0 160px !important; }
 }
+
+
+/* ===== 抽奖列表分页：移动端点击热区 ===== */
+@media (max-width: 768px) {
+  .lottery-pager a {
+    min-height: 40px;
+    min-width: 64px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px !important;
+    font-size: 13px;
+  }
+}
+
+/* ===== 后台抽奖页：窄屏表格/日历可横向滚动 ===== */
+@media (max-width: 900px) {
+  body .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  body .table-wrapper table { min-width: 640px; }
+  .lot-calendar .section-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}

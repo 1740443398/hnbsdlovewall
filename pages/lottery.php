@@ -457,7 +457,7 @@ if ($detail):
   </a>
     <?php endforeach; endif; ?>
     <?php if ($__pages > 1): ?>
-    <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin:14px 0 4px;font-size:12.5px">
+    <div class="lottery-pager" style="display:flex;gap:6px;justify-content:center;align-items:center;margin:14px 0 4px;font-size:12.5px">
         <?php if ($__page > 1): ?><a href="?<?= $__keepQ ?>&page=<?= $__page - 1 ?>" style="padding:4px 10px;border-radius:999px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);text-decoration:none">上一页</a><?php endif; ?>
         <span style="color:var(--text-muted)"><?= (int) $__page ?> / <?= (int) $__pages ?> 页 · 共 <?= (int) $__totalLots ?> 个</span>
         <?php if ($__page < $__pages): ?><a href="?<?= $__keepQ ?>&page=<?= $__page + 1 ?>" style="padding:4px 10px;border-radius:999px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);text-decoration:none">下一页</a><?php endif; ?>
