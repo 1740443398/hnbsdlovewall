@@ -100,6 +100,7 @@ if (is_file($__ahJs)) {
     .hs-item:last-child{border-bottom:none}
     .hs-item:hover,.hs-item.is-sel{background:rgba(47,91,154,.08)}
     .hs-empty{padding:10px 12px;font-size:.82rem;color:var(--text-muted,#a0aec0)}
+    .hs-cat{display:inline-block;font-size:11px;padding:0 6px;margin-right:6px;border-radius:5px;background:rgba(47,91,154,.10);color:var(--primary,#2F5B9A);vertical-align:1px}
     </style>
     <?php if (!empty($__bundleOffForPage)): ?>
     <link rel="stylesheet" href="<?= asset_url('/assets/css/style.css') ?>?v=<?= asset_ver('/assets/css/style.css') ?>">
@@ -435,18 +436,32 @@ if (is_file($__ahJs)) {
         </div>
     </main>
 <script>
-/* 首页搜索框联想：输入 ≥2 字后查 quick.php，点击直接进帖子详情 */
+/* 首页搜索框联想：输入 ≥2 字后查 quick.php，↑↓ 选择、回车/点击进入帖子详情 */
 (function () {
     var box = document.getElementById('hsSuggest');
     var input = document.getElementById('searchInput');
     if (!box || !input) return;
-    var timer = null, lastQ = '';
+    var timer = null, lastQ = '', items = [], sel = -1;
 
-    function hide() { box.style.display = 'none'; box.innerHTML = ''; }
+    function escHtml(x) { return String(x == null ? '' : x).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); }
+    function hide() { box.style.display = 'none'; box.innerHTML = ''; items = []; sel = -1; }
+    function paint() {
+        Array.prototype.forEach.call(box.querySelectorAll('.hs-item'), function (el, i) {
+            el.classList.toggle('is-sel', i === sel);
+        });
+    }
     function render(posts, q) {
-        if (!posts.length) { box.innerHTML = '<div class="hs-empty">没有相关帖子，回车搜索「' + q.replace(/[<>&]/g, '') + '」</div>'; box.style.display = 'block'; return; }
-        box.innerHTML = posts.slice(0, 6).map(function (p) {
-            return '<a class="hs-item" href="/pages/post_detail.php?id=' + encodeURIComponent(p.id) + '">📄 ' + (p.title || '（无标题）').replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }) + '</a>';
+        items = posts.slice(0, 6);
+        sel = -1;
+        if (!items.length) {
+            box.innerHTML = '<div class="hs-empty">没有相关帖子，回车搜索「' + escHtml(q) + '」</div>';
+            box.style.display = 'block';
+            return;
+        }
+        box.innerHTML = items.map(function (p, i) {
+            var cat = p.category_name ? '<span class="hs-cat">' + escHtml(p.category_name) + '</span>' : '';
+            return '<a class="hs-item" data-i="' + i + '" href="/pages/post_detail.php?id=' + encodeURIComponent(p.id) + '">' +
+                cat + escHtml(p.title || '（无标题）') + '</a>';
         }).join('');
         box.style.display = 'block';
     }
@@ -467,9 +482,16 @@ if (is_file($__ahJs)) {
         if (!q) { hide(); return; }
         timer = setTimeout(function () { query(q); }, 260);
     });
-    input.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+    input.addEventListener('keydown', function (e) {
+        if (box.style.display === 'none' || !items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); sel = (sel + 1) % items.length; paint(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); sel = sel <= 0 ? items.length - 1 : sel - 1; paint(); }
+        else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); location.href = '/pages/post_detail.php?id=' + encodeURIComponent(items[sel].id); }
+        else if (e.key === 'Escape') { hide(); }
+    });
     document.addEventListener('click', function (e) { if (!e.target.closest('.hs-wrap')) hide(); });
-    document.getElementById('searchBtn').addEventListener('click', function () { hide(); });
+    var sbtn = document.getElementById('searchBtn');
+    if (sbtn) sbtn.addEventListener('click', function () { hide(); });
 })();
 </script>
 
