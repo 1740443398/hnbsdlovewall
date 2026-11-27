@@ -107,9 +107,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
             /* 定时发送：先入队，由 includes/scheduled_broadcast.php 在心跳里到点执行 */
             $sendAtRaw = trim((string) ($_POST['send_at'] ?? ''));
             $sendAtTs = $sendAtRaw !== '' ? strtotime(str_replace('T', ' ', $sendAtRaw)) : false;
+            $scheduleId = (int) ($_POST['schedule_id'] ?? 0);
             if ($sendAtTs !== false && $sendAtTs > time() + 30) {
                 try {
-                    getFS()->insert('scheduled_broadcasts', [
+                    if ($scheduleId > 0) {
+                        $__all = (array) getFS()->read('scheduled_broadcasts');
+                        foreach ($__all as $__i => $__r) {
+                            if ((int) ($__r['id'] ?? 0) === $scheduleId && (string) ($__r['status'] ?? '') === 'pending') {
+                                $__all[$__i] = array_merge($__r, [
+                                    'target' => $target, 'single_id' => $target === 'single' ? $singleId : 0,
+                                    'content' => $content, 'link' => $link,
+                                    'app_push' => !empty($_POST['app_push']) ? 1 : 0,
+                                    'push_title' => trim((string) ($_POST['push_title'] ?? '')) ?: '站内公告',
+                                    'send_at' => date('Y-m-d H:i:s', $sendAtTs),
+                                    'updated_at' => date('Y-m-d H:i:s'),
+                                ]);
+                                break;
+                            }
+                        }
+                        getFS()->write('scheduled_broadcasts', array_values($__all));
+                        logOperation($adminUser['id'], $adminUser['qq'], 'edit_scheduled_notify', 'scheduled_broadcast', $scheduleId, '修改定时群发');
+                        $notice = '已更新定时任务 #' . $scheduleId . '，将于 ' . date('m-d H:i', $sendAtTs) . ' 前触达';
+                        $__scheduled = true;
+                    } else {
+                        getFS()->insert('scheduled_broadcasts', [
                         'admin_id'   => (int) $adminUser['id'],
                         'admin_name' => (string) ($adminUser['nickname'] ?? ''),
                         'target'     => $target,
@@ -124,6 +145,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
                     ]);
                     logOperation($adminUser['id'], $adminUser['qq'], 'schedule_notify', 'scheduled_broadcast', 0, '定时群发 @ ' . date('Y-m-d H:i:s', $sendAtTs));
                     $notice = '已加入定时队列，将于 ' . date('m-d H:i', $sendAtTs) . ' 前触达（约 1 分钟内）';
+                    $__scheduled = true;
+                    }
                 } catch (Throwable $__se) {
                     $notice = '定时任务写入失败：' . $__se->getMessage();
                     $noticeType = 'danger';
@@ -208,6 +231,7 @@ adminHeader('通知群发', $adminUser, $csrfToken);
         <form method="post">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <input type="hidden" name="action" value="send">
+            <input type="hidden" name="schedule_id" value="0">
             <div class="form-group" style="margin-bottom:14px">
                 <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">发送对象</label>
                 <select name="target" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;min-width:220px">
@@ -288,6 +312,14 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                             <td style="max-width:320px;word-break:break-word"><?= htmlspecialchars(mb_substr((string)($__q['content'] ?? ''), 0, 60)) ?></td>
                             <td><?= !empty($__q['app_push']) ? '✓' : '—' ?></td>
                             <td>
+                                <button type="button" class="btn btn-outline btn-sm edit-schedule"
+                                    data-id="<?= (int)($__q['id'] ?? 0) ?>"
+                                    data-target="<?= htmlspecialchars((string)($__q['target'] ?? 'all')) ?>"
+                                    data-single="<?= (int)($__q['single_id'] ?? 0) ?>"
+                                    data-content="<?= htmlspecialchars((string)($__q['content'] ?? '')) ?>"
+                                    data-link="<?= htmlspecialchars((string)($__q['link'] ?? '')) ?>"
+                                    data-push="<?= !empty($__q['app_push']) ? 1 : 0 ?>"
+                                    data-sendat="<?= htmlspecialchars(str_replace(' ', 'T', substr((string)($__q['send_at'] ?? ''), 0, 16))) ?>">编辑</button>
                                 <form method="post" onsubmit="return confirm('取消这条定时群发？')" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                     <input type="hidden" name="action" value="cancel_schedule">
@@ -344,6 +376,23 @@ adminHeader('通知群发', $adminUser, $csrfToken);
 </div>
 <script>
 (function () {
+    document.querySelectorAll('.edit-schedule').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var form = document.querySelector('form[method="post"]');
+            if (!form) return;
+            form.querySelector('input[name="schedule_id"]').value = btn.getAttribute('data-id') || '0';
+            form.querySelector('select[name="target"]').value = btn.getAttribute('data-target') || 'all';
+            form.querySelector('input[name="single_id"]').value = btn.getAttribute('data-single') || '';
+            form.querySelector('textarea[name="content"]').value = btn.getAttribute('data-content') || '';
+            form.querySelector('input[name="link"]').value = btn.getAttribute('data-link') || '';
+            form.querySelector('input[name="app_push"]').checked = btn.getAttribute('data-push') === '1';
+            var sa = form.querySelector('input[name="send_at"]');
+            if (sa) sa.value = btn.getAttribute('data-sendat') || '';
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            form.querySelector('textarea[name="content"]').focus();
+        });
+    });
+
     document.querySelectorAll('.refill-broadcast').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var form = document.querySelector('form[method="post"]');
