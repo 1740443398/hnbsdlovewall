@@ -119,6 +119,13 @@ function qzTime(int $ts): string
         .qz-body { padding: 0 14px 12px; }
         .qz-text { font-size: 0.95rem; line-height: 1.75; margin: 0 0 10px; white-space: pre-wrap; word-break: break-word; }
         .qz-media { display: block; }
+        .qz-gallery { display: grid; gap: 2px; }
+        .qz-gallery.multi { grid-template-columns: repeat(2, 1fr); }
+        .qz-gallery.multi .qz-gitem img { aspect-ratio: 1 / 1; object-fit: cover; max-height: 46vh; }
+        .qz-lb-nav { position: fixed; top: 50%; transform: translateY(-50%); border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 26px; width: 44px; height: 64px; border-radius: 10px; cursor: pointer; display: none; }
+        .qz-lb-nav.show { display: block; }
+        #qzLbPrev { left: 10px; }
+        #qzLbNext { right: 10px; }
         .qz-media img {
             display: block; width: 100%; height: auto;
             background: var(--bg-secondary);
@@ -228,10 +235,16 @@ require __DIR__ . '/../includes/site_header.php';
                     <span class="qz-time"><?= qzTime((int) $it['posted_ts']) ?></span>
                 </div>
                 <?php if ($imgs): ?>
-                <a class="qz-media" href="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=0" target="_blank" rel="noopener" data-qz-lightbox>
-                    <img src="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=0"
-                         alt="" loading="lazy" decoding="async" width="892" height="1200">
-                </a>
+                <div class="qz-gallery<?= count($imgs) > 1 ? ' multi' : '' ?>">
+                    <?php foreach (array_slice($imgs, 0, 6) as $__i => $__im): ?>
+                    <a class="qz-media qz-gitem" href="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=<?= (int)$__i ?>"
+                       data-qz-lightbox data-qz-group="<?= htmlspecialchars($tid) ?>" data-qz-index="<?= (int)$__i ?>"
+                       target="_blank" rel="noopener">
+                        <img src="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=<?= (int)$__i ?>"
+                             alt="" loading="lazy" decoding="async">
+                    </a>
+                    <?php endforeach; ?>
+                </div>
                 <?php endif; ?>
                 <div class="qz-body">
                     <?php if ($text !== ''): ?><p class="qz-text"><?= nl2br(htmlspecialchars($text)) ?></p><?php endif; ?>
@@ -271,7 +284,9 @@ require __DIR__ . '/../includes/site_header.php';
 
 <div class="qz-lightbox" id="qzLightbox" role="dialog" aria-modal="true" aria-label="图片预览">
     <button type="button" class="qz-lb-close" id="qzLbClose" aria-label="关闭">×</button>
+    <button type="button" class="qz-lb-nav" id="qzLbPrev" aria-label="上一张">‹</button>
     <img src="" alt="预览">
+    <button type="button" class="qz-lb-nav" id="qzLbNext" aria-label="下一张">›</button>
 </div>
 
 <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
@@ -281,17 +296,39 @@ require __DIR__ . '/../includes/site_header.php';
     var box = document.getElementById('qzLightbox');
     if (!box) return;
     var img = box.querySelector('img');
+    var prevBtn = document.getElementById('qzLbPrev');
+    var nextBtn = document.getElementById('qzLbNext');
+    var group = [], cur = 0;
+    function show(i) {
+        if (!group.length) return;
+        cur = (i + group.length) % group.length;
+        img.src = group[cur];
+        var multi = group.length > 1;
+        prevBtn.classList.toggle('show', multi);
+        nextBtn.classList.toggle('show', multi);
+    }
     document.querySelectorAll('[data-qz-lightbox]').forEach(function (a) {
         a.addEventListener('click', function (e) {
             e.preventDefault();
-            img.src = a.getAttribute('href');
+            var tid = a.getAttribute('data-qz-group');
+            group = [];
+            document.querySelectorAll('[data-qz-lightbox][data-qz-group="' + tid + '"]').forEach(function (x) {
+                group.push(x.getAttribute('href'));
+            });
+            show(parseInt(a.getAttribute('data-qz-index'), 10) || 0);
             box.classList.add('show');
         });
     });
+    prevBtn.addEventListener('click', function (e) { e.stopPropagation(); show(cur - 1); });
+    nextBtn.addEventListener('click', function (e) { e.stopPropagation(); show(cur + 1); });
     function close() { box.classList.remove('show'); img.src = ''; }
     box.addEventListener('click', close);
     document.getElementById('qzLbClose').addEventListener('click', function (e) { e.stopPropagation(); close(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') close();
+        else if (e.key === 'ArrowLeft' && box.classList.contains('show')) show(cur - 1);
+        else if (e.key === 'ArrowRight' && box.classList.contains('show')) show(cur + 1);
+    });
 })();
 
 /* 页面渲染完再异步触发同步检查 —— 同步要出网十几次，
