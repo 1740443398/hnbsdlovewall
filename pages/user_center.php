@@ -246,6 +246,12 @@ if ($inviteEnabled && $tab === 'invite') {
             margin-bottom: 0.25rem;
         }
 
+        /* 资料卡快捷数据 */
+        .uc-quick-stats { display: flex; gap: 1.25rem; margin-top: .6rem; flex-wrap: wrap; }
+        .uc-qs { display: flex; flex-direction: column; line-height: 1.2; }
+        .uc-qs b { font-size: 1.05rem; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+        .uc-qs span { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
+
         /* ---------- 我的勋章 ---------- */
         .uc-medal-hero {
             display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
@@ -1079,6 +1085,12 @@ if ($inviteEnabled && $tab === 'invite') {
                             <?php if (empty($user['nickname'])): ?>
                             <span class="uc-setup-hint"><?= t('uc.setup_hint') ?></span>
                             <?php endif; ?>
+                            <div class="uc-quick-stats" id="ucQuickStats">
+                                <div class="uc-qs"><b>—</b><span>动态</span></div>
+                                <div class="uc-qs"><b>—</b><span>获赞</span></div>
+                                <div class="uc-qs"><b>—</b><span>评论</span></div>
+                                <div class="uc-qs"><b>—</b><span>收藏</span></div>
+                            </div>
                         </div>
                     </div>
                     <form id="profileForm" autocomplete="off">
