@@ -203,6 +203,33 @@ usort($__viewLots, function ($a, $b) use ($lotSort, $__entryCnt) {
     </div>
 </div>
 
+<?php
+$__base = max(1, (int) $__lotStats['views']);
+$__funnel = [
+    ['浏览抽奖详情', (int) $__lotStats['views']],
+    ['参与抽奖', (int) $__lotStats['entries']],
+    ['设置开奖提醒', (int) $__lotStats['reminds']],
+    ['中奖', (int) $__lotStats['winners']],
+];
+?>
+<div class="section lot-funnel" style="margin-bottom:14px">
+    <div class="section-header"><h3>参与转化漏斗</h3></div>
+    <div class="section-body" style="display:flex;flex-direction:column;gap:8px">
+        <?php foreach ($__funnel as $__i => $__f): ?>
+        <div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+            <span style="flex:0 0 96px;color:var(--text-muted)"><?= htmlspecialchars($__f[0]) ?></span>
+            <div style="flex:1;height:16px;background:var(--bg-secondary);border-radius:8px;overflow:hidden">
+                <div style="height:100%;width:<?= (int) round($__f[1] * 100 / $__base) ?>%;min-width:<?= $__f[1] > 0 ? '6px' : '0' ?>;background:linear-gradient(90deg,#2F5B9A,#5B8BD0);border-radius:8px"></div>
+            </div>
+            <span style="flex:0 0 108px;text-align:right;font-variant-numeric:tabular-nums">
+                <b><?= (int) $__f[1] ?></b>
+                <span style="color:var(--text-muted);font-size:11.5px">（<?= (int) round($__f[1] * 100 / $__base) ?>%）</span>
+            </span>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+
 <div class="section">
     <div class="section-header"><h3>创建抽奖</h3></div>
     <div class="section-body">
