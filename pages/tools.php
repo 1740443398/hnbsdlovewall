@@ -1456,7 +1456,7 @@ require __DIR__ . '/../includes/site_header.php';
         var resetBtn = document.getElementById('tools-reset');
         var cards = Array.prototype.slice.call(document.querySelectorAll('.tool-card'));
         var categories = Array.prototype.slice.call(document.querySelectorAll('.tools-category'));
-        var DUPLICATE = ['dice', 'coin', 'scratch'];   // 与随机抽奖/转盘重复度高的娱乐小工具
+        var DUPLICATE = ['dice', 'coin', 'scratch', 'vote'];   // 骰子/硬币/刮刮卡与抽奖转盘重复；vote 与「功能投票」重复
         var compact = localStorage.getItem('tools_compact') === '1';
 
         function toolKey(card) {
