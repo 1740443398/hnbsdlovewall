@@ -140,7 +140,7 @@ function render(data, append) {
     if (sorts) sorts.style.display = ITEMS.length ? 'flex' : 'none';
 
     if (!ITEMS.length) {
-        var sugg = ['失物招领', '学习互助', '交友闲聊', '表白', '校园资讯', '二手交易'];
+        var sugg = HOT_TERMS.length ? HOT_TERMS : ['失物招领', '学习互助', '交友闲聊', '表白', '校园资讯', '二手交易'];
         box.innerHTML = '<div class="sr-empty">' +
             (data.message || ('没有找到与「' + esc(data.query) + '」相关的内容')) +
             '</div><div class="sr-suggest"><div class="sr-suggest-title">试试这些热门词</div><div class="sr-suggest-chips">' +
