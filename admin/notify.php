@@ -94,6 +94,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
                     error_log('broadcast app push failed: ' . $__pe->getMessage());
                 }
             }
+            try {
+                getFS()->insert('broadcast_logs', [
+                    'admin_id'   => (int) $adminUser['id'],
+                    'admin_name' => (string) ($adminUser['nickname'] ?? ''),
+                    'target'     => $target,
+                    'single_id'  => $target === 'single' ? $singleId : 0,
+                    'content'    => $content,
+                    'link'       => $link,
+                    'sent_count' => $ok,
+                    'app_push'   => $__pushOk ? 1 : 0,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+            } catch (Throwable $__le) {}
+
             $notice = '已发送给 ' . $ok . ' 位用户' . ($__pushOk ? '，App 推送已排队（约 15 分钟内到达）' : '');
         }
     }
@@ -144,6 +158,34 @@ adminHeader('通知群发', $adminUser, $csrfToken);
             </div>
             <button class="btn btn-primary" type="submit" onclick="return confirm('确认向当前筛选的用户群发通知？')">立即发送</button>
         </form>
+
+        <?php
+        $__logs = (array) getFS()->read('broadcast_logs');
+        usort($__logs, function ($a, $b) { return strtotime((string)($b['created_at'] ?? '')) - strtotime((string)($a['created_at'] ?? '')); });
+        $__logs = array_slice($__logs, 0, 20);
+        ?>
+        <?php if ($__logs): ?>
+        <div style="margin-top:20px">
+            <h4 style="font-size:14px;margin-bottom:8px">最近群发记录</h4>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>时间</th><th>发送人</th><th>对象</th><th>内容</th><th>触达</th><th>App推送</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($__logs as $__lg): ?>
+                        <tr>
+                            <td style="white-space:nowrap"><?= htmlspecialchars((string)($__lg['created_at'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string)($__lg['admin_name'] ?? '')) ?></td>
+                            <td><?= ['all'=>'全部','role_user'=>'普通用户','role_admin'=>'管理员','single'=>'用户#' . (int)($__lg['single_id'] ?? 0)][(string)($__lg['target'] ?? 'all')] ?? '全部' ?></td>
+                            <td style="max-width:320px;word-break:break-word"><?= htmlspecialchars(mb_substr((string)($__lg['content'] ?? ''), 0, 60)) ?></td>
+                            <td><?= (int)($__lg['sent_count'] ?? 0) ?></td>
+                            <td><?= !empty($__lg['app_push']) ? '✓' : '—' ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <p style="margin-top:14px;font-size:12.5px;color:var(--text-secondary);line-height:1.7">
             说明：群发写入「系统」分类，用户可在通知面板/通知中心查看；勾选 App 推送后，安装了 App 的用户会在后台轮询周期内收到系统通知（不保证秒达）。
