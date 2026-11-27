@@ -1,10 +1,10 @@
 [
   {
-    "name": "changelog",
+    "name": "lottery",
     "info": {
-      "title": "更新日志 · 淮南北师大实验中学高中部校园交流墙",
-      "bodyBg": "rgba(0, 0, 0, 0)",
-      "bodyColor": "rgb(26, 29, 35)",
+      "title": "站内抽奖 · 淮南北师大实验中学高中部校园交流墙",
+      "bodyBg": "rgb(244, 246, 249)",
+      "bodyColor": "rgb(28, 39, 51)",
       "scrollW": 390,
       "innerW": 390,
       "overflow": false,
@@ -12,7 +12,7 @@
       "dark": false
     },
     "dark": {
-      "bodyBg": "rgba(0, 0, 0, 0)",
+      "bodyBg": "rgb(15, 21, 32)",
       "bodyColor": "rgb(228, 233, 240)"
     },
     "errors": []
