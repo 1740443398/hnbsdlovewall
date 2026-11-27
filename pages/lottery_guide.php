@@ -74,6 +74,8 @@ h1{font-size:20px;margin:8px 0 6px}
           <button class="btn" onclick="doFollow(<?= (int) $ownerId ?>, this)">去关注</button>
         <?php elseif (mb_strpos($r, '点赞') !== false && $postId > 0): ?>
           <button class="btn" onclick="doLike(<?= (int) $postId ?>, this)">去点赞</button>
+        <?php elseif (mb_strpos($r, '评论') !== false && $postId > 0): ?>
+          <button class="btn" onclick="openComment(<?= (int) $postId ?>, this)">写评论</button>
         <?php elseif ($postId > 0): ?>
           <a class="btn" href="/pages/post_detail.php?id=<?= (int) $postId ?>" target="_blank">去完成</a>
         <?php endif; ?>
@@ -97,6 +99,39 @@ function doFollow(targetId, btn) {
       else { btn.disabled = false; btn.textContent = '重试'; alert((j && j.message) || '关注失败'); }
     }).catch(() => { btn.disabled = false; btn.textContent = '重试'; });
 }
+/* 评论条件内联完成：点「写评论」展开输入框，提交后原地打勾 */
+function openComment(postId, btn) {
+  var row = btn.closest('.row');
+  if (row.querySelector('.cmt-box')) return;
+  btn.style.display = 'none';
+  var box = document.createElement('div');
+  box.className = 'cmt-box';
+  box.style.cssText = 'width:100%;margin-top:8px;display:flex;gap:8px;align-items:flex-start';
+  box.innerHTML = '<textarea placeholder="写一句评论，完成参与条件…" maxlength="500" style="flex:1;min-height:64px;padding:8px 10px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:13px;resize:vertical;background:var(--card-bg,#fff);color:var(--text,#1C2733)"></textarea>'
+    + '<button class="btn" type="button">发送</button>';
+  row.appendChild(box);
+  box.querySelector('textarea').focus();
+  box.querySelector('button').addEventListener('click', function () {
+    var ta = box.querySelector('textarea');
+    var text = (ta.value || '').trim();
+    if (!text) { ta.focus(); return; }
+    var self = this;
+    self.disabled = true; self.textContent = '发送中…';
+    var body = new URLSearchParams({ csrf_token: CSRF, post_id: postId, content: text });
+    fetch('/api/posts/comment.php', { method: 'POST', credentials: 'same-origin', body: body })
+      .then(r => r.json()).then(j => {
+        if (j && (j.success === true || j.ok === true)) {
+          box.remove();
+          row.querySelector('.nm').insertAdjacentHTML('beforeend', ' <span class="ok">✓</span>');
+          btn.outerHTML = '<span class="ok">已完成 ✓</span>';
+        } else {
+          self.disabled = false; self.textContent = '发送';
+          alert((j && (j.message || j.error)) || '评论失败');
+        }
+      }).catch(() => { self.disabled = false; self.textContent = '发送'; });
+  });
+}
+
 function doLike(postId, btn) {
   btn.disabled = true; btn.textContent = '处理中…';
   var body = new URLSearchParams({ csrf_token: CSRF, post_id: postId });
