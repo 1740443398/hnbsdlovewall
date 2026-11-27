@@ -28,6 +28,9 @@ $myPostStatus = (string) ($_GET['status'] ?? '');
 $myPostQuery = trim((string) ($_GET['q'] ?? ''));
 $myCommentQuery = trim((string) ($_GET['q'] ?? ''));
 $myFavoriteQuery = trim((string) ($_GET['q'] ?? ''));
+$myFavCategory = (string) ($_GET['cat'] ?? '');
+$__favCatNames = ['announcement'=>'全站公告','lost_found'=>'失物招领','study_help'=>'学习互助','social_chat'=>'交友闲聊','confession'=>'表白','school_info'=>'校园资讯','other'=>'其他'];
+if (!isset($__favCatNames[$myFavCategory])) { $myFavCategory = ''; }
 if (!in_array($myPostStatus, ['published', 'pending', 'rejected'], true)) { $myPostStatus = ''; }
 
 $validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'invite'];
@@ -1529,8 +1532,14 @@ if ($inviteEnabled && $tab === 'invite') {
                         <input type="hidden" name="tab" value="favorites">
                         <input type="search" name="q" value="<?= htmlspecialchars($myFavoriteQuery) ?>" placeholder="搜索收藏的帖子…"
                             style="flex:1 1 240px;padding:8px 12px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:.86rem;background:var(--bg)">
+                        <select name="cat" style="padding:8px 10px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:.86rem;background:var(--bg)">
+                            <option value="">全部分类</option>
+                            <?php foreach ($__favCatNames as $__k => $__n): ?>
+                            <option value="<?= $__k ?>" <?= $myFavCategory === $__k ? 'selected' : '' ?>><?= $__n ?></option>
+                            <?php endforeach; ?>
+                        </select>
                         <button class="uc-btn uc-btn-primary uc-btn-sm" type="submit">搜索</button>
-                        <?php if ($myFavoriteQuery !== ''): ?><a class="uc-btn uc-btn-outline uc-btn-sm" href="?tab=favorites">清除</a><?php endif; ?>
+                        <?php if ($myFavoriteQuery !== '' || $myFavCategory !== ''): ?><a class="uc-btn uc-btn-outline uc-btn-sm" href="?tab=favorites">清除</a><?php endif; ?>
                     </form>
                     <div id="myFavoritesList"></div>
                     <div class="uc-pagination" id="myFavoritesPagination"></div>
@@ -2207,7 +2216,11 @@ if ($inviteEnabled && $tab === 'invite') {
 
         if (document.getElementById('tab-favorites').style.display !== 'none') {
             var MYFAV_Q = <?= json_encode($myFavoriteQuery) ?>;
-            loadList(SITE_URL + '/api/user/my_favorites.php' + (MYFAV_Q ? ('?q=' + encodeURIComponent(MYFAV_Q)) : ''), 'myFavoritesList', 'myFavoritesPagination', function(data) {
+            var MYFAV_CAT = <?= json_encode($myFavCategory) ?>;
+            var __fvParams = [];
+            if (MYFAV_Q) __fvParams.push('q=' + encodeURIComponent(MYFAV_Q));
+            if (MYFAV_CAT) __fvParams.push('category=' + encodeURIComponent(MYFAV_CAT));
+            loadList(SITE_URL + '/api/user/my_favorites.php' + (__fvParams.length ? ('?' + __fvParams.join('&')) : ''), 'myFavoritesList', 'myFavoritesPagination', function(data) {
                 return data.favorites.map(f => `
                     <div class="uc-data-item">
                         <div class="uc-data-main">

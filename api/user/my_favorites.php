@@ -11,6 +11,7 @@ if ($user['is_banned']) {
 
 $fs = getFS();
 $qFilter = trim(sanitizeInput($_REQUEST['q'] ?? ''));
+$catFilter = sanitizeInput($_REQUEST['category'] ?? '');
 $page = max(1, intval($_REQUEST['page'] ?? 1));
 $limit = 10;
 
@@ -19,6 +20,12 @@ usort($favorites, function($a, $b) {
     return strtotime($b['created_at'] ?? '') - strtotime($a['created_at'] ?? '');
 });
 
+if ($catFilter !== '') {
+    $favorites = array_values(array_filter($favorites, function ($fav) use ($catFilter, $fs) {
+        $p = $fs->findById('posts', (int) ($fav['post_id'] ?? 0));
+        return $p && (string) ($p['category'] ?? '') === $catFilter;
+    }));
+}
 if ($qFilter !== '') {
     $favorites = array_values(array_filter($favorites, function ($fav) use ($qFilter, $fs) {
         $p = $fs->findById('posts', (int) ($fav['post_id'] ?? 0));
@@ -40,6 +47,11 @@ foreach ($favorites as $fav) {
             'id' => $fav['id'],
             'post_id' => $post['id'],
             'title' => $post['title'] ?: '(无标题)',
+            'category' => (string) ($post['category'] ?? ''),
+            'category_name' => [
+                'announcement' => '全站公告', 'lost_found' => '失物招领', 'study_help' => '学习互助',
+                'social_chat' => '交友闲聊', 'confession' => '表白', 'school_info' => '校园资讯', 'other' => '其他',
+            ][(string) ($post['category'] ?? 'other')] ?? '',
             'content' => mb_substr(strip_tags($post['content'] ?? ''), 0, 100),
             'is_anonymous' => $isAnonymous,
             'author' => [
@@ -59,7 +71,7 @@ jsonSuccess(lwProjectTop([
     'favorites' => lwProjectRows(
         $result,
         lwFieldsRequest(),
-        ['id', 'post_id', 'title', 'content', 'is_anonymous', 'author',
+        ['id', 'post_id', 'title', 'category', 'category_name', 'content', 'is_anonymous', 'author',
          'like_count', 'comment_count', 'timeAgo', 'created_at'],
         ['id', 'post_id']
     ),
