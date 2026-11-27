@@ -92,6 +92,10 @@ function qzTime(int $ts): string
         .qz-head h1 { font-size: 1.5rem; margin: 0 0 6px; }
         .qz-head p { margin: 0; font-size: 0.86rem; color: var(--text-muted); }
         .qz-head a { color: var(--primary); text-decoration: none; }
+        .qz-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 9999; cursor: zoom-out; }
+        .qz-lightbox.show { display: flex; }
+        .qz-lightbox img { max-width: 96vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 18px 50px rgba(0,0,0,.4); object-fit: contain; }
+        .qz-lightbox .qz-lb-close { position: fixed; top: 16px; right: 20px; color: #fff; font-size: 26px; line-height: 1; background: none; border: 0; cursor: pointer; }
         .qz-search { display: flex; gap: 8px; margin-top: 12px; }
         .qz-search input { flex: 1 1 auto; padding: 9px 12px; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--card-bg); color: var(--text); font-size: .88rem; }
         .qz-search button { padding: 9px 16px; border-radius: 10px; border: none; background: var(--primary); color: #fff; font-size: .88rem; cursor: pointer; }
@@ -224,7 +228,7 @@ require __DIR__ . '/../includes/site_header.php';
                     <span class="qz-time"><?= qzTime((int) $it['posted_ts']) ?></span>
                 </div>
                 <?php if ($imgs): ?>
-                <a class="qz-media" href="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=0" target="_blank" rel="noopener">
+                <a class="qz-media" href="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=0" target="_blank" rel="noopener" data-qz-lightbox>
                     <img src="<?= SITE_URL ?>/api/qzone/image.php?tid=<?= urlencode($tid) ?>&i=0"
                          alt="" loading="lazy" decoding="async" width="892" height="1200">
                 </a>
@@ -265,8 +269,31 @@ require __DIR__ . '/../includes/site_header.php';
     </div>
 </main>
 
+<div class="qz-lightbox" id="qzLightbox" role="dialog" aria-modal="true" aria-label="图片预览">
+    <button type="button" class="qz-lb-close" id="qzLbClose" aria-label="关闭">×</button>
+    <img src="" alt="预览">
+</div>
+
 <?php require_once __DIR__ . '/../includes/lang_ui.php'; ?>
 <script>
+/* 图片灯箱：点图放大，点遮罩/×/Esc 关闭 */
+(function () {
+    var box = document.getElementById('qzLightbox');
+    if (!box) return;
+    var img = box.querySelector('img');
+    document.querySelectorAll('[data-qz-lightbox]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            img.src = a.getAttribute('href');
+            box.classList.add('show');
+        });
+    });
+    function close() { box.classList.remove('show'); img.src = ''; }
+    box.addEventListener('click', close);
+    document.getElementById('qzLbClose').addEventListener('click', function (e) { e.stopPropagation(); close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+})();
+
 /* 页面渲染完再异步触发同步检查 —— 同步要出网十几次，
    绝不能放在渲染路径上，否则首屏会被拖慢。 */
 (function () {
