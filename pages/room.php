@@ -70,7 +70,9 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-time{font-size:.66rem;color:var(--text-tertiary,#8E9AA8);margin-top:.1875rem;}
         .lb-msg.mine .lb-time{text-align:right;}
 
-        .lb-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;color:var(--text-secondary);font-size:.85rem;padding:2rem;}
+        .lb-more{position:sticky;top:0;align-self:center;margin:6px auto 8px;padding:5px 14px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:12px;cursor:pointer;z-index:2}
+    .lb-more:hover{border-color:var(--primary);color:var(--primary)}
+    .lb-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;color:var(--text-secondary);font-size:.85rem;padding:2rem;}
         .lb-compose{flex:0 0 auto;border-top:1px solid var(--border-light,#E4E9F0);padding:.625rem;display:flex;gap:.5rem;align-items:flex-end;background:var(--surface,#fff);}
         .lb-input{flex:1 1 auto;resize:none;min-height:2.5rem;max-height:7rem;padding:.5rem .75rem;border:1px solid var(--border,#E3E7EC);border-radius:.75rem;font-size:.875rem;line-height:1.5;font-family:inherit;color:var(--text);background:var(--bg,#fff);}
         .lb-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(47,91,154,.12);}
@@ -117,6 +119,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
 
     <div class="lb-panel">
         <div class="lb-msgs" id="lbMsgs">
+            <button type="button" class="lb-more" id="lbMore" style="display:none">↑ 加载更早消息</button>
             <div class="lb-empty" id="lbEmpty">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -204,7 +207,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         return msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 60;
     }
 
-    function renderMsg(m) {
+    function renderMsg(m, beforeNode) {
         if (seen[m.id]) return;
         seen[m.id] = true;
 
@@ -237,7 +240,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
                 lightbox.classList.add('show');
             });
         }
-        msgsEl.appendChild(wrap);
+        if (beforeNode) { msgsEl.insertBefore(wrap, beforeNode); } else { msgsEl.appendChild(wrap); }
     }
 
     function appendMessages(list) {
@@ -252,6 +255,32 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         });
         if (stick) msgsEl.scrollTop = msgsEl.scrollHeight;
     }
+
+    var moreBtn = document.getElementById('lbMore');
+    var oldestTs = 0, hasMoreOld = false;
+
+    function loadEarlier() {
+        if (!moreBtn || !oldestTs) return;
+        moreBtn.disabled = true;
+        var prevH = msgsEl.scrollHeight;
+        fetch(SITE_URL + '/api/lobby.php?action=list&before=' + oldestTs + '&limit=60', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                var list = (res && res.data && res.data.messages) || [];
+                var firstEl = msgsEl.querySelector('.lb-msg');
+                list.sort(function (a, b) { return (Number(a.ts) || 0) - (Number(b.ts) || 0); });
+                list.forEach(function (m) {
+                    renderMsg(m, firstEl || null);
+                    if (!oldestTs || Number(m.ts) < oldestTs) oldestTs = Number(m.ts);
+                });
+                hasMoreOld = !!(res && res.data && res.data.has_more);
+                moreBtn.style.display = hasMoreOld ? '' : 'none';
+                msgsEl.scrollTop = msgsEl.scrollHeight - prevH + msgsEl.scrollTop;
+            })
+            .catch(function () {})
+            .then(function () { moreBtn.disabled = false; });
+    }
+    if (moreBtn) moreBtn.addEventListener('click', loadEarlier);
 
     function fetchList(incremental) {
         if (polling) return Promise.resolve();
@@ -269,7 +298,13 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
                     return;
                 }
                 setState('已连接', 'online');
-                appendMessages(res.data.messages || []);
+                var batch = res.data.messages || [];
+                appendMessages(batch);
+                if (!incremental) {
+                    oldestTs = batch.length ? Number(batch[0].ts) || 0 : 0;
+                    hasMoreOld = !!res.data.has_more;
+                    if (moreBtn) moreBtn.style.display = hasMoreOld ? '' : 'none';
+                }
                 setQuota(res.data.quota_left);
             })
             .catch(function () { setState('网络异常', 'offline'); })

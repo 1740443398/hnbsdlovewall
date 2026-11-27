@@ -199,7 +199,7 @@ if (!function_exists('lwLobbyMessages')) {
      * 读最近消息（升序，最多 100 条）。附带发送者昵称/头像快照，
      * 避免渲染时对每个发送者再查一次 users。
      */
-    function lwLobbyMessages(int $limit = 50): array
+    function lwLobbyMessages(int $limit = 50, int $before = 0): array
     {
         $rows = getFS()->read('lobby_messages');
         if (!is_array($rows)) {
@@ -212,6 +212,11 @@ if (!function_exists('lwLobbyMessages')) {
         usort($rows, function ($a, $b) {
             return (int)($a['ts'] ?? 0) <=> (int)($b['ts'] ?? 0);
         });
+        if ($before > 0) {
+            $rows = array_values(array_filter($rows, function ($r) use ($before) {
+                return (int)($r['ts'] ?? 0) < $before;
+            }));
+        }
         if (count($rows) > $limit) {
             $rows = array_slice($rows, -$limit);
         }

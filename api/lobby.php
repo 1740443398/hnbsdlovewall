@@ -51,7 +51,13 @@ if ($action === 'list') {
     if ($limit < 1) $limit = 50;
     if ($limit > 100) $limit = 100;
 
-    $msgs = lwLobbyMessages($limit);
+    $before = (int)($_GET['before'] ?? 0);
+    $msgs = lwLobbyMessages($limit, $before);
+    $hasMore = false;
+    if ($before > 0 || $since === 0) {
+        $allRows = lwLobbyMessages(1000, $before);
+        $hasMore = count($allRows) > count($msgs);
+    }
     if ($since > 0) {
         $msgs = array_values(array_filter($msgs, function ($m) use ($since) {
             return (int)$m['ts'] > $since;
@@ -66,6 +72,7 @@ if ($action === 'list') {
     jsonSuccess([
         'messages' => $msgs,
         'last_ts' => $lastTs,
+        'has_more' => $hasMore,
         'quota_left' => lwLobbyImageQuotaLeft((int)$user['id']),
         'retain_hours' => LW_LOBBY_RETAIN_HOURS,
         'daily_images' => LW_LOBBY_DAILY_IMAGES,
