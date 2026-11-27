@@ -252,6 +252,19 @@ if ($detail):
         <span style="font-size:12px;color:var(--text-muted)"><?= htmlspecialchars((string) $l['draw_at']) ?></span>
       <?php else: ?><span>已开奖</span><?php endif; ?>
     </div>
+    <?php $__lrules = (array) ($l['rules'] ?? []); if ($__lrules): ?>
+    <div class="lot-rules lot-rules--compact">
+      <?php foreach ($__lrules as $__r):
+          $__ic = '✅';
+          if (mb_strpos($__r, '转发') !== false) { $__ic = '🔁'; }
+          elseif (mb_strpos($__r, '评论') !== false) { $__ic = '💬'; }
+          elseif (mb_strpos($__r, '点赞') !== false) { $__ic = '👍'; }
+          elseif (mb_strpos($__r, '关注') !== false) { $__ic = '➕'; }
+      ?>
+        <span class="lot-rule-chip"><i><?= $__ic ?></i><?= htmlspecialchars($__r) ?></span>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
   </a>
     <?php endforeach; endif; ?>
     <?php if ($user && $myLotIds): ?>
