@@ -58,6 +58,9 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     #moreWrap{text-align:center;margin:18px 0 8px}
     #moreBtn{padding:10px 26px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:.9rem;cursor:pointer}
     #moreBtn:disabled{opacity:.6;cursor:default}
+    .sr-cats{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+    .sr-cat{padding:5px 12px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);font-size:.82rem;color:var(--text-secondary,#4a5568);text-decoration:none;cursor:pointer}
+    .sr-cat.on{background:var(--primary,#2F5B9A);color:#fff;border-color:var(--primary,#2F5B9A)}
     .sr-history{display:none;margin:4px 0 14px;font-size:.85rem}
     .sr-history-head{display:flex;justify-content:space-between;align-items:center;color:var(--text-muted,#a0aec0);margin-bottom:8px}
     .sr-history-head button{background:none;border:none;color:var(--primary,#2F5B9A);cursor:pointer;font-size:.82rem;padding:2px 4px}
@@ -77,6 +80,16 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
         <input type="search" id="q" value="<?= htmlspecialchars($q) ?>" placeholder="搜索帖子标题、正文或作者…" autofocus>
         <button type="submit">搜索</button>
     </form>
+
+    <div class="sr-cats" id="cats">
+        <a class="sr-cat on" data-cat="">全部分类</a>
+        <a class="sr-cat" data-cat="lost_found">失物招领</a>
+        <a class="sr-cat" data-cat="study_help">学习互助</a>
+        <a class="sr-cat" data-cat="social_chat">交友闲聊</a>
+        <a class="sr-cat" data-cat="confession">表白</a>
+        <a class="sr-cat" data-cat="school_info">校园资讯</a>
+        <a class="sr-cat" data-cat="other">其他</a>
+    </div>
 
     <div class="sr-history" id="history">
         <div class="sr-history-head"><span>最近搜索</span><button type="button" id="clearHistory">清空</button></div>
@@ -165,7 +178,7 @@ function render(data, append) {
 function fetchPage(page, append) {
     var q = LAST_Q;
     var url = '/api/search/fulltext.php?q=' + encodeURIComponent(q) + '&sort=' + SORT +
-        '&page=' + page + '&limit=20';
+        '&page=' + page + '&limit=20' + (CAT ? ('&category=' + encodeURIComponent(CAT)) : '');
     document.getElementById('result').innerHTML = '<div class="sr-empty">搜索中…</div>';
     fetch(url, { credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
@@ -192,7 +205,7 @@ function search() {
     LAST_Q = q;
     saveHistory(q);
     var __h = document.getElementById('history'); if (__h) __h.style.display = 'none';
-    history.replaceState(null, '', '/pages/search.php?q=' + encodeURIComponent(q) + '&sort=' + SORT);
+    history.replaceState(null, '', '/pages/search.php?q=' + encodeURIComponent(q) + '&sort=' + SORT + (CAT ? ('&category=' + encodeURIComponent(CAT)) : ''));
     ITEMS = [];
     fetchPage(1, false);
 }
@@ -202,6 +215,16 @@ function loadMore() {
     fetchPage(PAGE + 1, true);
 }
 document.getElementById('moreBtn').addEventListener('click', loadMore);
+
+document.querySelectorAll('.sr-cat').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelectorAll('.sr-cat').forEach(function (x) { x.classList.remove('on'); });
+        a.classList.add('on');
+        CAT = a.getAttribute('data-cat') || '';
+        if (document.getElementById('q').value.trim()) search();
+    });
+});
 
 /* ---------- 最近搜索（localStorage，最多 8 条） ---------- */
 var HIST_KEY = 'lw_search_history';

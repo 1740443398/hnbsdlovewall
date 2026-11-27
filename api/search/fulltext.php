@@ -22,6 +22,7 @@ $q = trim((string)($_GET['q'] ?? ''));
 $sort = (string)($_GET['sort'] ?? 'relevance');
 $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = min(50, max(1, (int)($_GET['limit'] ?? 20)));
+$category = (string) ($_GET['category'] ?? '');
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -62,6 +63,8 @@ $hits = [];
 foreach (lwEnhRead('posts') as $p) {
     if (($p['status'] ?? 'published') !== 'published') continue;
     if (($p['visibility'] ?? 'public') !== 'public') continue;
+    if (in_array($category, ['lost_found','study_help','social_chat','confession','school_info','other'], true)
+        && (string) ($p['category'] ?? '') !== $category) continue;
 
     $title = mb_strtolower((string)($p['title'] ?? ''), 'UTF-8');
     $content = mb_strtolower((string)($p['content'] ?? ''), 'UTF-8');
