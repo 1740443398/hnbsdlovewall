@@ -17,6 +17,7 @@ if (!checkPermission($adminUser, 'view_posts')) {
     die('403 Forbidden - 权限不足');
 }
 $canDelete = checkPermission($adminUser, 'delete_posts');
+$canBan = checkPermission($adminUser, 'ban_user');
 
 $notice = '';
 $noticeType = 'success';
@@ -91,7 +92,10 @@ adminHeader('聊天室管理', $adminUser, $csrfToken);
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars(date('m-d H:i', (int)(($r['ts'] ?? 0) / 1000))) ?></td>
-                        <td>
+                        <td style="white-space:nowrap">
+                            <?php if ($canBan && !in_array((string)($r['role'] ?? 'user'), ['admin', 'super_admin'], true) && (int)($r['user_id'] ?? 0) > 0): ?>
+                            <button type="button" class="btn btn-warning btn-sm" onclick="banUser(<?= (int)$r['user_id'] ?>, '<?= htmlspecialchars(addslashes((string)($r['nickname'] ?? '')), ENT_QUOTES) ?>')">封禁7天</button>
+                            <?php endif; ?>
                             <?php if ($canDelete): ?>
                             <form method="post" onsubmit="return confirm('确定删除这条消息？')" style="display:inline">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
@@ -108,4 +112,24 @@ adminHeader('聊天室管理', $adminUser, $csrfToken);
         </div>
     </div>
 </div>
+<script>
+var ADMIN_CSRF = <?= json_encode($csrfToken) ?>;
+function banUser(uid, name) {
+    if (!uid) return;
+    if (!confirm('确定封禁「' + name + '」7 天？\n原因：聊天室违规')) return;
+    var fd = new URLSearchParams();
+    fd.set('csrf_token', ADMIN_CSRF);
+    fd.set('action', 'ban');
+    fd.set('user_id', uid);
+    fd.set('duration', '7');
+    fd.set('reason', '聊天室违规');
+    fetch('/api/admin/users.php', { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d && d.success) { location.reload(); }
+            else { alert((d && d.message) || '封禁失败'); }
+        })
+        .catch(function () { alert('网络错误，封禁失败'); });
+}
+</script>
 <?php adminFooter(); ?>
