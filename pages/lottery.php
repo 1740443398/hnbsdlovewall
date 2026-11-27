@@ -134,7 +134,10 @@ if ($detail):
     }
 ?>
   <div class="card">
-    <h2>🎁 <?= htmlspecialchars((string) $l['title']) ?></h2>
+    <h2><?php
+        $__lcover = trim((string) ($l['cover_image'] ?? ''));
+        if ($__lcover !== '' && $__lcover[0] === '/') { $__lcover = 'https://' . ltrim((string) parse_url(SITE_URL, PHP_URL_HOST), '/') . $__lcover; }
+    ?><?php if ($__lcover !== ''): ?><img class="lot-thumb" src="<?= htmlspecialchars($__lcover) ?>" alt="" loading="lazy" style="width:40px;height:40px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:8px;background:#e8edf2" onerror="this.style.display='none'"><?php endif; ?>🎁 <?= htmlspecialchars((string) $l['title']) ?></h2>
     <div class="meta">
       <span class="prize">奖品：<?= htmlspecialchars((string) $l['prize']) ?> × <?= (int) $l['prize_count'] ?></span>
       <span>参与 <?= count($entries) ?> 人</span>
@@ -372,7 +375,10 @@ if ($detail):
         $cnt = count(lwLotteryEntries((int) $l['id']));
     ?>
   <a class="card" href="/pages/lottery.php?id=<?= (int) $l['id'] ?>" style="display:block;text-decoration:none;color:inherit">
-    <h2>🎁 <?= htmlspecialchars((string) $l['title']) ?></h2>
+    <h2><?php
+        $__lcover = trim((string) ($l['cover_image'] ?? ''));
+        if ($__lcover !== '' && $__lcover[0] === '/') { $__lcover = 'https://' . ltrim((string) parse_url(SITE_URL, PHP_URL_HOST), '/') . $__lcover; }
+      ?><?php if ($__lcover !== ''): ?><img class="lot-thumb" src="<?= htmlspecialchars($__lcover) ?>" alt="" loading="lazy" style="width:40px;height:40px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:8px;background:#e8edf2" onerror="this.style.display='none'"><?php endif; ?>🎁 <?= htmlspecialchars((string) $l['title']) ?></h2>
     <div class="meta">
       <span class="prize"><?= htmlspecialchars((string) $l['prize']) ?> × <?= (int) $l['prize_count'] ?></span>
       <span>参与 <?= $cnt ?> 人</span>
