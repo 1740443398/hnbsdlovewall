@@ -267,6 +267,41 @@ if (!function_exists('lwLobbyAppend')) {
                 'image' => $image,
                 'ts' => $ts,
             ]);
+            /* @提及通知：聊天室里写 @昵称 时，给被提到的人落一条 mention 通知。
+             * 只处理正文里的 @，最多 5 个人，避免一条消息刷屏；自己提自己跳过。 */
+            if ($kind !== 'image' && $text !== '') {
+                // lobby mention
+                if (preg_match_all('/@([^\s@,，。!！?？:：;；]{1,20})/u', $text, $__mm)) {
+                    $__names = array_values(array_unique(array_filter(array_map('trim', $__mm[1]))));
+                    $__names = array_slice($__names, 0, 5);
+                    if ($__names) {
+                        $__users = getFS()->read('users');
+                        $__byNick = [];
+                        foreach ((array) $__users as $__u) {
+                            $__nick = trim((string)($__u['nickname'] ?? ''));
+                            if ($__nick !== '' && !isset($__byNick[$__nick])) { $__byNick[$__nick] = (int)($__u['id'] ?? 0); }
+                        }
+                        $__excerpt = mb_substr($text, 0, 60);
+                        foreach ($__names as $__who) {
+                            $__uid = (int)($__byNick[$__who] ?? 0);
+                            if ($__uid <= 0 || $__uid === (int)$user['id']) { continue; }
+                            try {
+                                getFS()->insert('notifications', [
+                                    'user_id'    => $__uid,
+                                    'type'       => 'mention',
+                                    'content'    => '💬 聊天室里 ' . (string)($user['nickname'] ?? '有人') . ' 提到了你：' . $__excerpt,
+                                    'post_id'    => 0,
+                                    'post_title' => '',
+                                    'link'       => '/pages/room.php',
+                                    'from_user'  => (string)($user['nickname'] ?? ''),
+                                    'is_read'    => false,
+                                    'created_at' => date('Y-m-d H:i:s'),
+                                ]);
+                            } catch (Throwable $__e2) {}
+                        }
+                    }
+                }
+            }
             return ['ok' => true, 'error' => '', 'id' => (int)($row['id'] ?? 0)];
         } catch (Exception $e) {
             error_log('[love_wall] 聊天室写入失败：' . $e->getMessage());
