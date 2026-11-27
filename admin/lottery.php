@@ -136,6 +136,15 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
                             · 开奖：<?= htmlspecialchars((string) $l['draw_at']) ?>
                             · 参与：<?= count($entries) ?> 人
                             · 提醒：<?= (int) ($remindCount[(int) $l['id']] ?? 0) ?> 人
+                            <?php
+                            $__rulesView = (array) ($l['rules'] ?? []);
+                            if (!$__rulesView) {
+                                if (!empty($l['rule_like']))    { $__rulesView[] = '点赞'; }
+                                if (!empty($l['rule_comment'])) { $__rulesView[] = '评论'; }
+                                if (!empty($l['rule_repost']))  { $__rulesView[] = '转发'; }
+                            }
+                            ?>
+                            · 规则：<?= $__rulesView ? htmlspecialchars(implode(' / ', $__rulesView)) : '无' ?>
                             · <?php if ($postId > 0 && $postRow): ?>
                                 <a href="/pages/post_detail.php?id=<?= $postId ?>" style="font-weight:600">附带动态 #<?= $postId ?></a>
                               <?php elseif ($postId > 0): ?>
