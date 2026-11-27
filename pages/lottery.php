@@ -109,7 +109,11 @@ if ($detail):
     <?php endif; ?>
     <div class="lot-rules">
       <span class="lot-rules-label">参与方式</span>
-      <?php $__ruleState = $user ? lwLotteryRuleStatus($l, (int) $user['id']) : []; ?>
+      <?php
+        $__ruleState = $user ? lwLotteryRuleStatus($l, (int) $user['id']) : [];
+        $__missingRules = 0;
+        foreach ($__ruleState as $__v) { if (!$__v) { $__missingRules++; } }
+      ?>
       <?php if ($rules): foreach ($rules as $__r):
           $__icon = '✅';
           if (mb_strpos($__r, '转发') !== false) { $__icon = '🔁'; }
@@ -154,8 +158,15 @@ if ($detail):
           <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
         </div>
       <?php else: ?>
+        <?php if (!empty($__missingRules)): ?>
+        <div class="lot-missing-hint">还差 <?= (int) $__missingRules ?> 项参与条件，点上面的红叉去完成即可</div>
+        <?php endif; ?>
         <div class="lot-actions">
+          <?php if (!empty($__missingRules)): ?>
+          <button class="btn" type="button" disabled title="请先完成参与条件">还差 <?= (int) $__missingRules ?> 项条件</button>
+          <?php else: ?>
           <button class="btn" id="joinBtn" data-id="<?= (int) $l['id'] ?>">参与抽奖</button>
+          <?php endif; ?>
           <button class="btn ghost" onclick="copyShare()">复制分享链接</button>
           <?php if ($user): ?><button class="btn ghost lot-remind<?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? ' on' : '' ?>" id="lotRemind" data-id="<?= (int) $l['id'] ?>"><?= lwLotteryRemindHas((int) $user['id'], (int) $l['id']) ? '🔔 已设提醒' : '🔔 提醒我' ?></button><?php endif; ?>
         </div>
