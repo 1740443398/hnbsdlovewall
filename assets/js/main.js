@@ -3626,6 +3626,7 @@
         try {
           await fetchAPI('/api/user/notifications.php', { method: 'POST', body: 'action=read_all' });
           this.unreadCount = 0;
+          this._srvCounts = { all: 0, interact: 0, system: 0, lottery: 0 };
           this.updateBadge();
           this._items = this._items.map((n) => Object.assign({}, n, { is_read: true }));
           this.renderList(true);
@@ -3690,6 +3691,7 @@
           this._newIds = fresh;
         }
 
+        this._srvCounts = (res && res.data && res.data.type_counts) || null;
         this._items = isMore ? this._items.concat(batch) : batch;
         this._hasMore = hasMore;
         if (this._st) {
@@ -3746,10 +3748,16 @@
       this.updatePanelList(list, isCleared);
     },
 
+    /** 服务端全量未读分类数优先；没有就用当前已加载的近似值 */
+    applySrvCounts() { if (this._srvCounts) this.updateTabCounts(this._items);
+    },
+
     updateTabCounts(all) {
       if (!this._st) return;
       const counts = { all: 0, interact: 0, system: 0, lottery: 0 };
-      (all || []).forEach((n) => {
+      if (this._srvCounts) {
+        Object.keys(counts).forEach((k) => { counts[k] = Number(this._srvCounts[k] || 0); });
+      } else (all || []).forEach((n) => {
         if (n.is_read) return;
         const cat = this.classify(n)[0];
         counts.all++;
@@ -3843,6 +3851,11 @@
               this.updateBadge();
               const rec = this._items.find((n) => String(n.id) === String(id));
               if (rec) rec.is_read = true;
+              if (this._srvCounts && rec) {
+                const c2 = this.classify(rec)[0];
+                this._srvCounts.all = Math.max(0, (this._srvCounts.all || 0) - 1);
+                this._srvCounts[c2] = Math.max(0, (this._srvCounts[c2] || 0) - 1);
+              }
               this.updateTabCounts(this._items);
             } catch (err) {}
           }

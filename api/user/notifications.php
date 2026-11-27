@@ -22,6 +22,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
 
+    /* 分类未读数：给前端标签页展示「全部/互动/抽奖/系统」小红点用。
+     * 必须在分页切片之前统计，否则只能数到当前页的 20 条。 */
+    $__cats = ['all' => 0, 'interact' => 0, 'lottery' => 0, 'system' => 0];
+    foreach ($notifications as $__n) {
+        if (!empty($__n['is_read'])) { continue; }
+        $__t = (string) ($__n['type'] ?? 'system');
+        $__cats['all']++;
+        if (in_array($__t, ['comment', 'reply', 'mention', 'follow', 'like'], true)) { $__cats['interact']++; }
+        elseif ($__t === 'lottery_result') { $__cats['lottery']++; }
+        else { $__cats['system']++; }
+    }
+
     if ($unreadOnly) {
         $notifications = array_filter($notifications, function($n) { return empty($n['is_read']); });
     }
@@ -58,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 ['id']
             ),
             'unread_count' => $unreadCount,
+            'type_counts' => $__cats,
             'total' => $total,
             'page' => $page,
             'has_more' => ($page * $limit) < $total,
