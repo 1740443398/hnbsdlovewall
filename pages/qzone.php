@@ -69,6 +69,18 @@ if ($q !== '' || $kind !== '') {
 $showLikes = (int) $cfg['sync_likes'] === 1;
 $showComments = (int) $cfg['sync_comments'] === 1;
 
+/** 搜索命中高亮：先转义再加 <mark>，避免 XSS */
+function qzHighlight(string $text, string $q): string
+{
+    $esc = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    if ($q === '') { return nl2br($esc); }
+    return nl2br(str_ireplace(
+        htmlspecialchars($q, ENT_QUOTES, 'UTF-8'),
+        '<mark class="qz-mark">' . htmlspecialchars($q, ENT_QUOTES, 'UTF-8') . '</mark>',
+        $esc
+    ));
+}
+
 function qzTime(int $ts): string
 {
     if ($ts <= 0) { return ''; }
@@ -96,6 +108,7 @@ function qzTime(int $ts): string
         .qz-lightbox.show { display: flex; }
         .qz-lightbox img { max-width: 96vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 18px 50px rgba(0,0,0,.4); object-fit: contain; }
         .qz-lightbox .qz-lb-close { position: fixed; top: 16px; right: 20px; color: #fff; font-size: 26px; line-height: 1; background: none; border: 0; cursor: pointer; }
+        .qz-mark { background: rgba(255, 196, 0, .45); color: inherit; border-radius: 3px; padding: 0 1px; }
         .qz-search { display: flex; gap: 8px; margin-top: 12px; }
         .qz-search input { flex: 1 1 auto; padding: 9px 12px; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--card-bg); color: var(--text); font-size: .88rem; }
         .qz-search button { padding: 9px 16px; border-radius: 10px; border: none; background: var(--primary); color: #fff; font-size: .88rem; cursor: pointer; }
@@ -247,7 +260,7 @@ require __DIR__ . '/../includes/site_header.php';
                 </div>
                 <?php endif; ?>
                 <div class="qz-body">
-                    <?php if ($text !== ''): ?><p class="qz-text"><?= nl2br(htmlspecialchars($text)) ?></p><?php endif; ?>
+                    <?php if ($text !== ''): ?><p class="qz-text"><?= qzHighlight($text, $q) ?></p><?php endif; ?>
                     <?php if (!$imgs && $text === ''): ?><p class="qz-text" style="color:var(--text-muted);">（这条说说没有可展示的内容）</p><?php endif; ?>
                 </div>
 
@@ -256,7 +269,7 @@ require __DIR__ . '/../includes/site_header.php';
                     <?php foreach (array_slice($comments, 0, 8) as $c): ?>
                     <div class="qz-c">
                         <b><?= htmlspecialchars((string) $c['author']) ?></b>：
-                        <?= htmlspecialchars((string) $c['content']) ?>
+                        <?= qzHighlight((string) $c['content'], $q) ?>
                     </div>
                     <?php endforeach; ?>
                     <?php if (count($comments) > 8): ?>
