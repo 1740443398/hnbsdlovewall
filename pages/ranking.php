@@ -27,12 +27,12 @@ $isGuest = ($user === null);
 $fs = getFS();
 
 // ---- 时间窗口 --------------------------------------------------------------
-$rangeDays = ['week' => 7, 'month' => 30];
+$rangeDays = ['week' => 7, 'month' => 30, 'all' => 0, 'study' => 7];
 $range = (string)($_REQUEST['range'] ?? 'week');
 if (!isset($rangeDays[$range])) {
     $range = 'week';
 }
-$since = strtotime('-' . $rangeDays[$range] . ' day');
+$since = $rangeDays[$range] > 0 ? strtotime('-' . $rangeDays[$range] . ' day') : 0;
 
 // ---- 候选帖子（可见 + 已发布 + 窗口内 + 非公告） ----------------------------
 $visible = lwFilterVisiblePosts($fs->read('posts'), $user);
@@ -56,6 +56,9 @@ foreach ($visible as $p) {
     }
     $ts = strtotime((string)($p['created_at'] ?? ''));
     if ($ts === false || $ts < $since) {
+        continue;
+    }
+    if ($range === 'study' && !in_array((string)($p['category'] ?? ''), ['study_help', 'confession', 'school_info'], true)) {
         continue;
     }
     $cands[(int)($p['id'] ?? 0)] = $p;
@@ -288,10 +291,20 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
             <div class="rk-hero">
                 <div class="rk-hero-inner">
                     <div class="rk-title"><?= t('rank.page_title') ?></div>
-                    <div class="rk-sub"><?= $range === 'week' ? t('rank.scope_week') : t('rank.scope_month') ?></div>
+                    <div class="rk-sub"><?php
+                        $__rangeLabel = [
+                            'week'  => t('rank.scope_week'),
+                            'month' => t('rank.scope_month'),
+                            'all'   => '建站以来的全部贡献',
+                            'study' => '近 7 天的学习类内容贡献',
+                        ];
+                        echo htmlspecialchars($__rangeLabel[$range] ?? '');
+                    ?></div>
                     <div class="rk-switch">
                         <a href="?range=week" class="<?= $range === 'week' ? 'active' : '' ?>"><?= t('rank.week') ?></a>
                         <a href="?range=month" class="<?= $range === 'month' ? 'active' : '' ?>"><?= t('rank.month') ?></a>
+                        <a href="?range=all" class="<?= $range === 'all' ? 'active' : '' ?>">总榜</a>
+                        <a href="?range=study" class="<?= $range === 'study' ? 'active' : '' ?>">学习榜</a>
                     </div>
                     <?php if ($isGuest): ?>
                     <div class="rk-guests">
