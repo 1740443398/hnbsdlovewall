@@ -278,7 +278,11 @@ foreach ($all as $__lv) {
                             <button class="btn btn-sm btn-success" type="submit">立即开奖</button>
                         </form>
                         <?php endif; ?>
-                        <form method="post" style="display:inline-flex;gap:6px;align-items:center;margin-right:6px" onsubmit="return confirm('给全部参与者群发这条私信？')">
+                        <?php $__wc = count((array) ($winners ?? [])); ?>
+                    <div class="pm-scope-hint" style="font-size:11.5px;color:var(--text-muted);margin:6px 0 2px">
+                        群发范围：全部 <?= count($entries) ?> 人 · 中奖 <?= $__wc ?> 人 · 未中 <?= max(0, count($entries) - $__wc) ?> 人
+                    </div>
+                    <form method="post" style="display:inline-flex;gap:6px;align-items:center;margin-right:6px" onsubmit="return confirm('给所选范围的参与者群发这条私信？')">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <input type="hidden" name="act" value="pm_entries">
                         <input type="hidden" name="lottery_id" value="<?= (int) $l['id'] ?>">
