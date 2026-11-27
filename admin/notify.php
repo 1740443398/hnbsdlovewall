@@ -141,6 +141,13 @@ adminHeader('通知群发', $adminUser, $csrfToken);
             </div>
             <div class="form-group" style="margin-bottom:14px">
                 <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">通知内容</label>
+                <div class="ntf-template-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                    <button type="button" class="btn btn-outline btn-sm ntf-template" data-tpl="maintenance">维护公告</button>
+                    <button type="button" class="btn btn-outline btn-sm ntf-template" data-tpl="event">活动预告</button>
+                    <button type="button" class="btn btn-outline btn-sm ntf-template" data-tpl="feature">新功能上线</button>
+                    <button type="button" class="btn btn-outline btn-sm ntf-template" data-tpl="exam">考试周提醒</button>
+                    <span style="font-size:12px;color:var(--text-secondary);align-self:center">点模板快速填入</span>
+                </div>
                 <textarea name="content" rows="4" maxlength="500" placeholder="例：今晚 23:00-24:00 站点维护，期间可能无法访问"
                     style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical"></textarea>
             </div>
@@ -216,6 +223,30 @@ adminHeader('通知群发', $adminUser, $csrfToken);
             if (push) push.checked = btn.getAttribute('data-push') === '1';
             form.scrollIntoView({ behavior: 'smooth', block: 'center' });
             if (content) content.focus();
+        });
+    });
+})();
+</script>
+<script>
+(function () {
+    var TPL = {
+        maintenance: { text: '【维护公告】今晚 23:00-24:00 站点将进行例行维护，期间可能短暂无法访问，请提前保存草稿。给大家带来不便，敬请谅解。', link: '/', title: '维护公告' },
+        event:       { text: '【活动预告】新一轮校园活动即将开始，详情见站内公告，欢迎同学们参与！', link: '/pages/lottery.php', title: '活动预告' },
+        feature:     { text: '【新功能上线】站内新增若干功能，欢迎体验并反馈建议，你的意见会直接影响后续迭代。', link: '/pages/discover.php', title: '新功能上线' },
+        exam:        { text: '【考试周提醒】本周进入考试周，注意休息、合理分配复习时间。祝大家取得好成绩！', link: '/pages/tools.php', title: '考试周提醒' }
+    };
+    document.querySelectorAll('.ntf-template').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var t = TPL[btn.getAttribute('data-tpl')];
+            if (!t) return;
+            var form = document.querySelector('form[method="post"]');
+            if (!form) return;
+            var content = form.querySelector('textarea[name="content"]');
+            var link = form.querySelector('input[name="link"]');
+            var pushTitle = form.querySelector('input[name="push_title"]');
+            if (content) { content.value = t.text; content.focus(); }
+            if (link && !link.value) { link.value = t.link; }
+            if (pushTitle && !pushTitle.value) { pushTitle.value = t.title; }
         });
     });
 })();
