@@ -392,3 +392,16 @@ html[data-theme="dark"] .lot-missing-hint a { color: #F0A8A2; }
   body .table-wrapper table { min-width: 640px; }
   .lot-calendar .section-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
+
+/* ===== 后台抽奖列表：操作按钮组移动端换行整理 ===== */
+.lot-admin-actions { align-items: center; }
+.lot-admin-actions form { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+@media (max-width: 768px) {
+  .lot-admin-actions { gap: 8px !important; margin-top: 10px; }
+  .lot-admin-actions .btn,
+  .lot-admin-actions form { flex: 1 1 calc(50% - 8px); min-width: 0; }
+  .lot-admin-actions form .btn { width: 100%; }
+  .lot-admin-actions input[type="text"] { min-width: 0 !important; flex: 1; }
+  .lot-admin-actions form[onsubmit] { flex-wrap: wrap; }
+}

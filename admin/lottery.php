@@ -437,7 +437,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                         </div>
                         <?php endif; ?>
                     </div>
-                    <div style="display:flex;gap:6px">
+                    <div class="lot-admin-actions" style="display:flex;gap:6px;flex-wrap:wrap">
                         <a class="btn btn-sm" href="/pages/lottery.php?id=<?= (int) $l['id'] ?>">查看</a>
                         <a class="btn btn-sm" href="/admin/lottery_edit.php?id=<?= (int) $l['id'] ?>">编辑</a>
                         <a class="btn btn-sm" href="/admin/app_push.php?lot=<?= (int) $l['id'] ?>">推送记录</a>
