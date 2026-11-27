@@ -95,6 +95,11 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
   <div style="display:flex;gap:8px;margin:10px 0 4px;font-size:12.5px">
     <a href="/pages/lottery.php?view=all" style="padding:4px 12px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['view'] ?? 'all') !== 'mine' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">全部抽奖</a>
     <a href="/pages/lottery.php?view=mine" style="padding:4px 12px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['view'] ?? '') === 'mine' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">我参与的（<?= count($myLotIds) ?>）</a>
+    <span style="color:var(--border)">|</span>
+    <?php $__vq = 'view=' . urlencode($_GET['view'] ?? 'all'); ?>
+    <a href="/pages/lottery.php?<?= $__vq ?>&status=all" style="padding:4px 10px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['status'] ?? 'all') === 'all' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">全部状态</a>
+    <a href="/pages/lottery.php?<?= $__vq ?>&status=open" style="padding:4px 10px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['status'] ?? '') === 'open' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">进行中</a>
+    <a href="/pages/lottery.php?<?= $__vq ?>&status=drawn" style="padding:4px 10px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['status'] ?? '') === 'drawn' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">已开奖</a>
   </div>
 <?php endif; ?>
 
@@ -316,6 +321,15 @@ if ($detail):
     if ($listView === 'mine') {
         $all = array_values(array_filter($all, function ($__l) use ($myLotIds) {
             return !empty($myLotIds[(int) ($__l['id'] ?? 0)]);
+        }));
+    }
+    /* 二级过滤：进行中 / 已开奖 */
+    $listStatus = (string) ($_GET['status'] ?? 'all');
+    if (!in_array($listStatus, ['all', 'open', 'drawn'], true)) { $listStatus = 'all'; }
+    if ($listStatus !== 'all') {
+        $all = array_values(array_filter($all, function ($__l) use ($listStatus) {
+            $st = (string) ($__l['status'] ?? 'open');
+            return $listStatus === 'open' ? ($st === 'open') : ($st !== 'open');
         }));
     }
     if (!$all): ?>
