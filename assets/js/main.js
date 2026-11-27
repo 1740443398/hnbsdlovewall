@@ -3502,6 +3502,7 @@
         '<div class="lw-ntf-tabs" role="tablist">' +
           '<button type="button" class="lw-ntf-tab is-active" data-ntf-tab="all" role="tab">全部</button>' +
           '<button type="button" class="lw-ntf-tab" data-ntf-tab="interact" role="tab">互动</button>' +
+          '<button type="button" class="lw-ntf-tab" data-ntf-tab="lottery" role="tab">抽奖</button>' +
           '<button type="button" class="lw-ntf-tab" data-ntf-tab="system" role="tab">系统</button>' +
         '</div>' +
         '<div class="notification-panel-list lw-ntf-list"><div class="notification-panel-empty">' +
@@ -3699,6 +3700,7 @@
         pm:      ['system',   'high',   '私信'],
         admin:   ['system',   'high',   '管理'],
         system:  ['system',   'low',    '系统'],
+        lottery_result: ['lottery', 'high', '抽奖'],
       };
       return map[t] || ['system', 'normal', '通知'];
     },
@@ -3710,6 +3712,7 @@
       let list = all;
       if (this._tab === 'interact') list = all.filter((n) => this.classify(n)[0] === 'interact');
       else if (this._tab === 'system') list = all.filter((n) => this.classify(n)[0] === 'system');
+      else if (this._tab === 'lottery') list = all.filter((n) => this.classify(n)[0] === 'lottery');
 
       // 更新标签上的未读数
       this.updateTabCounts(all);
@@ -3718,7 +3721,7 @@
 
     updateTabCounts(all) {
       if (!this._st) return;
-      const counts = { all: 0, interact: 0, system: 0 };
+      const counts = { all: 0, interact: 0, system: 0, lottery: 0 };
       (all || []).forEach((n) => {
         if (n.is_read) return;
         const cat = this.classify(n)[0];
