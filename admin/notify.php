@@ -74,7 +74,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
                 } catch (Throwable $e) {}
             }
             logOperation($adminUser['id'], $adminUser['qq'], 'broadcast_notify', 'notification', 0, '群发通知至 ' . $ok . ' 人');
-            $notice = '已发送给 ' . $ok . ' 位用户';
+
+            /* App 推送：直接写 app_pushes（App 的 NotificationWorker 轮询消费）。
+             * target 为空 = 全体；指定用户时写 user_id 白名单（最多 500，与 App 侧一致）。 */
+            $__pushOk = 0;
+            if (!empty($_POST['app_push'])) {
+                try {
+                    $__pushTitle = trim((string) ($_POST['push_title'] ?? ''));
+                    if ($__pushTitle === '') { $__pushTitle = '站内公告'; }
+                    getFS()->insert('app_pushes', [
+                        'title'      => mb_substr($__pushTitle, 0, 40),
+                        'content'    => mb_substr($content, 0, 300),
+                        'url'        => $link,
+                        'target'     => ($target === 'all') ? '' : implode(',', array_slice($ids, 0, 500)),
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $__pushOk = 1;
+                } catch (Throwable $__pe) {
+                    error_log('broadcast app push failed: ' . $__pe->getMessage());
+                }
+            }
+            $notice = '已发送给 ' . $ok . ' 位用户' . ($__pushOk ? '，App 推送已排队（约 15 分钟内到达）' : '');
         }
     }
 }
@@ -115,11 +135,18 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                 <input type="text" name="link" placeholder="/pages/lottery.php" maxlength="200"
                     style="width:320px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
             </div>
+            <div class="form-group" style="margin-bottom:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                    <input type="checkbox" name="app_push" value="1"> 同时发送 App 推送
+                </label>
+                <input type="text" name="push_title" placeholder="推送标题（默认：站内公告）" maxlength="40"
+                    style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;width:260px">
+            </div>
             <button class="btn btn-primary" type="submit" onclick="return confirm('确认向当前筛选的用户群发通知？')">立即发送</button>
         </form>
 
         <p style="margin-top:14px;font-size:12.5px;color:var(--text-secondary);line-height:1.7">
-            说明：群发写入「系统」分类，用户可在通知面板/通知中心查看；不会发邮件或短信，也不会触发 App 推送。
+            说明：群发写入「系统」分类，用户可在通知面板/通知中心查看；勾选 App 推送后，安装了 App 的用户会在后台轮询周期内收到系统通知（不保证秒达）。
         </p>
     </div>
 </div>
