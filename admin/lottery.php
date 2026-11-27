@@ -30,6 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 'prize_count'  => $_POST['prize_count'] ?? 1,
                 'description'  => $_POST['description'] ?? '',
                 'draw_at'      => $_POST['draw_at'] ?? '',
+                'rule_follow'  => $_POST['rule_follow'] ?? 0,
                 'rule_like'    => $_POST['rule_like'] ?? 0,
                 'rule_comment' => $_POST['rule_comment'] ?? 0,
                 'rule_repost'  => $_POST['rule_repost'] ?? 0,
@@ -40,6 +41,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $r = lwLotteryDraw((int) ($_POST['id'] ?? 0));
             $msg = empty($r['ok']) ? (string) ($r['error'] ?? '开奖失败') : ('已开奖，中奖 ' . count((array) ($r['winners'] ?? [])) . ' 人');
             if (empty($r['ok'])) { $msgType = 'error'; }
+        } elseif ($act === 'pm_entries') {
+            $lid = (int) ($_POST['lottery_id'] ?? 0);
+            $text = trim((string) ($_POST['pm_text'] ?? ''));
+            $adminQq = (string) ($adminUser['qq'] ?? '');
+            if ($lid <= 0 || $text === '') {
+                $msg = '请选择抽奖并填写私信内容'; $msgType = 'error';
+            } elseif ($adminQq === '') {
+                $msg = '管理员账号缺少 QQ 号，无法发私信'; $msgType = 'error';
+            } else {
+                $keyOf = function ($a, $b) { return $a < $b ? $a . '|' . $b : $b . '|' . $a; };
+                $sent = 0; $skip = 0;
+                $fsPm = getFS();
+                foreach ((array) $fsPm->read('lottery_entries') as $__en) {
+                    if ((int) ($__en['lottery_id'] ?? 0) !== $lid) { continue; }
+                    $tu = $fsPm->findById('users', (int) ($__en['user_id'] ?? 0));
+                    $tq = (string) ($tu['qq'] ?? '');
+                    if (!$tu || $tq === '' || $tq === $adminQq || !empty($tu['is_banned'])) { $skip++; continue; }
+                    $fsPm->insert('pm_messages', [
+                        'key'  => $keyOf($adminQq, $tq),
+                        'who'  => $adminQq,
+                        'text' => mb_substr($text, 0, 1000),
+                        'ts'   => (int) round(microtime(true) * 1000) + $sent,
+                    ]);
+                    $sent++;
+                }
+                if (function_exists('logOperation')) {
+                    logOperation((int) $adminUser['id'], $adminQq, 'lottery_pm_entries', 'lottery', (string) $lid, '群发私信 ' . $sent . ' 人');
+                }
+                $msg = '已发送 ' . $sent . ' 条私信' . ($skip ? ('，跳过 ' . $skip . ' 人') : '');
+            }
         } elseif ($act === 'delete') {
             $id = (int) ($_POST['id'] ?? 0);
             $fs = getFS();
@@ -226,7 +257,7 @@ foreach ($all as $__lv) {
                         <?php endif; ?>
                         <form method="post" style="display:inline-flex;gap:6px;align-items:center;margin-right:6px" onsubmit="return confirm('给全部参与者群发这条私信？')">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                        <input type="hidden" name="action" value="pm_entries">
+                        <input type="hidden" name="act" value="pm_entries">
                         <input type="hidden" name="lottery_id" value="<?= (int) $l['id'] ?>">
                         <input type="text" name="pm_text" placeholder="私信参与者内容…" maxlength="200" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);min-width:150px">
                         <button class="btn btn-sm" type="submit">群发</button>
