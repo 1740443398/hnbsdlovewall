@@ -50,6 +50,12 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     .sr-item .mt{font-size:.76rem;color: var(--text-muted, #a0aec0);display:flex;gap:14px;flex-wrap:wrap}
     .sr-item .fd{font-size:.7rem;background: var(--primary-light, #eef3fa);color: var(--primary, #2F5B9A);padding:1px 6px;border-radius:4px;margin-left:6px}
     .sr-empty{text-align:center;padding:60px 20px;color: var(--text-muted, #a0aec0)}
+    .sr-history{display:none;margin:4px 0 14px;font-size:.85rem}
+    .sr-history-head{display:flex;justify-content:space-between;align-items:center;color:var(--text-muted,#a0aec0);margin-bottom:8px}
+    .sr-history-head button{background:none;border:none;color:var(--primary,#2F5B9A);cursor:pointer;font-size:.82rem;padding:2px 4px}
+    .sr-history-chips{display:flex;flex-wrap:wrap;gap:8px}
+    .sr-history-chips a{background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);border-radius:999px;padding:5px 12px;color:var(--text-secondary,#4a5568);text-decoration:none;font-size:.82rem}
+    .sr-history-chips a:hover{border-color:var(--primary,#2F5B9A);color:var(--primary,#2F5B9A)}
     </style>
 </head>
 <body>
@@ -63,6 +69,11 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
         <input type="search" id="q" value="<?= htmlspecialchars($q) ?>" placeholder="搜索帖子标题、正文或作者…" autofocus>
         <button type="submit">搜索</button>
     </form>
+
+    <div class="sr-history" id="history">
+        <div class="sr-history-head"><span>最近搜索</span><button type="button" id="clearHistory">清空</button></div>
+        <div class="sr-history-chips" id="historyChips"></div>
+    </div>
 
     <div class="sr-tabs" id="sorts" style="display:none">
         <a class="sr-tab on" data-sort="relevance" href="#">相关度</a>
@@ -123,6 +134,8 @@ function render(data){
 function search(){
     var q = document.getElementById('q').value.trim();
     if (!q) { document.getElementById('result').innerHTML = '<div class="sr-empty">请输入关键词</div>'; return; }
+    saveHistory(q);
+    var __h = document.getElementById('history'); if (__h) __h.style.display = 'none';
     var url = '/api/search/fulltext.php?q=' + encodeURIComponent(q) + '&sort=' + SORT + '&limit=30';
     // 同步 URL，方便分享与前进后退
     history.replaceState(null, '', '/pages/search.php?q=' + encodeURIComponent(q) + '&sort=' + SORT);
@@ -136,7 +149,53 @@ function search(){
     .catch(function(){ document.getElementById('result').innerHTML = '<div class="sr-empty">网络错误</div>'; });
 }
 
+/* ---------- 最近搜索（localStorage，最多 8 条） ---------- */
+var HIST_KEY = 'lw_search_history';
+function readHistory() {
+    try { var a = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+function saveHistory(q) {
+    q = String(q || '').trim();
+    if (!q) return;
+    var a = readHistory().filter(function (x) { return x !== q; });
+    a.unshift(q);
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(a.slice(0, 8))); } catch (e) {}
+    renderHistory();
+}
+function renderHistory() {
+    var box = document.getElementById('history');
+    var chips = document.getElementById('historyChips');
+    if (!box || !chips) return;
+    var a = readHistory();
+    if (!a.length) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    chips.innerHTML = a.map(function (q) {
+        return '<a href="#" data-q="' + esc(q) + '">' + esc(q) + '</a>';
+    }).join('');
+    chips.querySelectorAll('a').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.getElementById('q').value = el.getAttribute('data-q');
+            document.getElementById('history').style.display = 'none';
+            search();
+        });
+    });
+}
+document.getElementById('clearHistory').addEventListener('click', function () {
+    try { localStorage.removeItem(HIST_KEY); } catch (e) {}
+    renderHistory();
+});
+
 function doSearch(e){ e.preventDefault(); search(); }
+
+/* 输入防抖：停顿 400ms 自动搜（≥1 个字符），省去反复点「搜索」 */
+var __srTimer = null;
+document.getElementById('q').addEventListener('input', function () {
+    var v = this.value.trim();
+    clearTimeout(__srTimer);
+    if (!v) { document.getElementById('result').innerHTML = '<div class="sr-empty">输入关键词开始搜索</div>'; renderHistory(); return; }
+    __srTimer = setTimeout(function () { search(); }, 400);
+});
 
 document.querySelectorAll('.sr-tab').forEach(function(a){
     a.addEventListener('click', function(e){
@@ -148,6 +207,9 @@ document.querySelectorAll('.sr-tab').forEach(function(a){
     });
 });
 
+<?php if ($q === ''): ?>
+renderHistory();
+<?php endif; ?>
 <?php if ($q !== ''): ?>
 document.getElementById('q').value = <?= json_encode($q) ?>;
 search();
