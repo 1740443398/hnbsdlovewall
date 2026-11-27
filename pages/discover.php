@@ -236,6 +236,20 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
 <main class="site-main">
 <div class="container" style="max-width:1100px;margin:0 auto;padding:0 16px">
     <h1 style="font-size:1.5rem;margin:22px 0 6px">发现</h1>
+<div class="disc-quick" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 4px">
+    <a class="disc-quick-card" href="/pages/lottery.php" style="display:flex;align-items:center;gap:10px;padding:14px;border-radius:14px;border:1px solid var(--border);background:var(--card-bg);text-decoration:none;color:var(--text)">
+        <span style="font-size:20px">🎁</span><span><b style="display:block;font-size:14px">站内抽奖</b><small style="color:var(--text-muted);font-size:12px">转发动态即可参与</small></span>
+    </a>
+    <a class="disc-quick-card" href="/pages/tools.php" style="display:flex;align-items:center;gap:10px;padding:14px;border-radius:14px;border:1px solid var(--border);background:var(--card-bg);text-decoration:none;color:var(--text)">
+        <span style="font-size:20px">🧰</span><span><b style="display:block;font-size:14px">实用工具</b><small style="color:var(--text-muted);font-size:12px">34 个校园小工具</small></span>
+    </a>
+    <a class="disc-quick-card" href="/pages/learning.php" style="display:flex;align-items:center;gap:10px;padding:14px;border-radius:14px;border:1px solid var(--border);background:var(--card-bg);text-decoration:none;color:var(--text)">
+        <span style="font-size:20px">📚</span><span><b style="display:block;font-size:14px">学习专区</b><small style="color:var(--text-muted);font-size:12px">答疑 / 经验 / 资料</small></span>
+    </a>
+    <a class="disc-quick-card" href="/pages/ranking.php" style="display:flex;align-items:center;gap:10px;padding:14px;border-radius:14px;border:1px solid var(--border);background:var(--card-bg);text-decoration:none;color:var(--text)">
+        <span style="font-size:20px">🏆</span><span><b style="display:block;font-size:14px">排行榜</b><small style="color:var(--text-muted);font-size:12px">本周活跃同学</small></span>
+    </a>
+</div>
     <p style="color:#718096;font-size:.88rem;margin:0 0 4px">
         <?php if ($user): ?>根据你的阅读习惯推荐，也可以看看热门与主题<?php else: ?>登录后可按兴趣推荐 · 以下是全站热门<?php endif; ?>
         <a href="/api/rss.php" style="margin-left:12px;font-size:.8rem;color:#2F5B9A;text-decoration:none">RSS 订阅</a>

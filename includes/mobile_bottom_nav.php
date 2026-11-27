@@ -35,6 +35,13 @@ if (!isset($mobileNavActive) || $mobileNavActive === null) {
         case '':
             $mobileNavActive = 'home';
             break;
+        case 'tools.php':
+        case 'lottery.php':
+        case 'learning.php':
+        case 'ranking.php':
+        case 'discover.php':
+            $mobileNavActive = 'discover';
+            break;
         default:
             // 帖子详情等不属于这 5 个标签的页面：都不高亮
             $mobileNavActive = '';
