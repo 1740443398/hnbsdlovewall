@@ -25,6 +25,7 @@ $pendingQqChange = getFS()->findOne('qq_change_requests', ['user_id' => $user['i
 $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
 
 $myPostStatus = (string) ($_GET['status'] ?? '');
+$myPostQuery = trim((string) ($_GET['q'] ?? ''));
 if (!in_array($myPostStatus, ['published', 'pending', 'rejected'], true)) { $myPostStatus = ''; }
 
 $validTabs = ['profile', 'stats', 'medals', 'decor', 'security', 'posts', 'comments', 'favorites', 'activity', 'theme', 'invite'];
@@ -1348,6 +1349,14 @@ if ($inviteEnabled && $tab === 'invite') {
 
                 <div class="uc-section" id="tab-posts" <?= $tab !== 'posts' ? 'style="display:none"' : '' ?>>
                     <h2><?= t('uc.tab.posts') ?></h2>
+                    <form method="get" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                        <input type="hidden" name="tab" value="posts">
+                        <?php if ($myPostStatus !== ''): ?><input type="hidden" name="status" value="<?= htmlspecialchars($myPostStatus) ?>"><?php endif; ?>
+                        <input type="search" name="q" value="<?= htmlspecialchars($myPostQuery) ?>" placeholder="搜索我的帖子标题或内容…"
+                            style="flex:1 1 240px;padding:8px 12px;border:1px solid var(--border,#E3E7EC);border-radius:10px;font-size:.86rem;background:var(--bg)">
+                        <button class="uc-btn uc-btn-primary uc-btn-sm" type="submit">搜索</button>
+                        <?php if ($myPostQuery !== ''): ?><a class="uc-btn uc-btn-outline uc-btn-sm" href="?tab=posts<?= $myPostStatus !== '' ? '&status=' . urlencode($myPostStatus) : '' ?>">清除</a><?php endif; ?>
+                    </form>
                     <div class="posts-status-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
                         <a class="uc-btn uc-btn-sm <?= $myPostStatus === '' ? 'uc-btn-primary' : 'uc-btn-outline' ?>" href="?tab=posts">全部</a>
                         <a class="uc-btn uc-btn-sm <?= $myPostStatus === 'published' ? 'uc-btn-primary' : 'uc-btn-outline' ?>" href="?tab=posts&status=published">已发布</a>
@@ -2132,7 +2141,12 @@ if ($inviteEnabled && $tab === 'invite') {
 
         if (document.getElementById('tab-posts').style.display !== 'none') {
             var MYPOST_STATUS = <?= json_encode($myPostStatus) ?>;
-            loadList(SITE_URL + '/api/user/my_posts.php' + (MYPOST_STATUS ? ('?status=' + MYPOST_STATUS) : ''), 'myPostsList', 'myPostsPagination', function(data) {
+            var MYPOST_Q = <?= json_encode($myPostQuery) ?>;
+            var __mpUrl = SITE_URL + '/api/user/my_posts.php';
+            var __mpParams = [];
+            if (MYPOST_STATUS) __mpParams.push('status=' + encodeURIComponent(MYPOST_STATUS));
+            if (MYPOST_Q) __mpParams.push('q=' + encodeURIComponent(MYPOST_Q));
+            loadList(__mpUrl + (__mpParams.length ? ('?' + __mpParams.join('&')) : ''), 'myPostsList', 'myPostsPagination', function(data) {
                 return data.posts.map(p => `
                     <div class="uc-data-item">
                         <div class="uc-data-main">
