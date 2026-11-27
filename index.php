@@ -334,7 +334,55 @@ if (is_file($__ahJs)) {
                             <?php endif; ?>
                         </div>
                     </div>
-                </aside>
+                    <div class="widget widget-weekly">
+            <h3>🔥 本周活跃榜</h3>
+            <div class="widget-content">
+                <?php
+                $__wTop = [];
+                try {
+                    $__posts = getFS()->read('posts');
+                    $__users = [];
+                    foreach ((array) getFS()->read('users') as $__u) { $__users[(int) ($__u['id'] ?? 0)] = $__u; }
+                    $__count = function (int $win) use ($__posts) {
+                        $c = []; $from = $win > 0 ? time() - $win * 86400 : 0;
+                        foreach ((array) $__posts as $__p) {
+                            if (!is_array($__p) || !empty($__p['is_deleted'])) { continue; }
+                            if (($__p['status'] ?? '') !== 'published') { continue; }
+                            $ts = strtotime((string) ($__p['created_at'] ?? '')) ?: 0;
+                            if ($ts < $from) { continue; }
+                            $uid = (int) ($__p['user_id'] ?? 0);
+                            if ($uid > 0) { $c[$uid] = ($c[$uid] ?? 0) + 1; }
+                        }
+                        return $c;
+                    };
+                    $__cnt = $__count(7); $__label = '近 7 天';
+                    if (!$__cnt) { $__cnt = $__count(30); $__label = '近 30 天'; }
+                    if (!$__cnt) { $__cnt = $__count(0); $__label = '累计'; }
+                    arsort($__cnt);
+                    foreach (array_slice($__cnt, 0, 5, true) as $__uid => $__n) {
+                        if (!isset($__users[$__uid])) { continue; }
+                        $__wTop[] = ['id' => $__uid, 'name' => (string) (($__users[$__uid]['nickname'] ?? '') !== '' ? $__users[$__uid]['nickname'] : ('用户' . $__uid)), 'n' => $__n];
+                    }
+                } catch (Throwable $__e) {}
+                ?>
+                <?php if ($__wTop): ?>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px"><?= htmlspecialchars($__label) ?>发帖</div>
+                <ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+                    <?php foreach ($__wTop as $__i => $__row): ?>
+                    <li style="display:flex;align-items:center;gap:8px;font-size:13px">
+                        <span style="width:18px;text-align:center;font-weight:700;color:<?= $__i < 3 ? 'var(--primary)' : 'var(--text-muted)' ?>"><?= $__i + 1 ?></span>
+                        <a href="/pages/user_center.php?id=<?= (int) $__row['id'] ?>" style="flex:1;text-decoration:none;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($__row['name']) ?></a>
+                        <span style="color:var(--text-muted);font-size:12px"><?= (int) $__row['n'] ?> 篇</span>
+                    </li>
+                    <?php endforeach; ?>
+                </ol>
+                <?php else: ?>
+                <div style="font-size:13px;color:var(--text-muted)">本周还没有人发帖，来做第一个吧。</div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+    </aside>
             </div>
         </div>
     </main>
