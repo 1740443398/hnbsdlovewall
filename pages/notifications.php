@@ -76,6 +76,7 @@ function render(append) {
   ITEMS = append ? ITEMS.concat(curr) : curr;
   if (!ITEMS.length) { box.innerHTML = '<div class="ntf-empty">暂无通知</div>'; document.getElementById('more').style.display = 'none'; return; }
   box.innerHTML = ITEMS.map(itemHtml).join('');
+  bindItemClicks();
   document.getElementById('more').style.display = HAS_MORE ? 'block' : 'none';
   document.getElementById('more').textContent = HAS_MORE ? '加载更多' : '没有更多了';
 }
@@ -90,6 +91,21 @@ function load(page, append) {
     PAGE = page;
     render(append);
   }).catch(function () { document.getElementById('list').innerHTML = '<div class="ntf-empty">网络错误</div>'; });
+}
+
+/* 点击通知项：先标已读（服务端即删），再跳转；失败也照常跳转 */
+function bindItemClicks() {
+  document.querySelectorAll('#list .ntf-item').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var href = a.getAttribute('href') || '/';
+      var id = a.getAttribute('data-id');
+      var fd = new URLSearchParams(); fd.set('action', 'read'); fd.set('id', id); fd.set('csrf_token', CSRF);
+      fetch('/api/user/notifications.php', { method: 'POST', credentials: 'same-origin', body: fd })
+        .catch(function () {})
+        .then(function () { window.location.href = href; });
+    });
+  });
 }
 
 document.getElementById('tabs').addEventListener('click', function (e) {

@@ -61,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'post_id' => $n['post_id'] ?? '',
             'post_title' => $n['post_title'] ?? '',
             'from_user' => $n['from_user'] ?? '',
+            'link' => $n['link'] ?? '',
             'is_read' => !empty($n['is_read']),
             'created_at' => $n['created_at'] ?? '',
             'timeAgo' => timeAgo($n['created_at'] ?? '')
@@ -75,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'notifications' => lwProjectRows(
                 $formatted,
                 lwFieldsRequest(),
-                ['id', 'type', 'content', 'post_id', 'post_title', 'from_user',
+                ['id', 'type', 'content', 'post_id', 'post_title', 'from_user', 'link',
                  'is_read', 'created_at', 'timeAgo'],
                 ['id']
             ),

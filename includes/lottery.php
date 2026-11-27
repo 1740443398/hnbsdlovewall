@@ -313,6 +313,7 @@ if (!function_exists('lwLotteryDraw')) {
                         : ('抽奖「' . (string) ($l['title'] ?? '') . '」已开奖，本次未中奖，下次好运～'),
                     'post_id'    => 0,
                     'post_title' => (string) ($l['title'] ?? ''),
+                    'link'       => '/pages/lottery.php?id=' . $lotteryId,
                     'from_user'  => '系统',
                     'is_read'    => false,
                 ]);
@@ -424,6 +425,7 @@ if (!function_exists('lwLotteryPreDrawNotify')) {
                         'content'    => '⏰ 抽奖「' . (string) ($l['title'] ?? '') . '」即将开奖（10 分钟内），记得回来看结果～',
                         'post_id'    => 0,
                         'post_title' => (string) ($l['title'] ?? ''),
+                        'link'       => '/pages/lottery.php?id=' . $lid,
                         'from_user'  => '系统',
                         'is_read'    => false,
                     ]);
