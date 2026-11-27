@@ -348,6 +348,14 @@ adminHeader('QQ 空间转发', $adminUser, $csrfToken);
 </div>
 
 <div class="section">
+    <div class="section-header"><h3>Cookie 状态</h3></div>
+    <div class="section-body" id="qz-health-card" style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px">
+        <div><b>最近保活：</b><?= !empty($cfg['last_keepalive_at']) ? date('Y-m-d H:i', (int) $cfg['last_keepalive_at']) : '<span style="color:var(--text-muted)">从未（等外部 cron 或访问后台触发）</span>' ?></div>
+        <div><b>Cookie 保存于：</b><?= !empty($cfg['cookie_at']) ? htmlspecialchars((string) $cfg['cookie_at']) : '<span style="color:var(--text-muted)">—</span>' ?></div>
+        <div><b>最后状态：</b><span style="color:<?= (($cfg['last_state'] ?? '') === 'ok') ? 'var(--success,#1E7A4C)' : (($cfg['last_state'] ?? '') === 'cookie_expired' ? 'var(--danger,#C0392B)' : 'var(--text-muted)') ?>"><?= htmlspecialchars((string) ($cfg['last_state'] ?? 'idle')) ?></span></div>
+        <div><b>保活节流：</b>每 6 小时一次（由外部 cron 触发）</div>
+    </div>
+
     <div class="section-header"><h3>定时触发（外部 cron）</h3></div>
     <div class="section-body">
         <p class="qz-hint" style="margin-bottom:10px;">
