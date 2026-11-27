@@ -1252,72 +1252,103 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             var qrlib = window.qrcode || (typeof qrcode !== 'undefined' ? qrcode : null);
             if (!qrlib) { App.showToast('二维码组件加载失败，请刷新重试', 'error'); return; }
             var title = <?= json_encode((string)($post['title'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-            var content = <?= json_encode(mb_substr(strip_tags((string)($post['content'] ?? '')), 0, 160, 'UTF-8'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+            var content = <?= json_encode(mb_substr(strip_tags((string)($post['content'] ?? '')), 0, 200, 'UTF-8'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
             var author = <?= json_encode(!empty($post['is_anonymous']) ? '匿名同学' : (string)(($usersIndex[(int)($post['user_id'] ?? 0)]['nickname'] ?? '') ?: '校园墙同学'), JSON_UNESCAPED_UNICODE) ?>;
             var cat = <?= json_encode((string)($post['category'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+            var imgSrc = <?= json_encode(!empty($post['images'][0]) ? (string)$post['images'][0] : '', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
             var url = window.location.href.split('#')[0];
 
             var W = 640, H = 900;
             var c = document.getElementById('postPosterCanvas');
             c.width = W; c.height = H;
             var g = c.getContext('2d');
-            var grad = g.createLinearGradient(0, 0, W, H);
-            grad.addColorStop(0, '#2F5B9A'); grad.addColorStop(1, '#5B8BD0');
-            g.fillStyle = grad; g.fillRect(0, 0, W, H);
 
-            g.fillStyle = '#fff'; g.textAlign = 'center';
-            g.font = 'bold 30px "Microsoft YaHei", sans-serif';
-            g.fillText('校园墙 · 精彩分享', W / 2, 64);
-
-            // 白卡
-            var r = 22, x0 = 28, y0 = 100, x1 = W - 28, y1 = H - 28;
-            g.fillStyle = '#fff';
-            g.beginPath();
-            g.moveTo(x0 + r, y0); g.lineTo(x1 - r, y0); g.quadraticCurveTo(x1, y0, x1, y0 + r);
-            g.lineTo(x1, y1 - r); g.quadraticCurveTo(x1, y1, x1 - r, y1);
-            g.lineTo(x0 + r, y1); g.quadraticCurveTo(x0, y1, x0, y1 - r);
-            g.lineTo(x0, y0 + r); g.quadraticCurveTo(x0, y0, x0 + r, y0);
-            g.closePath(); g.fill();
-
-            g.textAlign = 'left';
-            var tx = x0 + 30;
-            g.fillStyle = '#2F5B9A'; g.font = 'bold 22px "Microsoft YaHei", sans-serif';
-            g.fillText(cat || '动态', tx, y0 + 44);
-
-            g.fillStyle = '#1C2733'; g.font = 'bold 34px "Microsoft YaHei", sans-serif';
-            var lines = [], t = title || '（无标题）';
-            while (t.length > 0 && lines.length < 2) {
-                var n = t.length > 13 ? 13 : t.length;
-                lines.push(t.slice(0, n)); t = t.slice(n);
-            }
-            lines.forEach(function (ln, i) { g.fillText(ln, tx, y0 + 100 + i * 46); });
-
-            g.fillStyle = '#44566C'; g.font = '22px "Microsoft YaHei", sans-serif';
-            var y = y0 + 100 + lines.length * 46 + 10;
-            var rest = content || '';
-            while (rest.length > 0 && y < y0 + 330) {
-                var slice = rest.slice(0, 24); rest = rest.slice(24);
-                g.fillText(slice, tx, y); y += 34;
-                if (rest.length) { g.fillText(rest.slice(0, 24), tx, y); y += 34; rest = rest.slice(24); }
+            function roundRect(x, y, w, h, r) {
+                g.beginPath();
+                g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+                g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+                g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
+                g.closePath();
             }
 
-            g.fillStyle = '#6B7A8B'; g.font = '20px "Microsoft YaHei", sans-serif';
-            g.fillText('—— ' + author, tx, y0 + 360);
+            function draw(img) {
+                var grad = g.createLinearGradient(0, 0, W, H);
+                grad.addColorStop(0, '#2F5B9A'); grad.addColorStop(1, '#5B8BD0');
+                g.fillStyle = grad; g.fillRect(0, 0, W, H);
 
-            var qr = qrlib(0, 'M'); qr.addData(url); qr.make();
-            var n2 = qr.getModuleCount(), size = 260;
-            var cell = Math.floor(size / n2), ox = W / 2 - cell * n2 / 2, oy = y0 + 400;
-            g.fillStyle = '#fff'; g.fillRect(ox - 8, oy - 8, cell * n2 + 16, cell * n2 + 16);
-            g.fillStyle = '#1C2733';
-            for (var i = 0; i < n2; i++) for (var j = 0; j < n2; j++) {
-                if (qr.isDark(i, j)) g.fillRect(ox + i * cell, oy + j * cell, cell, cell);
+                g.fillStyle = '#fff'; g.textAlign = 'center';
+                g.font = 'bold 30px "Microsoft YaHei", sans-serif';
+                g.fillText('校园墙 · 精彩分享', W / 2, 64);
+
+                var x0 = 28, y0 = 100, x1 = W - 28, y1 = H - 28;
+                g.fillStyle = '#fff'; roundRect(x0, y0, x1 - x0, y1 - y0, 22); g.fill();
+
+                var tx = x0 + 30, ty = y0 + 44;
+                var textTop = ty;
+
+                if (img) {
+                    // 首图：按 cover 裁切到 560×300 的圆角框
+                    var iw = 560, ih = 292, ix = x0 + (x1 - x0 - iw) / 2, iy = y0 + 22;
+                    g.save();
+                    roundRect(ix, iy, iw, ih, 14); g.clip();
+                    var sc = Math.max(iw / img.width, ih / img.height);
+                    var dw = img.width * sc, dh = img.height * sc;
+                    g.drawImage(img, ix + (iw - dw) / 2, iy + (ih - dh) / 2, dw, dh);
+                    g.restore();
+                    textTop = iy + ih + 40;
+                }
+
+                g.textAlign = 'left';
+                g.fillStyle = '#2F5B9A'; g.font = 'bold 22px "Microsoft YaHei", sans-serif';
+                g.fillText(cat || '动态', tx, textTop);
+
+                g.fillStyle = '#1C2733'; g.font = 'bold 34px "Microsoft YaHei", sans-serif';
+                var lines = [], t = title || '（无标题）';
+                while (t.length > 0 && lines.length < 2) {
+                    var n = t.length > 13 ? 13 : t.length;
+                    lines.push(t.slice(0, n)); t = t.slice(n);
+                }
+                var lineY = textTop + 52;
+                lines.forEach(function (ln, i) { g.fillText(ln, tx, lineY + i * 46); });
+
+                var y = lineY + lines.length * 46 - 6;
+                g.fillStyle = '#44566C'; g.font = '22px "Microsoft YaHei", sans-serif';
+                var rest = content || '';
+                var maxY = y0 + 470;
+                while (rest.length > 0 && y < maxY) {
+                    g.fillText(rest.slice(0, 24), tx, y); y += 34;
+                    rest = rest.slice(24);
+                }
+
+                g.fillStyle = '#6B7A8B'; g.font = '20px "Microsoft YaHei", sans-serif';
+                g.fillText('—— ' + author, tx, Math.min(y + 26, y0 + 520));
+
+                var qr = qrlib(0, 'M'); qr.addData(url); qr.make();
+                var n2 = qr.getModuleCount(), size = 240;
+                var cell = Math.floor(size / n2), ox = W / 2 - cell * n2 / 2, oy = y0 + 540;
+                g.fillStyle = '#fff'; g.fillRect(ox - 8, oy - 8, cell * n2 + 16, cell * n2 + 16);
+                g.fillStyle = '#1C2733';
+                for (var i = 0; i < n2; i++) for (var j = 0; j < n2; j++) {
+                    if (qr.isDark(i, j)) g.fillRect(ox + i * cell, oy + j * cell, cell, cell);
+                }
+                g.textAlign = 'center'; g.fillStyle = '#6B7A8B'; g.font = '18px "Microsoft YaHei", sans-serif';
+                g.fillText('长按识别二维码 · 查看原文', W / 2, oy + cell * n2 + 34);
+
+                var a = document.getElementById('posterDownload');
+                try { a.href = c.toDataURL('image/png'); } catch (e) {}
+                document.getElementById('posterModal').style.display = 'flex';
             }
-            g.textAlign = 'center'; g.fillStyle = '#6B7A8B'; g.font = '18px "Microsoft YaHei", sans-serif';
-            g.fillText('长按识别二维码 · 查看原文', W / 2, oy + cell * n2 + 34);
 
-            var a = document.getElementById('posterDownload');
-            try { a.href = c.toDataURL('image/png'); } catch (e) {}
-            document.getElementById('posterModal').style.display = 'flex';
+            if (imgSrc) {
+                var im = new Image();
+                im.crossOrigin = 'anonymous';
+                im.onload = function () { draw(im); };
+                im.onerror = function () { draw(null); };
+                im.src = imgSrc;
+            } else {
+                draw(null);
+            }
         }
 
         /* 系统分享（手机浏览器 / PWA 支持才显示按钮；桌面无 navigator.share 就隐藏） */
