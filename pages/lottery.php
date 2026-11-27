@@ -279,10 +279,15 @@ if ($detail):
               $__win = json_decode((string) ($__l2['winners'] ?? '[]'), true) ?: [];
               $__won = in_array((int) $user['id'], array_map('intval', $__win), true);
           ?>
-          <a href="/pages/lottery.php?id=<?= (int) $__l2['id'] ?>" style="color:var(--primary);text-decoration:none">
-            <?= htmlspecialchars((string) $__l2['title']) ?>
-            <?= $__st === 'drawn' ? ($__won ? '· 🎉 已中奖' : '· 已开奖') : '· 进行中' ?>
-          </a>
+          <?php $__remind = lwLotteryRemindHas((int) $user['id'], (int) $__l2['id']); ?>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <a href="/pages/lottery.php?id=<?= (int) $__l2['id'] ?>" style="color:var(--primary);text-decoration:none">
+              <?= htmlspecialchars((string) $__l2['title']) ?>
+              <?= $__st === 'drawn' ? ($__won ? '· 🎉 已中奖' : '· 已开奖') : '· 进行中' ?>
+            </a>
+            <?php if ($__st === 'open' && $__remind): ?><span class="lot-badge" style="font-size:11px"><i></i>已设开奖提醒</span><?php endif; ?>
+            <?php if ($__st === 'open' && !$__remind): ?><a href="/pages/lottery.php?id=<?= (int) $__l2['id'] ?>" style="font-size:12px;color:var(--text-muted);text-decoration:none">设置提醒 →</a><?php endif; ?>
+          </div>
           <?php endforeach; ?>
         </div>
       </div>
