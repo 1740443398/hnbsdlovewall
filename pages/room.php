@@ -70,7 +70,9 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         .lb-time{font-size:.66rem;color:var(--text-tertiary,#8E9AA8);margin-top:.1875rem;}
         .lb-msg.mine .lb-time{text-align:right;}
 
-        .lb-emoji-panel{position:absolute;bottom:64px;left:12px;right:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);box-shadow:0 10px 30px rgba(0,0,0,.14);z-index:5}
+        .lb-who-name{cursor:pointer}
+    .lb-who-name:hover{color:var(--primary);text-decoration:underline}
+    .lb-emoji-panel{position:absolute;bottom:64px;left:12px;right:12px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);box-shadow:0 10px 30px rgba(0,0,0,.14);z-index:5}
     .lb-emoji-recent{grid-column:1/-1;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding-bottom:6px;margin-bottom:4px;border-bottom:1px dashed var(--border-light,#E4E9F0)}
     .lb-emoji-item{font-size:22px;line-height:1;text-align:center;padding:5px 0;border-radius:8px;cursor:pointer;user-select:none}
     .lb-emoji-item:hover{background:rgba(47,91,154,.10)}
@@ -244,7 +246,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         wrap.innerHTML =
             '<img class="lb-av" src="' + esc(m.avatar || (SITE_URL + '/assets/images/default-avatar.svg')) + '" alt="" loading="lazy" onerror="this.src=\'' + SITE_URL + '/assets/images/default-avatar.svg\'">' +
             '<div class="lb-body">' +
-              '<div class="lb-who">' + esc(m.nickname || ('用户' + m.user_id)) + roleTag + '</div>' +
+              '<div class="lb-who"><span class="lb-who-name" data-nick="' + esc(m.nickname || ('用户' + m.user_id)) + '" title="点一下 @TA">' + esc(m.nickname || ('用户' + m.user_id)) + '</span>' + roleTag + '</div>' +
               '<div class="lb-bubble">' + inner + '</div>' +
               '<div class="lb-time">' + timeStr(m.ts) + '</div>' +
             '</div>';
@@ -297,6 +299,19 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
             .then(function () { moreBtn.disabled = false; });
     }
     if (moreBtn) moreBtn.addEventListener('click', loadEarlier);
+
+    /* 点昵称：把「@昵称 」插进输入框（未登录时只提示登录） */
+    msgsEl.addEventListener('click', function (e) {
+        var el = e.target.closest('.lb-who-name');
+        if (!el) return;
+        if (!inputEl) return; // 游客没有输入框
+        var nick = el.getAttribute('data-nick') || '';
+        var mention = '@' + nick + ' ';
+        var start = inputEl.selectionStart || inputEl.value.length;
+        inputEl.value = inputEl.value.slice(0, start) + mention + inputEl.value.slice(start);
+        inputEl.selectionStart = inputEl.selectionEnd = start + mention.length;
+        inputEl.focus();
+    });
 
     function fetchList(incremental) {
         if (polling) return Promise.resolve();
