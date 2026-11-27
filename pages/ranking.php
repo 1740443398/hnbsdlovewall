@@ -92,6 +92,7 @@ usort($postBoard, function ($a, $b) {
     }
     return strtotime((string)($b['created_at'] ?? '')) - strtotime((string)($a['created_at'] ?? ''));
 });
+$fullPostBoard = $postBoard;
 $postBoard = array_slice($postBoard, 0, 10);
 
 // ---- 活跃用户榜（窗口内：发帖 3 分 + 评论 1 分） ----------------------------
@@ -177,6 +178,27 @@ foreach (array_slice($pointsSorted, 0, 10) as $u) {
         'posts' => (int)($userPosts[$uid] ?? 0),
         'frame' => $decor['frame'],
     ];
+}
+
+// ---- 我的名次（登录用户；榜单只看前 10，这里算全量名次） --------------------
+$myRanks = null;
+if ($user) {
+    $myId = (int) ($user['id'] ?? 0);
+    $rPost = 0;
+    foreach ($fullPostBoard as $i => $rp) {
+        if ((int) ($rp['user_id'] ?? 0) === $myId && empty($rp['is_anonymous'])) { $rPost = $i + 1; break; }
+    }
+    $rActive = 0;
+    $i = 0;
+    foreach ($score as $uid => $sc) {
+        $i++;
+        if ((int) $uid === $myId) { $rActive = $i; break; }
+    }
+    $rPoints = 0;
+    foreach ($pointsSorted as $i => $pu) {
+        if ((int) ($pu['id'] ?? 0) === $myId) { $rPoints = $i + 1; break; }
+    }
+    $myRanks = ['post' => $rPost, 'active' => $rActive, 'points' => $rPoints];
 }
 
 // ---- 昵称 / 头像：一次读全表建索引，避免循环里逐条查询 ----------------------
@@ -265,6 +287,10 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
         .rk-tag:hover{filter:brightness(.96);}
         .rk-tag i{font-style:normal;font-size:.72rem;opacity:.75;font-weight:700;}
         .rk-empty{padding:1.5rem 0;text-align:center;font-size:.82rem;color:var(--text-tertiary);}
+        .rk-me{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;align-items:center;margin:0 0 1rem;padding:.75rem 1rem;border-radius:.9rem;background:var(--primary-light,#EEF3FB);border:1px solid var(--border-light,#E4E9F0);font-size:.82rem;color:var(--text-secondary)}
+        .rk-me b{color:var(--primary);font-variant-numeric:tabular-nums;}
+        .rk-me .rk-me-item{display:inline-flex;gap:.35rem;align-items:center}
+        .rk-me .none{color:var(--text-tertiary)}
         @media (max-width:480px){
             .rk-page{padding:1rem .75rem 2.5rem;}
             .rk-title{font-size:1.3rem;}
@@ -306,6 +332,13 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
                         <a href="?range=all" class="<?= $range === 'all' ? 'active' : '' ?>">总榜</a>
                         <a href="?range=study" class="<?= $range === 'study' ? 'active' : '' ?>">学习榜</a>
                     </div>
+                    <?php if ($user && $myRanks): ?>
+                    <div class="rk-me">
+                        <span class="rk-me-item">帖子榜：<?php if ($myRanks['post'] > 0): ?><b>第 <?= (int)$myRanks['post'] ?> 名</b><?php else: ?><span class="none">暂未上榜</span><?php endif; ?></span>
+                        <span class="rk-me-item">活跃榜：<?php if ($myRanks['active'] > 0): ?><b>第 <?= (int)$myRanks['active'] ?> 名</b><?php else: ?><span class="none">暂未上榜</span><?php endif; ?></span>
+                        <span class="rk-me-item">积分榜：<?php if ($myRanks['points'] > 0): ?><b>第 <?= (int)$myRanks['points'] ?> 名</b><?php else: ?><span class="none">暂未上榜</span><?php endif; ?></span>
+                    </div>
+                    <?php endif; ?>
                     <?php if ($isGuest): ?>
                     <div class="rk-guests">
                         <span><?= t('rank.guest_note') ?></span>
