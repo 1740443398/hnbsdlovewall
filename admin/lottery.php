@@ -449,11 +449,12 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                         </form>
                         <button class="btn btn-sm" type="button" onclick="copyLotLink(<?= (int) $l['id'] ?>)">复制链接</button>
                         <?php if ($status === 'open'): ?>
-                        <form method="post" onsubmit="return confirm('立即开奖？开奖后不能再参与')">
+                        <form method="post" onsubmit="return confirmDrawLot()">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                             <input type="hidden" name="act" value="draw">
                             <input type="hidden" name="id" value="<?= (int) $l['id'] ?>">
                             <button class="btn btn-sm btn-success" type="submit">立即开奖</button>
+                            <span style="font-size:11px;color:var(--text-muted);margin-left:4px">不可撤回</span>
                         </form>
                         <?php endif; ?>
                         <?php $__wc = count((array) ($winners ?? [])); ?>
@@ -537,6 +538,11 @@ document.addEventListener('click', function (e) {
     setTimeout(function () { inp.style.outline = ''; }, 1600);
   }
 });
+
+/* 开奖不可逆：明确告知后果再执行 */
+function confirmDrawLot() {
+  return confirm('⚠️ 确认立即开奖？\n\n开奖后：\n· 不可撤回、不可重新抽选\n· 不能再新增参与\n· 会向提醒订阅者发送开奖通知');
+}
 
 /* 删除抽奖：要求输入活动标题原文，防止手滑误删 */
 function confirmDelLot(form, title) {
