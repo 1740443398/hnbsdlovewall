@@ -72,6 +72,10 @@ foreach ($all as $__l0) {
     if ((string) ($__l0['status'] ?? 'open') === 'open') { $__lotStats['open']++; } else { $__lotStats['drawn']++; }
 }
 foreach ((array) getFS()->read('lottery_entries') as $__e0) { if ((int) ($__e0['lottery_id'] ?? 0) > 0) { $__lotStats['entries']++; } }
+foreach ($all as $__lw) {
+    $__wn = json_decode((string) ($__lw['winners'] ?? '[]'), true);
+    if (is_array($__wn)) { $__lotStats['winners'] += count($__wn); }
+}
 $__lotStats['reminds'] = count((array) getFS()->read('lottery_reminders'));
 
 /* 列表状态筛选：只影响列表展示，统计卡始终是全局口径 */
@@ -113,6 +117,7 @@ foreach ($all as $__lv) {
             ['已开奖', $__lotStats['drawn'], ''],
             ['参与人次', $__lotStats['entries'], ''],
             ['提醒人次', $__lotStats['reminds'], ''],
+            ['中奖人数', $__lotStats['winners'], ''],
         ];
         foreach ($__cards as $__c):
         ?>
