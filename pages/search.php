@@ -50,6 +50,11 @@ $LANG_CODE = $LANG_CODE ?? 'zh_CN';
     .sr-item .mt{font-size:.76rem;color: var(--text-muted, #a0aec0);display:flex;gap:14px;flex-wrap:wrap}
     .sr-item .fd{font-size:.7rem;background: var(--primary-light, #eef3fa);color: var(--primary, #2F5B9A);padding:1px 6px;border-radius:4px;margin-left:6px}
     .sr-empty{text-align:center;padding:60px 20px;color: var(--text-muted, #a0aec0)}
+    .sr-suggest{text-align:center;margin-top:6px}
+    .sr-suggest-title{font-size:.8rem;color:var(--text-muted,#a0aec0);margin-bottom:10px}
+    .sr-suggest-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+    .sr-suggest-chips a{background:var(--card-bg,#fff);border:1px solid var(--border,#dfe4ea);border-radius:999px;padding:6px 14px;font-size:.84rem;color:var(--text-secondary,#4a5568);text-decoration:none}
+    .sr-suggest-chips a:hover{border-color:var(--primary,#2F5B9A);color:var(--primary,#2F5B9A)}
     #moreWrap{text-align:center;margin:18px 0 8px}
     #moreBtn{padding:10px 26px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:.9rem;cursor:pointer}
     #moreBtn:disabled{opacity:.6;cursor:default}
@@ -135,8 +140,19 @@ function render(data, append) {
     if (sorts) sorts.style.display = ITEMS.length ? 'flex' : 'none';
 
     if (!ITEMS.length) {
+        var sugg = ['失物招领', '学习互助', '交友闲聊', '表白', '校园资讯', '二手交易'];
         box.innerHTML = '<div class="sr-empty">' +
-            (data.message || ('没有找到与「' + esc(data.query) + '」相关的内容')) + '</div>';
+            (data.message || ('没有找到与「' + esc(data.query) + '」相关的内容')) +
+            '</div><div class="sr-suggest"><div class="sr-suggest-title">试试这些热门词</div><div class="sr-suggest-chips">' +
+            sugg.map(function (w) { return '<a href="#" data-w="' + esc(w) + '">' + esc(w) + '</a>'; }).join('') +
+            '</div></div>';
+        box.querySelectorAll('.sr-suggest a').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.getElementById('q').value = el.getAttribute('data-w');
+                search();
+            });
+        });
         if (moreWrap) moreWrap.style.display = 'none';
         return;
     }
