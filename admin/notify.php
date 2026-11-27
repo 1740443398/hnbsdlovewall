@@ -30,6 +30,26 @@ $tpls = getFS()->read('broadcast_templates');
 if (!is_array($tpls)) { $tpls = []; }
 $tpls = array_merge($__defaultTpls, array_intersect_key($tpls, $__defaultTpls));
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel_schedule') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $notice = 'CSRF 校验失败，请刷新页面重试';
+        $noticeType = 'danger';
+    } else {
+        $qid = (int) ($_POST['id'] ?? 0);
+        $rows = (array) getFS()->read('scheduled_broadcasts');
+        foreach ($rows as $i => $r) {
+            if ((int) ($r['id'] ?? 0) === $qid && (string) ($r['status'] ?? '') === 'pending') {
+                $rows[$i]['status'] = 'cancelled';
+                $rows[$i]['updated_at'] = date('Y-m-d H:i:s');
+                getFS()->write('scheduled_broadcasts', array_values($rows));
+                logOperation($adminUser['id'], $adminUser['qq'], 'cancel_scheduled_notify', 'scheduled_broadcast', $qid, '取消定时群发');
+                $notice = '已取消定时任务 #' . $qid;
+                break;
+            }
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_tpls') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $notice = 'CSRF 校验失败，请刷新页面重试';
@@ -246,6 +266,42 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                 <button class="btn btn-outline btn-sm" type="submit">保存模板</button>
             </form>
         </details>
+
+        <?php
+        $__pending = [];
+        foreach ((array) getFS()->read('scheduled_broadcasts') as $__q) {
+            if ((string) ($__q['status'] ?? 'pending') === 'pending') { $__pending[] = $__q; }
+        }
+        usort($__pending, function ($a, $b) { return strtotime((string)($a['send_at'] ?? '')) - strtotime((string)($b['send_at'] ?? '')); });
+        ?>
+        <?php if ($__pending): ?>
+        <div style="margin-top:20px">
+            <h4 style="font-size:14px;margin-bottom:8px">待发送的定时任务（<?= count($__pending) ?>）</h4>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>计划时间</th><th>对象</th><th>内容</th><th>App推送</th><th>操作</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($__pending as $__q): ?>
+                        <tr>
+                            <td><?= htmlspecialchars((string)($__q['send_at'] ?? '')) ?></td>
+                            <td><?= ['all'=>'全部','role_user'=>'普通用户','role_admin'=>'管理员','single'=>'用户#' . (int)($__q['single_id'] ?? 0)][(string)($__q['target'] ?? 'all')] ?? '全部' ?></td>
+                            <td style="max-width:320px;word-break:break-word"><?= htmlspecialchars(mb_substr((string)($__q['content'] ?? ''), 0, 60)) ?></td>
+                            <td><?= !empty($__q['app_push']) ? '✓' : '—' ?></td>
+                            <td>
+                                <form method="post" onsubmit="return confirm('取消这条定时群发？')" style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                    <input type="hidden" name="action" value="cancel_schedule">
+                                    <input type="hidden" name="id" value="<?= (int)($__q['id'] ?? 0) ?>">
+                                    <button class="btn btn-outline btn-sm" type="submit">取消</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <?php
         $__logs = (array) getFS()->read('broadcast_logs');
