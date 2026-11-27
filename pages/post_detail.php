@@ -237,6 +237,12 @@ require_once __DIR__ . '/../includes/text_linkify.php';
          * 重做原则：**一条竖轴、三段呼吸** —— 标题区（分类→标题→作者）→ 正文区 → 互动区。
          * 所有间距用同一套 4 的倍数，卡片圆角与站内一致，不再出现"这一块特别挤"。
          * ============================================ */
+        .lw-read-progress {
+            position: fixed; left: 0; top: 0; height: 3px; width: 100%;
+            transform: scaleX(0); transform-origin: 0 50%;
+            background: linear-gradient(90deg, var(--primary), #7AA3DE);
+            z-index: 9999; pointer-events: none; transition: transform .08s linear;
+        }
         .post-detail-card {
             padding: clamp(1.125rem, 2.4vw, 1.875rem);
             border-radius: 1.25rem;
@@ -502,6 +508,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
     <?php endif; ?>
 </head>
 <body>
+    <div class="lw-read-progress" id="readProgress" aria-hidden="true"></div>
     <a class="skip-to-content" href="#main-content">跳到主内容</a>
     <?php
     $headerBackHref = '/';
@@ -914,6 +921,28 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 box.style.display = 'block';
             })
             .catch(function () {});
+    })();
+
+    /* 阅读进度条：按文章卡片滚动进度显示 */
+    (function () {
+        var bar = document.getElementById('readProgress');
+        var card = document.querySelector('.post-detail-card');
+        if (!bar || !card) return;
+        var raf = 0;
+        function update() {
+            raf = 0;
+            var rect = card.getBoundingClientRect();
+            var cardTop = rect.top + window.scrollY;          // 文章在文档中的绝对顶部
+            var contentH = Math.max(1, rect.height);          // 文章自身高度
+            var focusLine = window.scrollY + window.innerHeight * 0.55; // 视口 55% 处当作“读到这”
+            var pct = Math.min(1, Math.max(0, (focusLine - cardTop) / (contentH * 0.92)));
+            bar.style.transform = 'scaleX(' + pct.toFixed(3) + ')';
+        }
+        window.addEventListener('scroll', function () {
+            if (raf) return;
+            raf = requestAnimationFrame(update);
+        }, { passive: true });
+        update();
     })();
 
     /* 键盘 ← / → 切换上一篇 / 下一篇（输入框内不拦截） */
