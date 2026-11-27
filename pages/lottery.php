@@ -228,7 +228,7 @@ if ($detail):
               else { $__txt = '剩 ' . $__m . ' 分'; }
           } else { $__txt = '即将开奖'; }
       ?>
-        <span class="lot-badge<?= $__left > 0 && $__left < 86400 ? ' urgent' : '' ?>"><i></i><?= htmlspecialchars($__txt) ?></span>
+        <span class="lot-badge<?= $__left > 0 && $__left < 86400 ? ' urgent' : '' ?>" data-ts="<?= (int) $drawTs ?>"><i></i><span class="lot-badge-text"><?= htmlspecialchars($__txt) ?></span></span>
         <span style="font-size:12px;color:var(--text-muted)"><?= htmlspecialchars((string) $l['draw_at']) ?></span>
       <?php else: ?><span>已开奖</span><?php endif; ?>
     </div>
@@ -254,5 +254,31 @@ if ($detail):
     <?php endif; ?>
 <?php endif; ?>
 </div>
+
+<script>
+/* 抽奖列表倒计时：每秒按 data-ts 重算文案，避免“页面开着一小时后还显示剩 2 小时” */
+(function () {
+  function fmt(left) {
+    if (left <= 0) return '即将开奖';
+    var h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
+    if (h >= 24) return Math.floor(h / 24) + ' 天后开奖';
+    if (h > 0) return '剩 ' + h + ' 小时 ' + m + ' 分';
+    if (m > 0) return '剩 ' + m + ' 分 ' + sec + ' 秒';
+    return '剩 ' + sec + ' 秒';
+  }
+  function tick() {
+    var now = Math.floor(Date.now() / 1000);
+    document.querySelectorAll('.lot-badge[data-ts]').forEach(function (el) {
+      var ts = parseInt(el.getAttribute('data-ts'), 10) || 0;
+      var left = ts - now;
+      var txt = el.querySelector('.lot-badge-text') || el;
+      txt.textContent = fmt(left);
+      el.classList.toggle('urgent', left > 0 && left < 86400);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick); else tick();
+  setInterval(tick, 1000);
+})();
+</script>
 </body>
 </html>
