@@ -74,6 +74,10 @@ foreach ($all as $__l0) {
 foreach ((array) getFS()->read('lottery_entries') as $__e0) { if ((int) ($__e0['lottery_id'] ?? 0) > 0) { $__lotStats['entries']++; } }
 $__lotStats['reminds'] = count((array) getFS()->read('lottery_reminders'));
 
+/* 列表状态筛选：只影响列表展示，统计卡始终是全局口径 */
+$lotFilter = (string) ($_GET['status'] ?? 'all');
+if (!in_array($lotFilter, ['all', 'open', 'drawn'], true)) { $lotFilter = 'all'; }
+
 /* 每个抽奖设置了多少「开奖提醒」——开奖时会按这个数量群发站内通知 */
 $remindCount = [];
 foreach ((array) getFS()->read('lottery_reminders') as $__r) {
@@ -82,6 +86,16 @@ foreach ((array) getFS()->read('lottery_reminders') as $__r) {
 }
 
 adminHeader('抽奖管理', $adminUser, $csrfToken);
+?>
+
+<?php
+$__viewLots = [];
+foreach ($all as $__lv) {
+    $__stv = (string) ($__lv['status'] ?? 'open');
+    if ($lotFilter === 'open' && $__stv !== 'open') { continue; }
+    if ($lotFilter === 'drawn' && $__stv === 'open') { continue; }
+    $__viewLots[] = $__lv;
+}
 ?>
 
 <?php if ($msg): ?>
@@ -136,9 +150,16 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
 </div>
 
 <div class="section">
-    <div class="section-header"><h3>抽奖列表（<?= count($all) ?>）</h3></div>
+    <div class="section-header">
+        <h3>抽奖列表（<?= count($__viewLots) ?>/<?= count($all) ?>）</h3>
+        <div style="display:flex;gap:6px;font-size:12.5px">
+            <a href="?status=all" style="padding:3px 10px;border-radius:999px;text-decoration:none;<?= $lotFilter === 'all' ? 'background:#2F5B9A;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)' ?>">全部</a>
+            <a href="?status=open" style="padding:3px 10px;border-radius:999px;text-decoration:none;<?= $lotFilter === 'open' ? 'background:#2F5B9A;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)' ?>">进行中</a>
+            <a href="?status=drawn" style="padding:3px 10px;border-radius:999px;text-decoration:none;<?= $lotFilter === 'drawn' ? 'background:#2F5B9A;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)' ?>">已开奖</a>
+        </div>
+    </div>
     <div class="section-body">
-        <?php if (!$all): ?>
+        <?php if (!$__viewLots): ?>
             <div style="padding:28px 0;text-align:center;color:var(--text-muted)">还没有抽奖，先在上面创建一个</div>
         <?php else: ?>
         <div style="display:flex;flex-direction:column;gap:10px">
