@@ -146,6 +146,38 @@ adminHeader('App 系统通知推送', $adminUser, $csrfToken);
 </div>
 
 <script>
+/* 推送历史：按抽奖 ID 过滤（跳转地址含 lottery.php?id=X） */
+function applyLotFilter() {
+    var inp = document.getElementById('lotFilter');
+    if (!inp) return;
+    var val = String(inp.value || '').trim();
+    var rows = document.querySelectorAll('#pushBody tr[data-url]');
+    var shown = 0;
+    rows.forEach(function (tr) {
+        var ok = true;
+        if (val !== '') {
+            var u = tr.getAttribute('data-url') || '';
+            var m = u.match(/lottery\.php\?id=(\d+)/);
+            ok = !!(m && m[1] === val);
+        }
+        tr.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+    });
+    var hint = document.getElementById('lotFilterHint');
+    if (hint) hint.textContent = val === '' ? '' : ('匹配 ' + shown + ' 条');
+}
+document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'lotFilter') { applyLotFilter(); }
+});
+(function () {
+    try {
+        var pre = new URLSearchParams(location.search).get('lot');
+        var inp = document.getElementById('lotFilter');
+        if (pre && inp) { inp.value = pre; }
+    } catch (e) {}
+})();
+</script>
+<script>
 (function () {
     function fmtTime(t) {
         if (!t) return '-';
