@@ -104,6 +104,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'last_state'        => $kr['state'] ?? 'cookie_expired',
             'last_error'        => (string) ($kr['err'] ?? ''),
         ]);
+        logOperation((int) $adminUser['id'], (string) $adminUser['qq'], 'qzone_keepalive', 'qzone', '',
+            (($kr['state'] ?? '') === 'ok')
+                ? ('保活成功，续期 ' . (int) ($kr['refreshed'] ?? 0) . ' 个字段')
+                : ('保活失败：' . (string) ($kr['err'] ?? 'Cookie 可能已过期')));
         $redirect('msg=' . urlencode(
             (($kr['state'] ?? '') === 'ok')
                 ? ('保活成功：续期 ' . (int) ($kr['refreshed'] ?? 0) . ' 个密钥字段')
