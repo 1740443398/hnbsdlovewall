@@ -12,6 +12,14 @@ $user = checkBanned($user);
 
 $csrfToken = generateCSRFToken();
 
+// 关注 / 粉丝数（资料卡快捷数据；直接读 follows 表，避免两次 API 往返）
+$ucFollowingCount = 0;
+$ucFollowerCount = 0;
+foreach ((array) getFS()->read('follows') as $__f) {
+    if ((int) ($__f['user_id'] ?? 0) === (int) $user['id']) { $ucFollowingCount++; }
+    if ((int) ($__f['target_id'] ?? 0) === (int) $user['id']) { $ucFollowerCount++; }
+}
+
 // 是否存在待审核的 QQ 修改申请（用于按钮区域展示「待审核中」）
 $pendingQqChange = getFS()->findOne('qq_change_requests', ['user_id' => $user['id'], 'status' => 'pending']);
 $tab = isset($_REQUEST['tab']) ? sanitizeInput($_REQUEST['tab']) : 'profile';
@@ -247,8 +255,9 @@ if ($inviteEnabled && $tab === 'invite') {
         }
 
         /* 资料卡快捷数据 */
-        .uc-quick-stats { display: flex; gap: 1.25rem; margin-top: .6rem; flex-wrap: wrap; }
-        .uc-qs { display: flex; flex-direction: column; line-height: 1.2; }
+        .uc-quick-stats { display: flex; gap: 1.1rem; margin-top: .65rem; flex-wrap: wrap; }
+        .uc-qs { display: flex; flex-direction: column; line-height: 1.2; text-decoration: none; }
+        .uc-qs:hover b { color: var(--primary-hover, var(--primary)); text-decoration: underline; }
         .uc-qs b { font-size: 1.05rem; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
         .uc-qs span { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
 
@@ -1086,10 +1095,12 @@ if ($inviteEnabled && $tab === 'invite') {
                             <span class="uc-setup-hint"><?= t('uc.setup_hint') ?></span>
                             <?php endif; ?>
                             <div class="uc-quick-stats" id="ucQuickStats">
-                                <div class="uc-qs"><b>—</b><span>动态</span></div>
-                                <div class="uc-qs"><b>—</b><span>获赞</span></div>
-                                <div class="uc-qs"><b>—</b><span>评论</span></div>
-                                <div class="uc-qs"><b>—</b><span>收藏</span></div>
+                                <a class="uc-qs" href="?tab=posts"><b data-qs="post">—</b><span>动态</span></a>
+                                <a class="uc-qs" href="?tab=stats"><b data-qs="likes">—</b><span>获赞</span></a>
+                                <a class="uc-qs" href="?tab=comments"><b data-qs="comments">—</b><span>评论</span></a>
+                                <a class="uc-qs" href="?tab=favorites"><b data-qs="favorites">—</b><span>收藏</span></a>
+                                <a class="uc-qs" href="<?= htmlspecialchars(lwUserUrl($user['nickname'] ?: ('用户' . $user['id']))) ?>"><b><?= (int)$ucFollowingCount ?></b><span>关注</span></a>
+                                <a class="uc-qs" href="<?= htmlspecialchars(lwUserUrl($user['nickname'] ?: ('用户' . $user['id']))) ?>"><b><?= (int)$ucFollowerCount ?></b><span>粉丝</span></a>
                             </div>
                         </div>
                     </div>
