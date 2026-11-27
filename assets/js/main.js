@@ -3727,11 +3727,12 @@
         const cat = this.classify(n)[0];
         counts.all++;
         if (cat === 'interact') counts.interact++;
-        else counts.system++;
+        else if (cat === 'lottery') counts.lottery++;
+        else if (cat === 'system') counts.system++;
       });
       this._st.tabs.forEach((t) => {
         const key = t.getAttribute('data-ntf-tab');
-        const base = { all: '全部', interact: '互动', system: '系统' }[key];
+        const base = { all: '全部', interact: '互动', system: '系统', lottery: '抽奖' }[key];
         const c = counts[key] || 0;
         t.innerHTML = base + (c > 0 ? ' <span class="lw-ntf-tab-n">' + c + '</span>' : '');
       });
