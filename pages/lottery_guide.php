@@ -25,6 +25,11 @@ $pageTitle = '补全参与条件';
 <?php require_once __DIR__ . '/../includes/theme_boot.php'; ?>
 <title><?= htmlspecialchars($pageTitle) ?> · <?= htmlspecialchars(SITE_NAME) ?></title>
 <style>
+.dark-theme, .dark-theme body {
+  --bg: #0F1520; --bg-secondary: #171E2B; --card-bg: rgba(27, 36, 52, .75);
+  --border: #2A3748; --text: #E4E9F0; --text-muted: #7C8B9E;
+  --primary: #5B8BD0; --primary-hover: #7AA3DE;
+}
 body{margin:0;background:var(--bg,#F4F6F9);color:var(--text,#1C2733);font-family:'Noto Sans SC',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
 .wrap{max-width:640px;margin:0 auto;padding:18px 14px 60px}
 h1{font-size:20px;margin:8px 0 6px}

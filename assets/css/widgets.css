@@ -896,17 +896,17 @@
         box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 2px 8px rgba(0,0,0,.35);
     }
 }
-html[data-theme="dark"] .lw-bubble-glass {
+.dark-theme .lw-bubble-glass {
     background: rgba(30,34,44,.55);
     border-color: rgba(255,255,255,.12);
 }
-html[data-theme="dark"] .lw-frame-glass {
+.dark-theme .lw-frame-glass {
     border-color: rgba(255,255,255,.32);
     box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 2px 8px rgba(0,0,0,.35);
 }
 /* 默认皮肤徽章在暗色下：浅底 + 浅字看不清，换成深底亮字。
  * 注意：不能用 [class*="lw-badge-"] 取反 —— .lw-badge-slot 自身就含这个子串。 */
-html[data-theme="dark"] .lw-badge-slot:not(.lw-badge-crown):not(.lw-badge-cyber):not(.lw-badge-sakura):not(.lw-badge-ocean):not(.lw-badge-tuxedo) {
+.dark-theme .lw-badge-slot:not(.lw-badge-crown):not(.lw-badge-cyber):not(.lw-badge-sakura):not(.lw-badge-ocean):not(.lw-badge-tuxedo) {
     background: rgba(255,255,255,.12);
     color: var(--text, #E8EDF5);
 }

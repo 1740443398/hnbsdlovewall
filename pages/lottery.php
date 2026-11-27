@@ -65,6 +65,11 @@ $pageTitle = $detail ? ($detail['title'] ?? '抽奖') : '站内抽奖';
 <?php endif; ?>
 <link rel="icon" href="/icon.ico" type="image/x-icon">
 <style>
+.dark-theme, .dark-theme body {
+  --bg: #0F1520; --bg-secondary: #171E2B; --card-bg: rgba(27, 36, 52, .75);
+  --border: #2A3748; --text: #E4E9F0; --text-muted: #7C8B9E;
+  --primary: #5B8BD0; --primary-hover: #7AA3DE;
+}
 :root { --primary:#2F5B9A; --card:#fff; --bg:#F4F6F9; --text:#1C2733; --muted:#6B7A8B; --border:#E3E7EC; }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--text); font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }

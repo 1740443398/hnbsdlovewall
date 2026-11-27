@@ -345,17 +345,17 @@ a.lot-rule-chip:hover { filter: brightness(0.96); text-decoration: none; }
 
 
 /* ===== 抽奖模块暗色主题适配 ===== */
-html[data-theme="dark"] .lot-rule-chip { background: rgba(91,139,208,.20); color: #A8C7F0; }
-html[data-theme="dark"] .lot-rule-chip.is-ok { background: rgba(56,161,105,.22); color: #7FD6A8; }
-html[data-theme="dark"] .lot-rule-chip.is-miss { background: rgba(220,100,90,.22); color: #F0A8A2; }
-html[data-theme="dark"] .lot-badge { background: rgba(91,139,208,.22); color: #A8C7F0; }
-html[data-theme="dark"] .lot-missing-hint { background: rgba(220,100,90,.16); color: #F0A8A2; }
-html[data-theme="dark"] .lot-rules-note { color: var(--text-muted); }
-html[data-theme="dark"] .lot-custom-ack { color: var(--text); }
-html[data-theme="dark"] .recent-cover { background: var(--bg-secondary); }
-html[data-theme="dark"] .lot-thumb { background: var(--bg-secondary); }
-html[data-theme="dark"] .lot-actions .btn.ghost { background: rgba(255,255,255,.10); color: var(--text); }
-html[data-theme="dark"] .lot-missing-hint a { color: #F0A8A2; }
+.dark-theme .lot-rule-chip { background: rgba(91,139,208,.20); color: #A8C7F0; }
+.dark-theme .lot-rule-chip.is-ok { background: rgba(56,161,105,.22); color: #7FD6A8; }
+.dark-theme .lot-rule-chip.is-miss { background: rgba(220,100,90,.22); color: #F0A8A2; }
+.dark-theme .lot-badge { background: rgba(91,139,208,.22); color: #A8C7F0; }
+.dark-theme .lot-missing-hint { background: rgba(220,100,90,.16); color: #F0A8A2; }
+.dark-theme .lot-rules-note { color: var(--text-muted); }
+.dark-theme .lot-custom-ack { color: var(--text); }
+.dark-theme .recent-cover { background: var(--bg-secondary); }
+.dark-theme .lot-thumb { background: var(--bg-secondary); }
+.dark-theme .lot-actions .btn.ghost { background: rgba(255,255,255,.10); color: var(--text); }
+.dark-theme .lot-missing-hint a { color: #F0A8A2; }
 
 
 /* ===== 抽奖模块移动端细节打磨 ===== */
