@@ -19,6 +19,33 @@ if (!checkPermission($adminUser, 'manage_users')) {
 $notice = '';
 $noticeType = 'success';
 
+/* 可编辑模板：存 data/broadcast_templates.json，缺省用内置文案 */
+$__defaultTpls = [
+    'maintenance' => '【维护公告】今晚 23:00-24:00 站点将进行例行维护，期间可能短暂无法访问，请提前保存草稿。给大家带来不便，敬请谅解。',
+    'event'       => '【活动预告】新一轮校园活动即将开始，详情见站内公告，欢迎同学们参与！',
+    'feature'     => '【新功能上线】站内新增若干功能，欢迎体验并反馈建议，你的意见会直接影响后续迭代。',
+    'exam'        => '【考试周提醒】本周进入考试周，注意休息、合理分配复习时间。祝大家取得好成绩！',
+];
+$tpls = getFS()->read('broadcast_templates');
+if (!is_array($tpls)) { $tpls = []; }
+$tpls = array_merge($__defaultTpls, array_intersect_key($tpls, $__defaultTpls));
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_tpls') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $notice = 'CSRF 校验失败，请刷新页面重试';
+        $noticeType = 'danger';
+    } else {
+        $new = [];
+        foreach ($__defaultTpls as $k => $__v) {
+            $txt = trim((string) ($_POST['tpl_' . $k] ?? ''));
+            $new[$k] = mb_substr($txt !== '' ? $txt : $__v, 0, 500);
+        }
+        getFS()->write('broadcast_templates', $new);
+        $tpls = $new;
+        $notice = '模板已保存';
+    }
+}
+
 $target = (string) ($_POST['target'] ?? ($_GET['target'] ?? 'all'));
 if (!in_array($target, ['all', 'role_admin', 'role_user', 'single'], true)) { $target = 'all'; }
 $singleId = (int) ($_POST['single_id'] ?? ($_GET['single_id'] ?? 0));
@@ -166,6 +193,21 @@ adminHeader('通知群发', $adminUser, $csrfToken);
             <button class="btn btn-primary" type="submit" onclick="return confirm('确认向当前筛选的用户群发通知？')">立即发送</button>
         </form>
 
+        <details style="margin-top:16px">
+            <summary style="cursor:pointer;font-size:13px;color:var(--text-secondary)">✎ 编辑模板文案</summary>
+            <form method="post" style="margin-top:10px">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="action" value="save_tpls">
+                <?php foreach (['maintenance' => '维护公告', 'event' => '活动预告', 'feature' => '新功能上线', 'exam' => '考试周提醒'] as $__k => $__label): ?>
+                <div style="margin-bottom:8px">
+                    <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px"><?= $__label ?></label>
+                    <textarea name="tpl_<?= $__k ?>" rows="2" maxlength="500" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;resize:vertical"><?= htmlspecialchars($tpls[$__k]) ?></textarea>
+                </div>
+                <?php endforeach; ?>
+                <button class="btn btn-outline btn-sm" type="submit">保存模板</button>
+            </form>
+        </details>
+
         <?php
         $__logs = (array) getFS()->read('broadcast_logs');
         usort($__logs, function ($a, $b) { return strtotime((string)($b['created_at'] ?? '')) - strtotime((string)($a['created_at'] ?? '')); });
@@ -229,12 +271,12 @@ adminHeader('通知群发', $adminUser, $csrfToken);
 </script>
 <script>
 (function () {
-    var TPL = {
-        maintenance: { text: '【维护公告】今晚 23:00-24:00 站点将进行例行维护，期间可能短暂无法访问，请提前保存草稿。给大家带来不便，敬请谅解。', link: '/', title: '维护公告' },
-        event:       { text: '【活动预告】新一轮校园活动即将开始，详情见站内公告，欢迎同学们参与！', link: '/pages/lottery.php', title: '活动预告' },
-        feature:     { text: '【新功能上线】站内新增若干功能，欢迎体验并反馈建议，你的意见会直接影响后续迭代。', link: '/pages/discover.php', title: '新功能上线' },
-        exam:        { text: '【考试周提醒】本周进入考试周，注意休息、合理分配复习时间。祝大家取得好成绩！', link: '/pages/tools.php', title: '考试周提醒' }
-    };
+    var TPL = <?= json_encode([
+        'maintenance' => ['text' => $tpls['maintenance'], 'link' => '/', 'title' => '维护公告'],
+        'event'       => ['text' => $tpls['event'], 'link' => '/pages/lottery.php', 'title' => '活动预告'],
+        'feature'     => ['text' => $tpls['feature'], 'link' => '/pages/discover.php', 'title' => '新功能上线'],
+        'exam'        => ['text' => $tpls['exam'], 'link' => '/pages/tools.php', 'title' => '考试周提醒'],
+    ], JSON_UNESCAPED_UNICODE) ?>;
     document.querySelectorAll('.ntf-template').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var t = TPL[btn.getAttribute('data-tpl')];
