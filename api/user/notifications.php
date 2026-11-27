@@ -15,6 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $page = intval($_REQUEST['page'] ?? 1);
     $limit = intval($_REQUEST['limit'] ?? 20);
     $unreadOnly = ($_REQUEST['unread'] ?? '0') === '1';
+    /* 分类过滤：切换标签时直接按分类取，避免"前端只过滤当前 20 条"的错觉 */
+    $category = (string) ($_REQUEST['category'] ?? '');
 
     $notifications = $fs->find('notifications', ['user_id' => $user['id']]);
 
@@ -36,6 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($unreadOnly) {
         $notifications = array_filter($notifications, function($n) { return empty($n['is_read']); });
+    }
+    if (in_array($category, ['interact', 'lottery', 'system'], true)) {
+        $notifications = array_filter($notifications, function ($n) use ($category) {
+            $t = (string) ($n['type'] ?? 'system');
+            if ($category === 'interact') { return in_array($t, ['comment', 'reply', 'mention', 'follow', 'like'], true); }
+            if ($category === 'lottery') { return $t === 'lottery_result'; }
+            return !in_array($t, ['comment', 'reply', 'mention', 'follow', 'like', 'lottery_result'], true);
+        });
     }
 
     $notifications = array_values($notifications);

@@ -3587,6 +3587,11 @@
           if (tab === this._tab) return;
           this._tab = tab;
           this._st.tabs.forEach((t) => t.classList.toggle('is-active', t === tabEl));
+          /* 按分类向服务端重新取：只过滤已加载的 20 条会让人误以为"抽奖通知只有这几条" */
+          this._page = 1;
+          this._items = [];
+          this._seenIds = null;
+          this.fetchNotifications();
           this.renderList();
         });
       });
@@ -3667,8 +3672,9 @@
     async fetchNotifications(isMore) {
       try {
         // 拉取含已读的完整列表（不再用 unread=1），既拿未读数也保留历史记录
+        const cat = (this._tab && this._tab !== 'all') ? ('&category=' + encodeURIComponent(this._tab)) : '';
         const data = await fetchAPI(
-          '/api/user/notifications.php?page=' + this._page + '&limit=' + this._limit
+          '/api/user/notifications.php?page=' + this._page + '&limit=' + this._limit + cat
         );
         if (!data.data) return;
         this.unreadCount = data.data.unread_count || 0;
@@ -3691,7 +3697,7 @@
           this._newIds = fresh;
         }
 
-        this._srvCounts = (res && res.data && res.data.type_counts) || null;
+        this._srvCounts = (data && data.data && data.data.type_counts) || null;
         this._items = isMore ? this._items.concat(batch) : batch;
         this._hasMore = hasMore;
         if (this._st) {
