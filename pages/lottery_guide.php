@@ -45,6 +45,32 @@ h1{font-size:20px;margin:8px 0 6px}
   <h1>🎁 补全参与条件</h1>
   <div class="sub">抽奖：<?= htmlspecialchars((string) $l['title']) ?> · 完成下列条件即可参与</div>
 
+  <?php
+  $__rulesAll = (array) ($l['rules'] ?? []);
+  $__totalRules = 0; $__doneRules = 0;
+  foreach ($__rulesAll as $__rr) {
+      $__rr = (string) $__rr;
+      $__dd = null;
+      if (mb_strpos($__rr, '关注') !== false && $ownerId > 0) { $__dd = $status['关注'] ?? false; }
+      elseif (mb_strpos($__rr, '点赞') !== false && $postId > 0) { $__dd = $status['点赞'] ?? false; }
+      elseif (mb_strpos($__rr, '评论') !== false && $postId > 0) { $__dd = $status['评论'] ?? false; }
+      elseif (mb_strpos($__rr, '转发') !== false && $postId > 0) { $__dd = $status['转发'] ?? false; }
+      if ($__dd === null) { continue; }
+      $__totalRules++;
+      if ($__dd) { $__doneRules++; }
+  }
+  $__pct = $__totalRules > 0 ? (int) round($__doneRules * 100 / $__totalRules) : 100;
+  ?>
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+      <span style="color:var(--text-muted,#6B7A8B)">完成进度</span>
+      <b id="guideProgressText"><?= $__doneRules ?>/<?= $__totalRules ?></b>
+    </div>
+    <div style="height:8px;background:var(--bg-secondary,#EEF1F5);border-radius:999px;overflow:hidden">
+      <div id="guideProgressBar" style="height:100%;width:<?= $__pct ?>%;background:linear-gradient(90deg,#2F5B9A,#38A169);border-radius:999px;transition:width .25s"></div>
+    </div>
+  </div>
+
   <div class="card" id="list">
     <?php
     $rules = (array) ($l['rules'] ?? []);
@@ -94,8 +120,22 @@ h1{font-size:20px;margin:8px 0 6px}
 const CSRF = '<?= htmlspecialchars($csrf) ?>';
 const BACK_URL = '/pages/lottery.php?id=<?= (int) $id ?>';
 
+/* 进度条：按已完成行数 / 总行数刷新 */
+function updateProgress() {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var active = rows.filter(function (r) { return r.querySelector('.ok') || r.querySelector('.btn, button'); });
+  var done = active.filter(function (r) { return !!r.querySelector('.ok'); }).length;
+  var total = active.length;
+  var pct = total > 0 ? Math.round(done * 100 / total) : 100;
+  var bar = document.getElementById('guideProgressBar');
+  var txt = document.getElementById('guideProgressText');
+  if (bar) bar.style.width = pct + '%';
+  if (txt) txt.textContent = done + '/' + total;
+}
+
 /* 全部条件完成后自动返回抽奖详情（带参与按钮），无需手动点返回 */
 function maybeDoneAll() {
+  updateProgress();
   var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
   var pending = rows.filter(function (r) { return !r.querySelector('.ok') && r.querySelector('.btn, button'); });
   if (pending.length === 0) {
