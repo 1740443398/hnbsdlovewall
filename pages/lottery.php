@@ -88,7 +88,7 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
 .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
-<body>
+<body class="page-lottery">
 <div class="wrap">
   <h1><a href="/pages/lottery.php" style="color:inherit;text-decoration:none">🎁 站内抽奖</a></h1>
 <?php if ($user && !$detail): ?>
