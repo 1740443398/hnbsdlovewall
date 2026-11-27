@@ -22,6 +22,8 @@ require_once __DIR__ . '/../includes/enhance.php';
 
 $action = $_REQUEST['action'] ?? 'hot';
 $limit = min(30, max(1, (int)($_GET['limit'] ?? 6)));
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$offset = ($page - 1) * $limit;
 $user = getCurrentUser();
 
 $fs = getFS();
@@ -44,8 +46,11 @@ if ($action === 'for_you') {
 if ($action === 'hot') {
     $sorted = lwSortByHot($all);
     jsonSuccess([
-        'posts' => lwPostListPayload(array_slice($sorted, 0, $limit)),
-        'count' => min($limit, count($sorted)),
+        'posts' => lwPostListPayload(array_slice($sorted, $offset, $limit)),
+        'count' => min($limit, max(0, count($sorted) - $offset)),
+        'total' => count($sorted),
+        'page' => $page,
+        'has_more' => $offset + $limit < count($sorted),
     ]);
 }
 

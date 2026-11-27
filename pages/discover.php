@@ -328,10 +328,28 @@ function loadFollowing(page) {
         .catch(function () { document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
 }
 
-function loadHot(){
-    fetch('/api/recommend.php?action=hot&limit=12', {credentials:'same-origin'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){ render((d.data && d.data.posts) || [], '暂无内容'); });
+var HOT_PAGE = 1, HOT_MORE = false, HOT_ITEMS = [];
+function loadHot(page) {
+    page = page || 1;
+    if (page === 1) { HOT_ITEMS = []; document.getElementById('content').innerHTML = '<div class="empty">加载中…</div>'; }
+    fetch('/api/recommend.php?action=hot&limit=12&page=' + page, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            var data = d.data || {};
+            HOT_ITEMS = HOT_ITEMS.concat(data.posts || []);
+            HOT_MORE = !!data.has_more;
+            HOT_PAGE = page;
+            if (!HOT_ITEMS.length) { document.getElementById('content').innerHTML = '<div class="empty">暂无内容</div>'; return; }
+            renderHot();
+        })
+        .catch(function () { document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
+}
+function renderHot() {
+    var box = document.getElementById('content');
+    box.innerHTML = '<div class="disc-grid">' + HOT_ITEMS.map(postCard).join('') + '</div>' +
+        (HOT_MORE ? '<div style="text-align:center;margin:16px 0"><button type="button" id="hotMore" class="disc-tab" style="cursor:pointer">加载更多</button></div>' : '');
+    var btn = document.getElementById('hotMore');
+    if (btn) btn.addEventListener('click', function () { btn.disabled = true; btn.textContent = '加载中…'; loadHot(HOT_PAGE + 1); });
 }
 function loadTags(){
     fetch('/api/tags.php?action=cloud&limit=60', {credentials:'same-origin'})
