@@ -288,11 +288,28 @@ function render(posts, emptyMsg){
     if (!posts.length) { document.getElementById('content').innerHTML = '<div class="empty">' + emptyMsg + '</div>'; return; }
     document.getElementById('content').innerHTML = '<div class="disc-grid">' + posts.map(postCard).join('') + '</div>';
 }
-function loadRecommend(){
-    fetch('/api/recommend.php?action=for_you&limit=12', {credentials:'same-origin'})
-    .then(function(r){ return r.json(); })
-    .then(function(d){ render((d.data && d.data.posts) || [], '暂无推荐，先去发个帖子吧'); })
-    .catch(function(){ document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
+var REC_PAGE = 1, REC_MORE = false, REC_ITEMS = [];
+function loadRecommend(page) {
+    page = page || 1;
+    if (page === 1) { REC_ITEMS = []; document.getElementById('content').innerHTML = '<div class="empty">加载中…</div>'; }
+    fetch('/api/recommend.php?action=for_you&limit=12&page=' + page, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            var data = d.data || {};
+            REC_ITEMS = REC_ITEMS.concat(data.posts || []);
+            REC_MORE = !!data.has_more;
+            REC_PAGE = page;
+            if (!REC_ITEMS.length) { document.getElementById('content').innerHTML = '<div class="empty">暂无推荐，先去发个帖子吧</div>'; return; }
+            renderRecommend();
+        })
+        .catch(function () { document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
+}
+function renderRecommend() {
+    var box = document.getElementById('content');
+    box.innerHTML = '<div class="disc-grid">' + REC_ITEMS.map(postCard).join('') + '</div>' +
+        (REC_MORE ? '<div style="text-align:center;margin:16px 0"><button type="button" id="recMore" class="disc-tab" style="cursor:pointer">加载更多</button></div>' : '');
+    var btn = document.getElementById('recMore');
+    if (btn) btn.addEventListener('click', function () { btn.disabled = true; btn.textContent = '加载中…'; loadRecommend(REC_PAGE + 1); });
 }
 var FOLLOW_PAGE = 1, FOLLOW_MORE = false, FOLLOW_ITEMS = [];
 function renderFollowing() {

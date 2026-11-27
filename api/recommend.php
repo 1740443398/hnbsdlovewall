@@ -35,11 +35,16 @@ foreach (lwEnhRead('posts') as $p) {
 }
 
 if ($action === 'for_you') {
-    $picked = lwRecommend($all, $user, $limit);
+    /* 分页：推荐算法一次算 200 条上限，再按 offset 切片（列表本身不大） */
+    $picked = lwRecommend($all, $user, 200);
+    $pagePosts = array_slice($picked, $offset, $limit);
     jsonSuccess([
-        'posts' => lwPostListPayload($picked),
+        'posts' => lwPostListPayload($pagePosts),
         'personalized' => $user !== null,
-        'count' => count($picked),
+        'count' => count($pagePosts),
+        'total' => count($picked),
+        'page' => $page,
+        'has_more' => $offset + $limit < count($picked),
     ]);
 }
 
