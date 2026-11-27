@@ -33,6 +33,27 @@ $post = $fs->findById('posts', $postId);
         $__postTranslated = $__t['translated'];
         $__postFromLang = $__t['from'];
     }
+// 上一篇 / 下一篇（按发布时间，可见性过滤与列表一致）
+require_once __DIR__ . '/../includes/post_visibility.php';
+$__prevPost = null;
+$__nextPost = null;
+try {
+    $__peers = [];
+    foreach (lwFilterVisiblePosts($fs->read('posts'), $user) as $__pp) {
+        if ((string) ($__pp['status'] ?? 'published') !== 'published') { continue; }
+        $__peers[] = $__pp;
+    }
+    usort($__peers, function ($a, $b) {
+        return strtotime((string) ($b['created_at'] ?? '')) - strtotime((string) ($a['created_at'] ?? ''));
+    });
+    foreach ($__peers as $__i => $__pp) {
+        if ((int) ($__pp['id'] ?? 0) !== $postId) { continue; }
+        $__nextPost = $__peers[$__i - 1] ?? null; // 更新的一篇
+        $__prevPost = $__peers[$__i + 1] ?? null; // 更早的一篇
+        break;
+    }
+} catch (Throwable $__e) {}
+
 $userIsAdmin = $user && in_array($user['role'], ['admin', 'super_admin']);
 // 能删「别人的」评论 = 管理员且持有 delete_comments 权限。
 // 内核 includes/actions/comment_delete.php 就是这么判的；前台按钮必须同一口径，
@@ -839,6 +860,25 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 <?php endif; ?>
             </div>
         </article>
+        <nav class="lw-post-nav">
+            <?php if ($__prevPost): ?>
+            <a href="/pages/post_detail.php?id=<?= (int)$__prevPost['id'] ?>">
+                <span class="lw-pn-label">← 上一篇</span>
+                <span class="lw-pn-title"><?= htmlspecialchars((string)($__prevPost['title'] ?? '（无标题）')) ?></span>
+            </a>
+            <?php else: ?>
+            <a class="lw-pn-off"><span class="lw-pn-label">← 上一篇</span><span class="lw-pn-title">没有了</span></a>
+            <?php endif; ?>
+            <?php if ($__nextPost): ?>
+            <a class="lw-pn-next" href="/pages/post_detail.php?id=<?= (int)$__nextPost['id'] ?>">
+                <span class="lw-pn-label">下一篇 →</span>
+                <span class="lw-pn-title"><?= htmlspecialchars((string)($__nextPost['title'] ?? '（无标题）')) ?></span>
+            </a>
+            <?php else: ?>
+            <a class="lw-pn-off lw-pn-next"><span class="lw-pn-label">下一篇 →</span><span class="lw-pn-title">没有了</span></a>
+            <?php endif; ?>
+        </nav>
+
         <section class="lw-related" id="lwRelated" style="display:none">
             <h2>相关推荐</h2>
             <div class="lw-related-grid" id="lwRelatedGrid"></div>
