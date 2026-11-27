@@ -839,9 +839,38 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 <?php endif; ?>
             </div>
         </article>
+        <section class="lw-related" id="lwRelated" style="display:none">
+            <h2>相关推荐</h2>
+            <div class="lw-related-grid" id="lwRelatedGrid"></div>
+        </section>
     </main>
 
     <div class="toast-container" id="toastContainer"></div>
+    <script>
+    (function () {
+        var box = document.getElementById('lwRelated');
+        var grid = document.getElementById('lwRelatedGrid');
+        if (!box || !grid) return;
+        fetch('/api/posts/related.php?id=<?= (int)$postId ?>&limit=4', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var posts = (d && d.data && d.data.posts) || [];
+                if (!posts.length) return;
+                function esc(x) { return String(x == null ? '' : x).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); }
+                grid.innerHTML = posts.map(function (p) {
+                    return '<a class="lw-rel-card" href="/pages/post_detail.php?id=' + encodeURIComponent(p.id) + '">' +
+                        '<div class="lw-rel-title">' + esc(p.title || '（无标题）') + '</div>' +
+                        '<div class="lw-rel-meta">' +
+                        (p.category_name ? '<span class="lw-rel-cat">' + esc(p.category_name) + '</span>' : '') +
+                        '<span>♡ ' + (p.like_count || 0) + '</span><span>评论 ' + (p.comment_count || 0) + '</span>' +
+                        (p.author_name ? '<span>' + esc(p.author_name) + '</span>' : '') +
+                        '</div></a>';
+                }).join('');
+                box.style.display = 'block';
+            })
+            .catch(function () {});
+    })();
+    </script>
 
     <?php
     // 详情页不属于底部 5 个标签，因此不高亮任何一项
