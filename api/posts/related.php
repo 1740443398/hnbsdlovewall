@@ -30,12 +30,14 @@ foreach (lwFilterVisiblePosts($fs->read('posts'), $user) as $p) {
     if (!empty($p['is_anonymous'])) { /* 仍可推荐，仅导出标题 */ }
     $score = 0;
     if ($baseCat !== '' && (string) ($p['category'] ?? '') === $baseCat) { $score += 2; }
+    $sameAuthor = (int) ($p['user_id'] ?? 0) === (int) ($me['user_id'] ?? 0) && empty($p['is_anonymous']) && empty($me['is_anonymous']);
+    if ($sameAuthor) { $score += 2; }
     $pTags = array_keys((array) lwExtractTags((string)($p['title'] ?? '') . "\n" . (string)($p['content'] ?? '')));
     $shared = count(array_intersect($baseTags, $pTags));
     $score += $shared * 3;
     if ($score <= 0) { continue; }
     $score += min(3, ((int) ($p['likes'] ?? 0)) / 50) + min(3, ((int) ($p['comments'] ?? 0)) / 20);
-    $cands[] = ['score' => $score, 'p' => $p];
+    $cands[] = ['score' => $score, 'p' => $p, 'same_author' => $sameAuthor];
 }
 usort($cands, function ($a, $b) { return $b['score'] <=> $a['score']; });
 
@@ -56,7 +58,8 @@ foreach (array_slice($cands, 0, $limit) as $c) {
         'author_name' => !empty($p['is_anonymous']) ? '匿名同学' : ($names[(int) ($p['user_id'] ?? 0)] ?? ''),
         'like_count' => (int) ($p['likes'] ?? 0),
         'comment_count' => (int) ($p['comments'] ?? 0),
+        'same_author' => !empty($c['same_author']),
     ];
 }
 
-jsonSuccess(['posts' => lwProjectRows($out, lwFieldsRequest(), ['id','title','category','category_name','author_name','like_count','comment_count'], ['id'])]);
+jsonSuccess(['posts' => lwProjectRows($out, lwFieldsRequest(), ['id','title','category','category_name','author_name','like_count','comment_count','same_author'], ['id'])]);

@@ -902,6 +902,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                         '<div class="lw-rel-title">' + esc(p.title || '（无标题）') + '</div>' +
                         '<div class="lw-rel-meta">' +
                         (p.category_name ? '<span class="lw-rel-cat">' + esc(p.category_name) + '</span>' : '') +
+                        (p.same_author ? '<span class="lw-rel-same">同作者</span>' : '') +
                         '<span>♡ ' + (p.like_count || 0) + '</span><span>评论 ' + (p.comment_count || 0) + '</span>' +
                         (p.author_name ? '<span>' + esc(p.author_name) + '</span>' : '') +
                         '</div></a>';
