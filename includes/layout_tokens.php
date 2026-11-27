@@ -97,7 +97,7 @@ if (!function_exists('lwLayoutCss')) {
         // 并关掉装饰性阴影（低配设备省一次合成）
         if ($t['compact'] === 1) {
             $css .= ':root{--space-scale:' . number_format(($t['space_scale'] ?? 75) / 100, 2, '.', '') . '}';
-            $css .= '.card,.post-card,.setting-section{margin-bottom:12px!important;box-shadow:none!important}'
+            $css .= '.card,.post-card,.setting-section{margin-bottom:12px!important}'   /* 旧扁平化曾在这里强制 box-shadow:none，会把 RareUI 的卡片阴影全部压掉；现在只保留间距约束 */
                 . '.container{padding-left:10px;padding-right:10px}';
         }
         return $css;

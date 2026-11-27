@@ -70,14 +70,15 @@ CSS_ORDER = [
     'assets/css/motion.css',
     'assets/css/mobile-pro.css',
     'assets/css/apple-design.css',
-    'assets/css/rareui.css',   # RareUI 组件层（覆盖式升级，需在旧层之后）
     'assets/css/motion-plus.css',
     'assets/css/motion-interact.css',
     'assets/css/a11y-touch.css',
     'assets/css/motion-liquid-tab.css',
     'assets/css/mobile-app.css',
     'assets/css/motion-sheet.css',
+    'assets/css/rareui.css',   # RareUI 组件层（最后的设计层，必须在 dark-patch 前）
     'assets/css/dark-patch.css',
+    'assets/css/rareui-fixes.css',   # 收口层：必须最后（压过所有旧规则）
 ]
 
 # 【JS 顺序同样不能随便调】

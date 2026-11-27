@@ -1,0 +1,45 @@
+/* ============================================================================
+   RareUI 收口层（必须是打包顺序里的最后一个 CSS）
+   ----------------------------------------------------------------------------
+   原因：clean-css 压缩时会把 :root 变量前移，导致中间层的「扁平化」旧规则
+   在 .min.css 里反而排在 RareUI 之后，把卡片圆角/阴影覆盖回 0/none。
+   所以把「必须最终生效」的几条组件规则单独放到最后文件，并用 !important 收口。
+   ========================================================================== */
+.post-card,
+.card,
+.tool-card,
+.stat-card,
+.section,
+.lz-card,
+.visit-card {
+  border-radius: var(--ru-r-lg, 18px) !important;
+  box-shadow: var(--ru-shadow-1, 0 1px 2px rgba(16,24,40,.04), 0 6px 16px rgba(16,24,40,.06)) !important;
+  border: 1px solid var(--border) !important;
+}
+.post-card:hover,
+.tool-card:hover,
+.lz-card:hover,
+.stat-card:hover {
+  box-shadow: var(--ru-shadow-2, 0 2px 6px rgba(16,24,40,.06), 0 14px 36px rgba(16,24,40,.10)) !important;
+  border-color: rgba(47, 91, 154, .32) !important;
+}
+.post-card::after,
+.tool-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s cubic-bezier(.2,.7,.2,1);
+  background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 0%), rgba(47, 91, 154, .10), transparent 60%);
+}
+.post-card:hover::after,
+.tool-card:hover::after { opacity: 1; }
+
+@media (max-width: 640px) {
+  .post-card, .card, .section { border-radius: var(--ru-r-md, 14px) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-card, .tool-card, .btn { transition: none !important; }
+}

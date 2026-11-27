@@ -61,9 +61,11 @@
 .section,
 .lz-card,
 .visit-card {
-  border-radius: var(--ru-r-lg);
+  /* 旧版有一层「紧凑扁平」设计把卡片写死成 border-radius:0 !important，
+     这里必须同等强度覆盖，否则新设计层完全看不到效果。 */
+  border-radius: var(--ru-r-lg) !important;
   border: 1px solid var(--border);
-  box-shadow: var(--ru-shadow-1);
+  box-shadow: var(--ru-shadow-1) !important;
   transition: transform .18s var(--ru-ease), box-shadow .18s var(--ru-ease), border-color .18s var(--ru-ease);
   position: relative;
   overflow: hidden;
@@ -275,9 +277,9 @@ html.dark-theme .lw-glass {
   *,
   *::before,
   *::after {
-    animation-duration: .01ms !important;
+    animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
+    transition-duration: 1ms !important;
     scroll-behavior: auto !important;
   }
   .post-card:hover,
@@ -288,5 +290,5 @@ html.dark-theme .lw-glass {
 /* ---------- 窄屏微调 ---------- */
 @media (max-width: 640px) {
   .ru-title { font-size: 22px; }
-  .post-card, .card, .section { border-radius: var(--ru-r-md); }
+  .post-card, .card, .section { border-radius: var(--ru-r-md) !important; }
 }
