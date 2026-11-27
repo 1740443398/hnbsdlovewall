@@ -1317,6 +1317,20 @@
       if (hash) {
         this.currentCategory = hash;
         this.updateCategoryButtons();
+      } else {
+        /* 记住上次的分类/排序（刷新、从详情页返回时不用重新点） */
+        try {
+          var __cat = localStorage.getItem('lw_feed_cat');
+          var __sort = localStorage.getItem('lw_feed_sort');
+          if (__cat && document.querySelector('.cat-filter[data-cat="' + __cat + '"]')) {
+            this.currentCategory = __cat;
+            this.updateCategoryButtons();
+          }
+          if (__sort && document.querySelector('.sort-tab[data-sort="' + __sort + '"]')) {
+            this.currentSort = __sort;
+            document.querySelectorAll('.sort-tab').forEach(function (t) { t.classList.toggle('active', t.dataset.sort === __sort); });
+          }
+        } catch (e) {}
       }
       this.bindCategoryFilters();
       this.bindSortTabs();
@@ -1451,6 +1465,7 @@
           this.currentPage = 1;
           this.hasMore = true;
           window.location.hash = cat === 'all' ? '' : cat;
+          try { localStorage.setItem('lw_feed_cat', cat); } catch (e) {}
           this.updateCategoryButtons();
           this.loadPosts(true);
         });
@@ -1473,6 +1488,7 @@
           this.currentPage = 1;
           this.hasMore = true;
           tabs.forEach((t) => t.classList.toggle('active', t.dataset.sort === sort));
+          try { localStorage.setItem('lw_feed_sort', sort); } catch (e) {}
           this.loadPosts(true);
         });
       });
