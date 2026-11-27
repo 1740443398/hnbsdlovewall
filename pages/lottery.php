@@ -140,18 +140,15 @@ if ($detail):
     <?php endif; ?>
 
     <?php if ($entries): ?>
-    <div class="avatars">
-      <?php foreach (array_slice($entries, 0, 24) as $e): $eu = lwLUser($userIndex, (int) ($e['user_id'] ?? 0)); ?>
-        <a href="/pages/u.php?id=<?= (int) $eu['id'] ?>" title="<?= htmlspecialchars($eu['nickname']) ?>">
+    <div class="avatars" id="lotAvatars">
+      <?php foreach ($entries as $__ei => $e): $eu = lwLUser($userIndex, (int) ($e['user_id'] ?? 0)); ?>
+        <a href="/pages/u.php?id=<?= (int) $eu['id'] ?>" title="<?= htmlspecialchars($eu['nickname']) ?>"<?= $__ei >= 24 ? ' class="lot-extra" hidden' : '' ?>>
           <img src="<?= htmlspecialchars($eu['avatar']) ?>" alt="" loading="lazy">
         </a>
       <?php endforeach; ?>
-      <?php if (count($entries) > 24): ?>
-        <span class="lot-more" title="仅展示前 24 位参与者">+<?= count($entries) - 24 ?></span>
-      <?php endif; ?>
     </div>
     <?php if (count($entries) > 24): ?>
-    <p style="font-size:12px;color:var(--muted);margin-top:6px">共 <?= count($entries) ?> 人参与，这里展示前 24 位</p>
+    <button type="button" class="lot-expand" id="lotExpand" data-total="<?= count($entries) ?>">展开全部 <?= count($entries) ?> 人（还有 <?= count($entries) - 24 ?> 位）</button>
     <?php endif; ?>
     <?php endif; ?>
   </div>
@@ -284,6 +281,22 @@ if ($detail):
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick); else tick();
   setInterval(tick, 1000);
+})();
+</script>
+
+<script>
+/* 参与者头像墙：点击展开全部 / 收起 */
+(function () {
+  var btn = document.getElementById('lotExpand');
+  var box = document.getElementById('lotAvatars');
+  if (!btn || !box) return;
+  var total = btn.getAttribute('data-total') || '';
+  btn.addEventListener('click', function () {
+    var opened = btn.getAttribute('data-open') === '1';
+    box.querySelectorAll('.lot-extra').forEach(function (a) { a.hidden = opened; });
+    btn.setAttribute('data-open', opened ? '0' : '1');
+    btn.textContent = opened ? ('展开全部 ' + total + ' 人') : '收起参与者';
+  });
 })();
 </script>
 </body>

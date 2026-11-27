@@ -258,3 +258,14 @@
   background: rgba(47, 91, 154, .10); color: var(--primary);
   border: 1px dashed rgba(47, 91, 154, .35);
 }
+
+
+/* 参与者头像墙展开 */
+.lot-extra[hidden] { display: none !important; }
+.lot-expand {
+  margin-top: 8px; padding: 6px 12px;
+  border-radius: 999px; border: 1px dashed rgba(47, 91, 154, .35);
+  background: rgba(47, 91, 154, .06); color: var(--primary);
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.lot-expand:hover { background: rgba(47, 91, 154, .12); }
