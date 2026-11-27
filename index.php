@@ -383,6 +383,41 @@ if (is_file($__ahJs)) {
             </div>
         </div>
 
+        <div class="widget widget-lottery">
+            <h3>🎁 最近的抽奖</h3>
+            <div class="widget-content">
+                <?php
+                $__lots = [];
+                try {
+                    require_once __DIR__ . '/includes/lottery.php';
+                    foreach (lwLotteryAll() as $__l) {
+                        if ((string) ($__l['status'] ?? 'open') !== 'open') { continue; }
+                        $__ts = strtotime((string) ($__l['draw_at'] ?? '')) ?: 0;
+                        if ($__ts <= time()) { continue; }
+                        $__lots[] = ['id' => (int) $__l['id'], 'title' => (string) ($__l['title'] ?? ''), 'prize' => (string) ($__l['prize'] ?? ''), 'ts' => $__ts];
+                        if (count($__lots) >= 2) { break; }
+                    }
+                } catch (Throwable $__e) {}
+                ?>
+                <?php if ($__lots): ?>
+                <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px">
+                    <?php foreach ($__lots as $__l): ?>
+                    <li>
+                        <a href="/pages/lottery.php?id=<?= (int) $__l['id'] ?>" style="display:block;text-decoration:none;color:var(--text);font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($__l['title']) ?></a>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                            <span style="font-size:12px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($__l['prize']) ?></span>
+                            <span class="lot-badge" data-ts="<?= (int) $__l['ts'] ?>" style="font-size:11px"><i></i><span class="lot-badge-text">—</span></span>
+                        </div>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <a href="/pages/lottery.php" style="display:block;margin-top:10px;font-size:12.5px;color:var(--primary);text-decoration:none">全部抽奖 →</a>
+                <?php else: ?>
+                <div style="font-size:13px;color:var(--text-muted)">暂时没有进行中的抽奖</div>
+                <?php endif; ?>
+            </div>
+        </div>
+
     </aside>
             </div>
         </div>
@@ -548,6 +583,30 @@ if (is_file($__ahJs)) {
     setTimeout(function () {
         fetch('/api/qzone/tick.php', { credentials: 'same-origin' }).catch(function () {});
     }, 1500);
+})();
+</script>
+
+<script>
+(function () {
+  function fmt(left) {
+    if (left <= 0) return '即将开奖';
+    var h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
+    if (h >= 24) return Math.floor(h / 24) + ' 天后开奖';
+    if (h > 0) return '剩 ' + h + ' 小时 ' + m + ' 分';
+    if (m > 0) return '剩 ' + m + ' 分 ' + sec + ' 秒';
+    return '剩 ' + sec + ' 秒';
+  }
+  function tick() {
+    var now = Math.floor(Date.now() / 1000);
+    document.querySelectorAll('.lot-badge[data-ts]').forEach(function (el) {
+      var ts = parseInt(el.getAttribute('data-ts'), 10) || 0, left = ts - now;
+      var txt = el.querySelector('.lot-badge-text') || el;
+      txt.textContent = fmt(left);
+      el.classList.toggle('urgent', left > 0 && left < 86400);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick); else tick();
+  setInterval(tick, 1000);
 })();
 </script>
 </body>
