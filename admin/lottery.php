@@ -24,12 +24,33 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     } else {
         $act = (string) ($_POST['act'] ?? '');
         if ($act === 'create') {
-            $r = lwLotteryCreate((int) $adminUser['id'], [
+            /* 封面上传：可选。只接受常见图片格式，文件名随机化，路径写相对地址 */
+            $__coverPath = ''; $__coverErr = false;
+            if (!empty($_FILES['cover_image_file']['name'])) {
+                $__f = $_FILES['cover_image_file'];
+                $__ext = strtolower(pathinfo((string) $__f['name'], PATHINFO_EXTENSION));
+                $__allow = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                $__max = 3 * 1024 * 1024;
+                $__uploadDir = defined('UPLOAD_IMAGES_DIR') ? UPLOAD_IMAGES_DIR : (__DIR__ . '/../uploads/images');
+                $__uploadDir = rtrim($__uploadDir, '/\\') . '/lottery';
+                if (!in_array($__ext, $__allow, true) || (int) ($__f['size'] ?? 0) > $__max) {
+                    $msg = '封面图需为 jpg/png/gif/webp 且不超过 3MB'; $msgType = 'error'; $__coverErr = true;
+                } else {
+                    if (!is_dir($__uploadDir)) { @mkdir($__uploadDir, 0755, true); }
+                    $__name = 'lot-' . date('Ymd') . '-' . bin2hex(random_bytes(6)) . '.' . $__ext;
+                    $__dest = $__uploadDir . '/' . $__name;
+                    if (is_uploaded_file((string) $__f['tmp_name']) && @move_uploaded_file((string) $__f['tmp_name'], $__dest)) {
+                        $__coverPath = '/uploads/images/lottery/' . $__name;
+                    }
+                }
+            }
+            $r = $__coverErr ? ['ok' => false] : lwLotteryCreate((int) $adminUser['id'], [
                 'title'        => $_POST['title'] ?? '',
                 'prize'        => $_POST['prize'] ?? '',
                 'prize_count'  => $_POST['prize_count'] ?? 1,
                 'description'  => $_POST['description'] ?? '',
                 'draw_at'      => $_POST['draw_at'] ?? '',
+                'cover_image'  => $__coverPath,
                 'rule_follow'  => $_POST['rule_follow'] ?? 0,
                 'rule_like'    => $_POST['rule_like'] ?? 0,
                 'rule_comment' => $_POST['rule_comment'] ?? 0,
@@ -313,7 +334,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
 <div class="section">
     <div class="section-header"><h3>创建抽奖</h3></div>
     <div class="section-body">
-        <form method="post" class="lot-form">
+        <form method="post" class="lot-form" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <input type="hidden" name="act" value="create">
             <div class="lot-field" style="margin-bottom:6px">
@@ -332,6 +353,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                 <div class="lot-field"><label>中奖名额</label><input class="form-input" type="number" name="prize_count" value="1" min="1" max="100"></div>
                 <div class="lot-field"><label>开奖时间</label><input class="form-input" type="datetime-local" name="draw_at" required></div>
             </div>
+            <div class="lot-field"><label>封面图（可选，≤3MB，jpg/png/gif/webp）</label><input class="form-input" type="file" name="cover_image_file" accept="image/*"></div>
             <div class="lot-field"><label>说明（可选）</label><textarea class="form-input" name="description" rows="3" placeholder="抽奖规则、领奖方式等"></textarea></div>
             <div class="lot-field">
                 <label>参与方式（可多选；关注 / 点赞 / 评论 会自动核验，转发由「绑定动态」天然满足）</label>
