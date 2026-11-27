@@ -472,7 +472,7 @@ $__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
                         <input type="text" name="pm_text" placeholder="私信内容（可用 {title}/{prize}/{prize_count}/{draw_at}）" maxlength="200" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);min-width:150px">
                         <button class="btn btn-sm" type="submit">群发</button>
                     </form>
-                    <form method="post" onsubmit="return confirm('删除这个抽奖及其参与记录？')">
+                    <form method="post" onsubmit="return confirmDelLot(this, <?= htmlspecialchars(json_encode((string) ($l['title'] ?? '')), ENT_QUOTES) ?>)">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                             <input type="hidden" name="act" value="delete">
                             <input type="hidden" name="id" value="<?= (int) $l['id'] ?>">
@@ -537,6 +537,17 @@ document.addEventListener('click', function (e) {
     setTimeout(function () { inp.style.outline = ''; }, 1600);
   }
 });
+
+/* 删除抽奖：要求输入活动标题原文，防止手滑误删 */
+function confirmDelLot(form, title) {
+  var input = window.prompt('删除后参与记录也会一并清除。\n请输入活动标题以确认删除：');
+  if (input === null) return false;
+  if (input.trim() !== String(title).trim()) {
+    alert('标题不一致，已取消删除');
+    return false;
+  }
+  return true;
+}
 
 /* 封面选择后即时预览（本地 FileReader，不上传） */
 (function () {
