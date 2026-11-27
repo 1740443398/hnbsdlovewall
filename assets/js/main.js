@@ -3751,6 +3751,35 @@
       } catch (err) {}
     },
 
+    /** 左滑/点击动作条：标为已读（服务端会直接删除该行） */
+    async markReadBySwipe(item) {
+      const id = item.getAttribute('data-id');
+      const wasUnread = item.classList.contains('unread');
+      if (!id) return;
+      if (wasUnread) {
+        try {
+          await fetchAPI('/api/user/notifications.php', { method: 'POST', body: 'action=read&id=' + id });
+          this.unreadCount = Math.max(0, this.unreadCount - 1);
+          this.updateBadge();
+          const rec = this._items.find((n) => String(n.id) === String(id));
+          if (rec) rec.is_read = true;
+          if (this._srvCounts && rec) {
+            const c2 = this.classify(rec)[0];
+            this._srvCounts.all = Math.max(0, (this._srvCounts.all || 0) - 1);
+            this._srvCounts[c2] = Math.max(0, (this._srvCounts[c2] || 0) - 1);
+          }
+        } catch (err) { return; }
+      }
+      item.style.height = item.offsetHeight + 'px';
+      item.classList.add('is-removing');
+      setTimeout(() => {
+        item.remove();
+        this._items = (this._items || []).filter((n) => String(n.id) !== String(id));
+        this.updateTabCounts(this._items);
+        if (!this._st.list.children.length) this.renderList();
+      }, 200);
+    },
+
     updateBadge() {
       if (this.unreadCount > 0) {
         this.badge.style.display = 'flex';
@@ -3878,11 +3907,45 @@
             '</div>' +
             '</div>' +
             '<span class="lw-ntf-dot" aria-hidden="true"></span>' +
+            '<span class="ntf-swipe-action" role="button" tabindex="0" aria-label="标为已读">已读</span>' +
             '</div>'
           );
         })
         .join('');
       this._newIds = new Set();
+
+      // 左滑标为已读（移动端手势）：位移超过阈值才触发，纵向滚动不干扰
+      listEl.querySelectorAll('.notification-item').forEach((item) => {
+        const action = item.querySelector('.ntf-swipe-action');
+        if (!action) return;
+        let sx = 0, sy = 0, dx = 0, swiping = false, decided = false;
+        const reset = () => { item.style.transform = ''; item.classList.remove('is-swiped'); dx = 0; swiping = false; decided = false; };
+        item.addEventListener('touchstart', (e) => {
+          if (e.touches.length !== 1) return;
+          sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; decided = false; swiping = false;
+        }, { passive: true });
+        item.addEventListener('touchmove', (e) => {
+          if (e.touches.length !== 1) return;
+          const cx = e.touches[0].clientX - sx;
+          const cy = e.touches[0].clientY - sy;
+          if (!decided) {
+            if (Math.abs(cx) < 8 && Math.abs(cy) < 8) return;
+            decided = true;
+            swiping = Math.abs(cx) > Math.abs(cy) && cx < 0;
+            if (!swiping) return;
+          }
+          if (!swiping) return;
+          dx = Math.max(-84, Math.min(0, cx));
+          item.style.transform = 'translateX(' + dx + 'px)';
+          item.classList.add('is-swiped');
+        }, { passive: true });
+        item.addEventListener('touchend', () => {
+          if (!swiping) { reset(); return; }
+          if (dx <= -48) { markReadBySwipe(item); }
+          reset();
+        });
+        action.addEventListener('click', (e) => { e.stopPropagation(); markReadBySwipe(item); });
+      });
 
       listEl.querySelectorAll('.notification-item').forEach((item) => {
         item.addEventListener('click', async (e) => {
