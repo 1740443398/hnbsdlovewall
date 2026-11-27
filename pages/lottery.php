@@ -84,10 +84,14 @@ if ($detail):
     $entries = lwLotteryEntries((int) $l['id']);
     $joined = $user ? lwLotteryJoined((int) $l['id'], (int) $user['id']) : false;
     $winnerIds = json_decode((string) ($l['winners'] ?? '[]'), true) ?: [];
-    $rules = [];
-    if (!empty($l['rule_like'])) { $rules[] = '点赞'; }
-    if (!empty($l['rule_comment'])) { $rules[] = '评论'; }
-    if (!empty($l['rule_repost'])) { $rules[] = '转发'; }
+    /* 优先用新字段 rules（数组，含「关注」等可校验规则）；老数据回退到三个布尔字段。
+     * 之前只读布尔字段，导致「关注」规则永远显示不出来、校验也无从触发。 */
+    $rules = (array) ($l['rules'] ?? []);
+    if (!$rules) {
+        if (!empty($l['rule_like'])) { $rules[] = '点赞'; }
+        if (!empty($l['rule_comment'])) { $rules[] = '评论'; }
+        if (!empty($l['rule_repost'])) { $rules[] = '转发'; }
+    }
 ?>
   <div class="card">
     <h2>🎁 <?= htmlspecialchars((string) $l['title']) ?></h2>
