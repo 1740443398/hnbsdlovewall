@@ -264,6 +264,52 @@ $__funnel = [
     </div>
 </div>
 
+<?php
+/* 抽奖日历：按月查看排期（开奖日期为轴） */
+$__ym = (string) ($_GET['month'] ?? date('Y-m'));
+if (!preg_match('/^\d{4}-\d{2}$/', $__ym)) { $__ym = date('Y-m'); }
+$__first = strtotime($__ym . '-01 00:00:00');
+$__daysIn = (int) date('t', $__first);
+$__startDow = (int) date('w', $__first); // 0=周日
+$__byDay = [];
+foreach ($all as $__lc) {
+    $__dl = substr((string) ($__lc['draw_at'] ?? ''), 0, 10);
+    if (substr($__dl, 0, 7) === $__ym) { $__byDay[(int) substr($__dl, 8, 2)][] = $__lc; }
+}
+$__prev = date('Y-m', strtotime($__ym . '-01 -1 month'));
+$__next = date('Y-m', strtotime($__ym . '-01 +1 month'));
+?>
+<div class="section lot-calendar" style="margin-bottom:14px">
+    <div class="section-header">
+        <h3>抽奖日历（<?= htmlspecialchars($__ym) ?>）</h3>
+        <div style="display:flex;gap:8px;font-size:12.5px">
+            <a href="?month=<?= urlencode($__prev) ?>" style="text-decoration:none;color:var(--text-muted)">← 上月</a>
+            <a href="?month=<?= date('Y-m') ?>" style="text-decoration:none;color:var(--primary)">本月</a>
+            <a href="?month=<?= urlencode($__next) ?>" style="text-decoration:none;color:var(--text-muted)">下月 →</a>
+        </div>
+    </div>
+    <div class="section-body" style="overflow-x:auto">
+        <div style="display:grid;grid-template-columns:repeat(7,minmax(72px,1fr));gap:6px;min-width:520px">
+            <?php foreach (['日', '一', '二', '三', '四', '五', '六'] as $__w): ?>
+            <div style="text-align:center;font-size:11.5px;color:var(--text-muted);padding:2px 0"><?= $__w ?></div>
+            <?php endforeach; ?>
+            <?php for ($__i = 0; $__i < $__startDow; $__i++): ?><div></div><?php endfor; ?>
+            <?php for ($__d = 1; $__d <= $__daysIn; $__d++):
+                $__list = $__byDay[$__d] ?? [];
+                $__isToday = ($__ym === date('Y-m')) && ($__d === (int) date('j'));
+            ?>
+            <div style="min-height:58px;border:1px solid <?= $__isToday ? 'var(--primary)' : 'var(--border)' ?>;border-radius:8px;padding:4px 5px;font-size:11px;background:<?= $__isToday ? 'rgba(47,91,154,.06)' : 'var(--card-bg)' ?>">
+                <div style="font-weight:700;color:<?= $__isToday ? 'var(--primary)' : 'var(--text-muted)' ?>"><?= $__d ?></div>
+                <?php foreach (array_slice($__list, 0, 2) as $__lc): ?>
+                <a href="/pages/lottery.php?id=<?= (int) $__lc['id'] ?>" title="<?= htmlspecialchars((string) ($__lc['title'] ?? '')) ?>" style="display:block;margin-top:2px;padding:1px 4px;border-radius:5px;background:<?= (($__lc['status'] ?? 'open') === 'open') ? 'rgba(47,91,154,.12)' : 'rgba(107,122,139,.12)' ?>;color:<?= (($__lc['status'] ?? 'open') === 'open') ? 'var(--primary)' : 'var(--text-muted)' ?>;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars((string) ($__lc['title'] ?? '')) ?></a>
+                <?php endforeach; ?>
+                <?php if (count($__list) > 2): ?><div style="color:var(--text-muted)">+<?= count($__list) - 2 ?></div><?php endif; ?>
+            </div>
+            <?php endfor; ?>
+        </div>
+    </div>
+</div>
+
 <div class="section">
     <div class="section-header"><h3>创建抽奖</h3></div>
     <div class="section-body">
