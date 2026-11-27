@@ -38,12 +38,29 @@ $uin = preg_replace('/\D/', '', (string) $cfg['uin']);
 $perPage = 10;
 $pageNo  = max(1, (int) ($_GET['p'] ?? 1));
 $offset  = ($pageNo - 1) * $perPage;
-$items   = lwQzoneListItems($perPage + 1, $offset);
-$hasNext = count($items) > $perPage;
-if ($hasNext) { $items = array_slice($items, 0, $perPage); }
-
-$fsAll = getFS()->read('qzone_items');
-$total = is_array($fsAll) ? count($fsAll) : 0;
+$q       = trim((string) ($_GET['q'] ?? ''));
+if ($q !== '') {
+    /* 搜索：在本地镜像数据里过滤正文与评论，再分页（数据量小，无需索引） */
+    $fsAll = getFS()->read('qzone_items');
+    $__all = is_array($fsAll) ? $fsAll : [];
+    usort($__all, function ($a, $b) { return (int) ($b['posted_ts'] ?? 0) <=> (int) ($a['posted_ts'] ?? 0); });
+    $__hit = array_values(array_filter($__all, function ($it) use ($q) {
+        if (mb_stripos((string) ($it['content'] ?? ''), $q) !== false) { return true; }
+        foreach ((array) ($it['comments_arr'] ?? []) as $c) {
+            if (mb_stripos((string) ($c['content'] ?? ''), $q) !== false) { return true; }
+        }
+        return false;
+    }));
+    $total   = count($__hit);
+    $items   = array_slice($__hit, $offset, $perPage);
+    $hasNext = ($offset + $perPage) < $total;
+} else {
+    $items   = lwQzoneListItems($perPage + 1, $offset);
+    $hasNext = count($items) > $perPage;
+    if ($hasNext) { $items = array_slice($items, 0, $perPage); }
+    $fsAll = getFS()->read('qzone_items');
+    $total = is_array($fsAll) ? count($fsAll) : 0;
+}
 $showLikes = (int) $cfg['sync_likes'] === 1;
 $showComments = (int) $cfg['sync_comments'] === 1;
 
@@ -70,6 +87,9 @@ function qzTime(int $ts): string
         .qz-head h1 { font-size: 1.5rem; margin: 0 0 6px; }
         .qz-head p { margin: 0; font-size: 0.86rem; color: var(--text-muted); }
         .qz-head a { color: var(--primary); text-decoration: none; }
+        .qz-search { display: flex; gap: 8px; margin-top: 12px; }
+        .qz-search input { flex: 1 1 auto; padding: 9px 12px; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--card-bg); color: var(--text); font-size: .88rem; }
+        .qz-search button { padding: 9px 16px; border-radius: 10px; border: none; background: var(--primary); color: #fff; font-size: .88rem; cursor: pointer; }
 
         .qz-card {
             background: var(--card-bg);
@@ -150,6 +170,11 @@ require __DIR__ . '/../includes/site_header.php';
 <main id="main-content" class="qz-main">
     <div class="qz-wrap">
         <div class="qz-head">
+            <form class="qz-search" method="get">
+                <input type="search" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="搜索说说内容或评论…">
+                <button type="submit">搜索</button>
+                <?php if ($q !== ''): ?><a href="/pages/qzone.php" style="align-self:center;font-size:.82rem">清除</a><?php endif; ?>
+            </form>
             <h1>空间动态</h1>
             <p>
                 同步自 QQ 空间<?php if ($uin !== ''): ?>（<a href="https://user.qzone.qq.com/<?= $uin ?>" target="_blank" rel="noopener nofollow"><?= $uin ?></a>）<?php endif; ?>，
@@ -160,7 +185,8 @@ require __DIR__ . '/../includes/site_header.php';
 
         <?php if (!$items): ?>
         <div class="qz-empty">
-            <p>还没有同步到内容。</p>
+            <p><?= $q !== '' ? '没有找到包含「' . htmlspecialchars($q) . '」的说说。' : '还没有同步到内容。' ?></p>
+            <?php if ($q !== ''): ?><p style="font-size:.82rem;"><a href="/pages/qzone.php">清除搜索</a></p><?php endif; ?>
             <p style="font-size:.82rem;">管理员在后台「QQ 空间转发」里配置 Cookie 后即可同步。</p>
         </div>
         <?php else: ?>
@@ -214,11 +240,11 @@ require __DIR__ . '/../includes/site_header.php';
         <?php if ($total > $perPage): ?>
         <div class="qz-pager">
             <?php if ($pageNo > 1): ?>
-            <a href="?p=<?= $pageNo - 1 ?>">上一页</a>
+            <a href="?p=<?= $pageNo - 1 ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?>">上一页</a>
             <?php else: ?><span class="qz-off">上一页</span><?php endif; ?>
             <span><?= $pageNo ?></span>
             <?php if ($hasNext): ?>
-            <a href="?p=<?= $pageNo + 1 ?>">下一页</a>
+            <a href="?p=<?= $pageNo + 1 ?><?= $q !== '' ? '&q=' . urlencode($q) : '' ?>">下一页</a>
             <?php else: ?><span class="qz-off">下一页</span><?php endif; ?>
         </div>
         <?php endif; ?>
