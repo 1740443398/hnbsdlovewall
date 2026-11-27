@@ -76,6 +76,17 @@ if (!function_exists('lwLotteryCreate')) {
          * 帖子被删也不影响抽奖本身（后台列表会标注「动态已失效」）。 */
         $postId = max(0, (int) ($d['post_id'] ?? 0));
 
+        /* 统一规则数组：优先用传入的 rules；否则由布尔字段推导。
+         * 这样新老调用方都能写出一致的 rules，详情页/校验都只认这一份。 */
+        $rulesIn = (array) ($d['rules'] ?? []);
+        if (!$rulesIn) {
+            if (!empty($d['rule_follow']))  { $rulesIn[] = '关注'; }
+            if (!empty($d['rule_repost']))  { $rulesIn[] = '转发'; }
+            if (!empty($d['rule_comment'])) { $rulesIn[] = '评论'; }
+            if (!empty($d['rule_like']))    { $rulesIn[] = '点赞'; }
+        }
+        $rulesIn = array_values(array_unique(array_filter(array_map('strval', $rulesIn), function ($x) { return trim($x) !== ''; })));
+
         $row = $fs->insert('lotteries', [
             'user_id'       => $userId,
             'post_id'       => $postId,
@@ -87,6 +98,7 @@ if (!function_exists('lwLotteryCreate')) {
             'rule_like'     => !empty($d['rule_like']) ? 1 : 0,
             'rule_comment'  => !empty($d['rule_comment']) ? 1 : 0,
             'rule_repost'   => !empty($d['rule_repost']) ? 1 : 0,
+            'rules'         => $rulesIn,
             'draw_at'       => date('Y-m-d H:i:s', $ts),
             'status'        => 'open',
             'winners'       => '[]',

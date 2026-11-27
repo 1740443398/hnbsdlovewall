@@ -96,7 +96,8 @@ adminHeader('抽奖管理', $adminUser, $csrfToken);
             </div>
             <div class="lot-field"><label>说明（可选）</label><textarea class="form-input" name="description" rows="3" placeholder="抽奖规则、领奖方式等"></textarea></div>
             <div class="lot-field">
-                <label>参与方式（可多选，仅做提示，不强制校验）</label>
+                <label>参与方式（可多选；关注 / 点赞 / 评论 会自动核验，转发由「绑定动态」天然满足）</label>
+                <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_follow" value="1"> 关注发起人</label>
                 <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_like" value="1" checked> 点赞</label>
                 <label style="font-weight:400;margin-right:14px"><input type="checkbox" name="rule_comment" value="1"> 评论</label>
                 <label style="font-weight:400"><input type="checkbox" name="rule_repost" value="1"> 转发</label>
