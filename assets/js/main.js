@@ -3518,6 +3518,7 @@
           '<button type="button" class="lw-ntf-unread" aria-pressed="false" title="未读通知优先显示">未读优先</button>' +
           '<button type="button" class="lw-ntf-onlyunread" data-ntf-onlyunread aria-pressed="false" title="只显示未读通知">只看未读</button>' +
           '<button type="button" class="mark-all-read">全部已读</button>' +
+          '<a class="lw-ntf-all" href="/pages/notifications.php" title="在整页中查看">查看全部</a>' +
         '</div>' +
         '<div class="lw-ntf-tabs" role="tablist">' +
           '<button type="button" class="lw-ntf-tab is-active" data-ntf-tab="all" role="tab">全部</button>' +
