@@ -4837,4 +4837,90 @@
   document.addEventListener('DOMContentLoaded', initCardSpotlight);
 
 
+
+  /* ==================================================================
+     全局命令面板（Ctrl/⌘ + K）
+     ------------------------------------------------------------------
+     视频里提到「后台/工具菜单太多找不到」。这里做一个轻量命令面板：
+       · Ctrl/⌘+K 或 点右上角 ⌘K 打开
+       · 输入即过滤（页面 + 工具 + 常用操作）
+       · ↑↓ 选择，Enter 打开，Esc 关闭
+     工具条目来自工具页 DOM；其它页面只列页面与常用操作，避免空面板。
+     ================================================================== */
+  function initCommandPalette() {
+    var items = [
+      { t: '首页信息流', u: '/' },
+      { t: '发帖', u: '/pages/post.php' },
+      { t: '站内抽奖', u: '/pages/lottery.php' },
+      { t: '实用工具', u: '/pages/tools.php' },
+      { t: '排行榜', u: '/pages/ranking.php' },
+      { t: '个人中心', u: '/pages/user_center.php' },
+      { t: '学习专区', u: '/pages/learning.php' },
+      { t: '搜索帖子', u: '/pages/search.php' },
+      { t: '管理后台', u: '/admin/dashboard.php' }
+    ];
+    document.querySelectorAll('.tool-card').forEach(function (c) {
+      var nameEl = c.querySelector('.tool-name');
+      var onclick = c.getAttribute('onclick') || '';
+      var m = /openTool\('([a-z0-9_]+)'\)/.exec(onclick);
+      if (nameEl && m) { items.push({ t: '工具 · ' + nameEl.textContent.trim(), u: '', tool: m[1] }); }
+      else if (nameEl && c.getAttribute('href')) { items.push({ t: '工具 · ' + nameEl.textContent.trim(), u: c.getAttribute('href') }); }
+    });
+
+    var mask = document.createElement('div');
+    mask.className = 'ru-cmd-mask';
+    mask.innerHTML = '<div class="ru-cmd"><div class="ru-cmd-input"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="ruCmdInput" placeholder="搜索页面或工具…（↑↓ 选择，Enter 打开）" autocomplete="off"><span class="ru-cmd-esc">Esc</span></div><div class="ru-cmd-list" id="ruCmdList"></div></div>';
+    document.body.appendChild(mask);
+    var input = mask.querySelector('#ruCmdInput');
+    var list = mask.querySelector('#ruCmdList');
+    var sel = 0, filtered = [];
+
+    function render() {
+      var q = (input.value || '').trim().toLowerCase();
+      filtered = items.filter(function (it) { return !q || it.t.toLowerCase().indexOf(q) >= 0; }).slice(0, 12);
+      if (sel >= filtered.length) sel = Math.max(0, filtered.length - 1);
+      list.innerHTML = filtered.map(function (it, i) {
+        return '<div class="ru-cmd-item' + (i === sel ? ' is-sel' : '') + '" data-i="' + i + '">' + it.t + '</div>';
+      }).join('') || '<div class="ru-cmd-empty">没有匹配项</div>';
+      Array.prototype.forEach.call(list.children, function (el) { if (el.dataset.i) { el.onclick = function () { go(filtered[+el.dataset.i]); }; } });
+    }
+    function go(it) {
+      if (!it) return;
+      close();
+      if (it.tool && window.openTool) { window.openTool(it.tool); }
+      else if (it.u) { location.href = it.u; }
+    }
+    function open() { mask.classList.add('is-open'); input.value = ''; sel = 0; render(); setTimeout(function () { input.focus(); }, 20); document.body.style.overflow = 'hidden'; }
+    function close() { mask.classList.remove('is-open'); document.body.style.overflow = ''; }
+    function isOpen() { return mask.classList.contains('is-open'); }
+
+    document.addEventListener('keydown', function (e) {
+      var k = (e.key || '').toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && k === 'k') { e.preventDefault(); isOpen() ? close() : open(); return; }
+      if (!isOpen()) return;
+      if (k === 'escape') { close(); }
+      else if (k === 'arrowdown') { e.preventDefault(); sel = Math.min(sel + 1, filtered.length - 1); render(); }
+      else if (k === 'arrowup') { e.preventDefault(); sel = Math.max(sel - 1, 0); render(); }
+      else if (k === 'enter') { e.preventDefault(); go(filtered[sel]); }
+    });
+    input.addEventListener('input', function () { sel = 0; render(); });
+    mask.addEventListener('click', function (e) { if (e.target === mask) close(); });
+
+    // 头部挂一个 ⌘K 提示按钮（可点）
+    try {
+      var bar = document.querySelector('.site-header .header-actions, .site-header, header');
+      if (bar) {
+        var btn = document.createElement('button');
+        btn.className = 'ru-cmd-trigger';
+        btn.type = 'button';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>⌘K</span>';
+        btn.onclick = open;
+        bar.appendChild(btn);
+      }
+    } catch (err) {}
+  }
+
+  initCommandPalette();
+
+
 })();
