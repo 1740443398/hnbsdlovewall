@@ -156,12 +156,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send'
             }
 
             $ok = 0;
+            $__nickMap = [];
+            foreach ((array) getFS()->read('users') as $__u2) { $__nickMap[(int)($__u2['id'] ?? 0)] = (string)($__u2['nickname'] ?? ''); }
             foreach ($ids as $uid) {
                 try {
+                    $__nick = $__nickMap[$uid] ?? '';
+                    $__content = str_replace(['{昵称}', '{nickname}'], $__nick !== '' ? $__nick : '同学', $content);
                     getFS()->insert('notifications', [
                         'user_id'    => $uid,
                         'type'       => 'system',
-                        'content'    => $content,
+                        'content'    => $__content,
                         'post_id'    => 0,
                         'post_title' => '',
                         'link'       => $link,
@@ -252,6 +256,7 @@ adminHeader('通知群发', $adminUser, $csrfToken);
                     <button type="button" class="btn btn-outline btn-sm ntf-template" data-tpl="exam">考试周提醒</button>
                     <span style="font-size:12px;color:var(--text-secondary);align-self:center">点模板快速填入</span>
                 </div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">支持变量：<code>{昵称}</code> 会替换为每位用户的昵称</div>
                 <textarea name="content" rows="4" maxlength="500" placeholder="例：今晚 23:00-24:00 站点维护，期间可能无法访问"
                     style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical"></textarea>
             </div>

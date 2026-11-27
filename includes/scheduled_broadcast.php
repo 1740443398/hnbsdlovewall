@@ -34,13 +34,17 @@ if (!function_exists('lwBroadcastQueue')) {
 
         $content = (string) ($q['content'] ?? '');
         $link = (string) ($q['link'] ?? '');
+        $__nickMap = [];
+        foreach ($users as $__u) { $__nickMap[(int)($__u['id'] ?? 0)] = (string)($__u['nickname'] ?? ''); }
         $ok = 0;
         foreach ($ids as $uid) {
             try {
+                $__nick = $__nickMap[$uid] ?? '';
+                $__content = str_replace(['{昵称}', '{nickname}'], $__nick !== '' ? $__nick : '同学', $content);
                 getFS()->insert('notifications', [
                     'user_id'    => $uid,
                     'type'       => 'system',
-                    'content'    => $content,
+                    'content'    => $__content,
                     'post_id'    => 0,
                     'post_title' => '',
                     'link'       => $link,
@@ -56,7 +60,7 @@ if (!function_exists('lwBroadcastQueue')) {
             try {
                 getFS()->insert('app_pushes', [
                     'title'      => mb_substr((string) ($q['push_title'] ?? '站内公告'), 0, 40),
-                    'content'    => mb_substr($content, 0, 300),
+                    'content'    => mb_substr(str_replace(['{昵称}', '{nickname}'], '同学', $content), 0, 300),
                     'url'        => $link,
                     'target'     => ($target === 'all') ? '' : implode(',', array_slice($ids, 0, 500)),
                     'created_at' => date('Y-m-d H:i:s'),
