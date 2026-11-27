@@ -103,7 +103,21 @@ if ($detail):
     <?php if (!empty($l['description'])): ?>
     <div class="desc"><?= htmlspecialchars((string) $l['description']) ?></div>
     <?php endif; ?>
-    <div class="meta">参与方式：<?= $rules ? htmlspecialchars(implode(' / ', $rules)) : '直接参与' ?>（每人一次）</div>
+    <div class="lot-rules">
+      <span class="lot-rules-label">参与方式</span>
+      <?php if ($rules): foreach ($rules as $__r):
+          $__icon = '✅';
+          if (mb_strpos($__r, '转发') !== false) { $__icon = '🔁'; }
+          elseif (mb_strpos($__r, '评论') !== false) { $__icon = '💬'; }
+          elseif (mb_strpos($__r, '点赞') !== false) { $__icon = '👍'; }
+          elseif (mb_strpos($__r, '关注') !== false) { $__icon = '➕'; }
+      ?>
+        <span class="lot-rule-chip"><i><?= $__icon ?></i><?= htmlspecialchars($__r) ?></span>
+      <?php endforeach; else: ?>
+        <span class="lot-rule-chip"><i>✅</i>直接参与</span>
+      <?php endif; ?>
+      <span class="lot-rules-note">每人一次</span>
+    </div>
 
     <?php if ($status === 'open'): ?>
       <?php if ($isGuest): ?>

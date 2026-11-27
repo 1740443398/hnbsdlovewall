@@ -3616,3 +3616,16 @@ html.dark-theme .post-content img:hover {
 .rk-item { transition: background .18s ease, transform .18s ease; }
 .rk-item:hover { transform: translateX(2px); }
 
+
+/* 抽奖参与方式：图标化规则条 */
+.lot-rules { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; font-size: 12.5px; }
+.lot-rules-label { color: var(--text-muted); font-weight: 600; }
+.lot-rule-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(47, 91, 154, .08); color: var(--primary);
+  font-weight: 600;
+}
+.lot-rule-chip i { font-style: normal; font-size: 12px; }
+.lot-rules-note { color: var(--text-muted); }
+
