@@ -96,6 +96,15 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
 <body class="page-lottery">
 <div class="wrap">
   <h1><a href="/pages/lottery.php" style="color:inherit;text-decoration:none">🎁 站内抽奖</a></h1>
+<?php
+/* 我的参与记录：只按 lottery_id 关联读取，不复制抽奖数据 */
+$myLotIds = [];
+if ($user) {
+    foreach ((array) getFS()->read('lottery_entries') as $__e) {
+        if ((int) ($__e['user_id'] ?? 0) === (int) $user['id']) { $myLotIds[(int) $__e['lottery_id']] = true; }
+    }
+}
+?>
 <?php if ($user && !$detail): ?>
   <div style="display:flex;gap:8px;margin:10px 0 4px;font-size:12.5px">
     <a href="/pages/lottery.php?view=all" style="padding:4px 12px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['view'] ?? 'all') !== 'mine' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">全部抽奖</a>
@@ -111,17 +120,18 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
     <a href="/pages/lottery.php?<?= $__sq ?>&sort=draw_soon" style="padding:4px 8px;text-decoration:none;<?= ($_GET['sort'] ?? '') === 'draw_soon' ? 'color:var(--primary);font-weight:700' : 'color:var(--text-muted)' ?>">即将开奖</a>
     <a href="/pages/lottery.php?<?= $__sq ?>&sort=entries" style="padding:4px 8px;text-decoration:none;<?= ($_GET['sort'] ?? '') === 'entries' ? 'color:var(--primary);font-weight:700' : 'color:var(--text-muted)' ?>">最热门</a>
   </div>
+  <form method="get" style="display:flex;gap:8px;margin:8px 0 12px">
+    <input type="hidden" name="view" value="<?= htmlspecialchars($_GET['view'] ?? 'all') ?>">
+    <input type="hidden" name="status" value="<?= htmlspecialchars($_GET['status'] ?? 'all') ?>">
+    <input type="hidden" name="sort" value="<?= htmlspecialchars($_GET['sort'] ?? 'default') ?>">
+    <input type="search" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" placeholder="搜索抽奖标题或奖品…"
+           style="flex:1 1 auto;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-size:13px">
+    <button class="btn ghost" type="submit" style="padding:8px 14px;font-size:13px">搜索</button>
+    <?php if (($_GET['q'] ?? '') !== ''): ?><a href="/pages/lottery.php?view=<?= urlencode($_GET['view'] ?? 'all') ?>&status=<?= urlencode($_GET['status'] ?? 'all') ?>&sort=<?= urlencode($_GET['sort'] ?? 'default') ?>" class="btn ghost" style="padding:8px 12px;font-size:13px;text-decoration:none">清除</a><?php endif; ?>
+  </form>
 <?php endif; ?>
 
 <?php
-/* 我的参与记录：只按 lottery_id 关联读取，不复制抽奖数据 */
-$myLotIds = [];
-if ($user) {
-    foreach ((array) getFS()->read('lottery_entries') as $__e) {
-        if ((int) ($__e['user_id'] ?? 0) === (int) $user['id']) { $myLotIds[(int) $__e['lottery_id']] = true; }
-    }
-}
-
 if ($detail):
     $l = $detail;
     $status = (string) ($l['status'] ?? 'open');
@@ -401,6 +411,14 @@ if ($detail):
             return ($__cntMap[(int) ($b['id'] ?? 0)] ?? 0) <=> ($__cntMap[(int) ($a['id'] ?? 0)] ?? 0);
         });
     }
+    /* 关键词：标题 / 奖品 */
+    $__lotQ = trim((string) ($_GET['q'] ?? ''));
+    if ($__lotQ !== '') {
+        $all = array_values(array_filter($all, function ($__l) use ($__lotQ) {
+            return mb_stripos((string) ($__l['title'] ?? ''), $__lotQ) !== false
+                || mb_stripos((string) ($__l['prize'] ?? ''), $__lotQ) !== false;
+        }));
+    }
     if ($listStatus !== 'all') {
         $all = array_values(array_filter($all, function ($__l) use ($listStatus) {
             $st = (string) ($__l['status'] ?? 'open');
@@ -415,10 +433,10 @@ if ($detail):
     if ($__totalLots > 0) {
         $all = array_slice($all, ($__page - 1) * $__perPage, $__perPage);
     }
-    $__keepQ = 'view=' . urlencode($listView) . '&status=' . urlencode($listStatus) . '&sort=' . urlencode($listSort);
+    $__keepQ = 'view=' . urlencode($listView) . '&status=' . urlencode($listStatus) . '&sort=' . urlencode($listSort) . ($__lotQ !== '' ? '&q=' . urlencode($__lotQ) : '');
 
     if (!$all): ?>
-  <div class="card"><div class="empty">还没有抽奖活动<br><span style="font-size:12px">管理员可以在后台「抽奖管理」创建</span></div></div>
+  <div class="card"><div class="empty"><?= $__lotQ !== '' ? '没有找到包含「' . htmlspecialchars($__lotQ) . '」的抽奖' : '还没有抽奖活动' ?><br><span style="font-size:12px">管理员可以在后台「抽奖管理」创建</span></div></div>
     <?php else: foreach ($all as $l):
         $status = (string) ($l['status'] ?? 'open');
         $drawTs = strtotime((string) ($l['draw_at'] ?? ''));
