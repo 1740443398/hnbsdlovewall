@@ -862,7 +862,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         </article>
         <nav class="lw-post-nav">
             <?php if ($__prevPost): ?>
-            <a href="/pages/post_detail.php?id=<?= (int)$__prevPost['id'] ?>">
+            <a data-pn="prev" href="/pages/post_detail.php?id=<?= (int)$__prevPost['id'] ?>">
                 <span class="lw-pn-label">← 上一篇</span>
                 <span class="lw-pn-title"><?= htmlspecialchars((string)($__prevPost['title'] ?? '（无标题）')) ?></span>
             </a>
@@ -870,7 +870,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             <a class="lw-pn-off"><span class="lw-pn-label">← 上一篇</span><span class="lw-pn-title">没有了</span></a>
             <?php endif; ?>
             <?php if ($__nextPost): ?>
-            <a class="lw-pn-next" href="/pages/post_detail.php?id=<?= (int)$__nextPost['id'] ?>">
+            <a class="lw-pn-next" data-pn="next" href="/pages/post_detail.php?id=<?= (int)$__nextPost['id'] ?>">
                 <span class="lw-pn-label">下一篇 →</span>
                 <span class="lw-pn-title"><?= htmlspecialchars((string)($__nextPost['title'] ?? '（无标题）')) ?></span>
             </a>
@@ -910,6 +910,17 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             })
             .catch(function () {});
     })();
+
+    /* 键盘 ← / → 切换上一篇 / 下一篇（输入框内不拦截） */
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        var t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        var sel = e.key === 'ArrowLeft' ? '[data-pn="prev"]' : '[data-pn="next"]';
+        var a = document.querySelector(sel);
+        if (a && a.href) { e.preventDefault(); location.href = a.href; }
+    });
     </script>
 
     <?php
