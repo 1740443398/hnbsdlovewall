@@ -115,7 +115,23 @@ if ($detail):
           $__st = null;
           foreach ($__ruleState as $__k => $__v) { if (mb_strpos((string) $__r, $__k) !== false) { $__st = $__v; break; } }
       ?>
-        <span class="lot-rule-chip<?= $__st === true ? ' is-ok' : ($__st === false ? ' is-miss' : '') ?>"><i><?= $__icon ?></i><?= htmlspecialchars($__r) ?><?= $__st === true ? ' ✓' : ($__st === false ? ' ✗' : '') ?></span>
+        <?php
+          $__cls = 'lot-rule-chip' . ($__st === true ? ' is-ok' : ($__st === false ? ' is-miss' : ''));
+          $__href = '';
+          if ($__st === false) {
+              if (mb_strpos((string) $__r, '关注') !== false && (int) ($l['created_by'] ?? 0) > 0) {
+                  $__href = '/pages/u.php?id=' . (int) $l['created_by'];
+              } elseif ((int) ($l['post_id'] ?? 0) > 0) {
+                  $__href = '/pages/post_detail.php?id=' . (int) $l['post_id'];
+              }
+          }
+          $__body = '<i>' . $__icon . '</i>' . htmlspecialchars($__r) . ($__st === true ? ' ✓' : ($__st === false ? ' ✗' : ''));
+        ?>
+        <?php if ($__href !== ''): ?>
+          <a class="<?= $__cls ?>" href="<?= htmlspecialchars($__href) ?>" style="text-decoration:none" title="点此去完成"><?= $__body ?></a>
+        <?php else: ?>
+          <span class="<?= $__cls ?>"><?= $__body ?></span>
+        <?php endif; ?>
       <?php endforeach; else: ?>
         <span class="lot-rule-chip"><i>✅</i>直接参与</span>
       <?php endif; ?>

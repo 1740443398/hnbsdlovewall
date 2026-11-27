@@ -3655,3 +3655,6 @@ html.dark-theme .post-content img:hover {
 .lot-rule-chip.is-ok { background: rgba(30, 122, 76, .10); color: #1E7A4C; }
 .lot-rule-chip.is-miss { background: rgba(192, 57, 43, .08); color: #C0392B; }
 
+a.lot-rule-chip { cursor: pointer; }
+a.lot-rule-chip:hover { filter: brightness(0.96); text-decoration: none; }
+
