@@ -4804,4 +4804,37 @@
   initImageZoom();
 
 
+
+  /* 卡片聚光灯（RareUI 风格）：跟随指针写入 --mx/--my，CSS 用它们画高光 */
+  function initCardSpotlight() {
+    var cards = document.querySelectorAll('.post-card, .tool-card, .lz-card');
+    if (!cards.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    cards.forEach(function (card) {
+      if (card.__ruSpot) return;
+      card.__ruSpot = true;
+      card.addEventListener('pointermove', function (e) {
+        var r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+        card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+      });
+    });
+  }
+
+  /* 全局轻提示：window.ruToast('已复制') */
+  function initRuToast() {
+    window.ruToast = function (msg) {
+      var t = document.querySelector('.ru-toast');
+      if (!t) { t = document.createElement('div'); t.className = 'ru-toast'; document.body.appendChild(t); }
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t.__timer);
+      t.__timer = setTimeout(function () { t.classList.remove('show'); }, 2000);
+    };
+  }
+
+  initRuToast();
+  initCardSpotlight();
+  document.addEventListener('DOMContentLoaded', initCardSpotlight);
+
+
 })();

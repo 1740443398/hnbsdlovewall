@@ -70,6 +70,7 @@ CSS_ORDER = [
     'assets/css/motion.css',
     'assets/css/mobile-pro.css',
     'assets/css/apple-design.css',
+    'assets/css/rareui.css',   # RareUI 组件层（覆盖式升级，需在旧层之后）
     'assets/css/motion-plus.css',
     'assets/css/motion-interact.css',
     'assets/css/a11y-touch.css',

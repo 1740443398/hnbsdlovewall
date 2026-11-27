@@ -1,0 +1,292 @@
+/* ============================================================================
+   RareUI 设计层（2026-11 全站升级）
+   ----------------------------------------------------------------------------
+   参考 rareui.com 组件库的现代做法，结合本项目已有 CSS 变量做「覆盖式」升级：
+     · 不重写页面结构，只提升既有组件（卡片/按钮/输入框/导航/工具/弹窗）的材质与节奏；
+     · 玻璃材质一律带「实体兜底」：背景图缺失/加载慢时文字仍然可读（解决玻璃卡换背景字没了）；
+     · 所有交互带 focus-visible 焦点环与 reduced-motion 降级，兼顾键盘/晕动症用户；
+     · 卡片支持「聚光灯」hover（JS 设置 --mx/--my），无 JS 时退化为普通抬升。
+   ========================================================================== */
+
+:root {
+  --ru-r-sm: 10px;
+  --ru-r-md: 14px;
+  --ru-r-lg: 18px;
+  --ru-r-xl: 24px;
+  --ru-r-pill: 999px;
+  --ru-shadow-1: 0 1px 2px rgba(16, 24, 40, .04), 0 6px 16px rgba(16, 24, 40, .06);
+  --ru-shadow-2: 0 2px 6px rgba(16, 24, 40, .06), 0 14px 36px rgba(16, 24, 40, .10);
+  --ru-shadow-3: 0 8px 30px rgba(16, 24, 40, .16);
+  --ru-ring: 0 0 0 3px rgba(47, 91, 154, .28);
+  --ru-grad-brand: linear-gradient(135deg, rgba(47,91,154,.14), rgba(47,91,154,.03) 60%, rgba(47,91,154,.10));
+  --ru-grad-line: linear-gradient(90deg, rgba(47,91,154,.55), rgba(47,91,154,.10));
+  --ru-ease: cubic-bezier(.2, .7, .2, 1);
+}
+
+/* ---------- 基础节奏 ---------- */
+.ru-title {
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  margin: 0 0 6px;
+}
+.ru-subtitle {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin: 0 0 14px;
+}
+.ru-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 18px 0 10px;
+}
+.ru-section-title::before {
+  content: "";
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--ru-grad-line);
+}
+
+/* ---------- 卡片：材质 + 聚光灯 hover ---------- */
+.post-card,
+.card,
+.tool-card,
+.stat-card,
+.section,
+.lz-card,
+.visit-card {
+  border-radius: var(--ru-r-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--ru-shadow-1);
+  transition: transform .18s var(--ru-ease), box-shadow .18s var(--ru-ease), border-color .18s var(--ru-ease);
+  position: relative;
+  overflow: hidden;
+}
+.post-card:hover,
+.tool-card:hover,
+.lz-card:hover,
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ru-shadow-2);
+  border-color: rgba(47, 91, 154, .32);
+}
+/* 聚光灯：--mx/--my 由 main.js 的 initCardSpotlight() 写入 */
+.post-card::after,
+.tool-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s var(--ru-ease);
+  background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 0%), rgba(47, 91, 154, .10), transparent 60%);
+}
+.post-card:hover::after,
+.tool-card:hover::after { opacity: 1; }
+
+/* ---------- 按钮 ---------- */
+.btn,
+.t-btn,
+.guest-bar-btn,
+.button,
+input[type="submit"] {
+  min-height: 40px;
+  border-radius: var(--ru-r-md);
+  font-weight: 650;
+  transition: transform .15s var(--ru-ease), background-color .15s var(--ru-ease), box-shadow .15s var(--ru-ease), border-color .15s var(--ru-ease);
+}
+.btn:active,
+.t-btn:active { transform: scale(.97); }
+.btn:focus-visible,
+.t-btn:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--ru-ring);
+}
+.btn-primary,
+.t-btn-primary {
+  background-image: var(--ru-grad-brand);
+  box-shadow: var(--ru-shadow-1);
+}
+
+/* ---------- 输入框 ---------- */
+.form-input,
+.t-input,
+.t-textarea,
+.t-select,
+input[type="text"],
+input[type="password"],
+input[type="search"],
+textarea {
+  border-radius: var(--ru-r-md);
+  min-height: 42px;
+  border: 1px solid var(--border);
+  transition: border-color .15s var(--ru-ease), box-shadow .15s var(--ru-ease), background-color .15s var(--ru-ease);
+}
+.form-input:focus,
+.t-input:focus,
+.t-textarea:focus,
+.t-select:focus,
+input:focus,
+textarea:focus {
+  border-color: rgba(47, 91, 154, .55);
+  box-shadow: var(--ru-ring);
+  outline: none;
+}
+
+/* ---------- 玻璃材质：实体兜底 + 文字对比 ---------- */
+.liquid-glass,
+.glass,
+.glass-card,
+.lw-glass {
+  /* 半透明底必须叠一层高不透明度底色：背景图缺失/透明时文字仍可读 */
+  background-color: rgba(255, 255, 255, .86);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .55);
+  box-shadow: var(--ru-shadow-2);
+  color: var(--text, #1C2733);
+}
+html.dark-theme .liquid-glass,
+html.dark-theme .glass,
+html.dark-theme .glass-card,
+html.dark-theme .lw-glass {
+  background-color: rgba(24, 30, 38, .88);
+  border-color: rgba(255, 255, 255, .12);
+  color: var(--text, #E8EDF3);
+}
+
+/* ---------- 工具页：分类、卡片、弹窗 ---------- */
+.tools-category-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--text-muted);
+  margin: 22px 0 10px;
+}
+.tool-grid { gap: 10px; }
+.tool-card {
+  padding: 14px 12px;
+  background: var(--card-bg);
+}
+.tool-card .icon-wrap svg { width: 26px; height: 26px; }
+.tool-name { font-weight: 650; }
+.tool-modal {
+  border-radius: var(--ru-r-xl);
+  box-shadow: var(--ru-shadow-3);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  max-height: min(86vh, 720px);
+}
+.tool-modal-header { border-bottom: 1px solid var(--border); }
+.tool-modal-close {
+  border-radius: 50%;
+  width: 34px; height: 34px;
+  transition: background-color .15s;
+}
+.tool-modal-close:hover { background: var(--input-bg); }
+.tool-modal-overlay {
+  background: rgba(12, 18, 26, .55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* ---------- 导航/胶囊 ---------- */
+.site-header,
+.header-inner { transition: background-color .2s var(--ru-ease), box-shadow .2s var(--ru-ease); }
+.site-header.scrolled { box-shadow: var(--ru-shadow-2); }
+.mobile-bottom-nav .nav-item.active,
+.bottom-nav .nav-item.active {
+  border-radius: var(--ru-r-md);
+  background: rgba(47, 91, 154, .10);
+  color: var(--primary);
+}
+.sort-tab,
+.chip,
+.tab {
+  border-radius: var(--ru-r-pill);
+  transition: background-color .15s var(--ru-ease), color .15s var(--ru-ease), border-color .15s var(--ru-ease);
+}
+.sort-tab.active,
+.chip.active,
+.tab.on {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* ---------- 徽章 / 状态 ---------- */
+.badge,
+.post-lottery-tag,
+.pending-reason {
+  border-radius: var(--ru-r-pill);
+  font-weight: 650;
+}
+
+/* ---------- 骨架屏 / 空状态 / Toast ---------- */
+.ru-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--input-bg);
+  border-radius: var(--ru-r-md);
+}
+.ru-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: ru-shimmer 1.4s infinite;
+}
+@keyframes ru-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.ru-empty {
+  padding: 44px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.ru-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(8px);
+  background: rgba(17, 24, 39, .92);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: var(--ru-r-pill);
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s var(--ru-ease), transform .2s var(--ru-ease);
+  z-index: 4000;
+}
+.ru-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 动效降级 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .post-card:hover,
+  .tool-card:hover,
+  .btn:hover { transform: none; }
+}
+
+/* ---------- 窄屏微调 ---------- */
+@media (max-width: 640px) {
+  .ru-title { font-size: 22px; }
+  .post-card, .card, .section { border-radius: var(--ru-r-md); }
+}

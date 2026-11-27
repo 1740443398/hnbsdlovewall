@@ -833,6 +833,35 @@ require __DIR__ . '/../includes/site_header.php';
                 <p class="subtitle"><?= t('tools.page_desc') ?></p>
             </div>
 
+            <!-- 工具检索条：搜索 + 最近使用 + 精简视图（隐藏重复的娱乐类小工具） -->
+            <div class="tools-uibar">
+                <div class="tools-search">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                    <input type="search" id="tools-search" placeholder="搜索工具（如：倒计时、二维码、转盘）">
+                </div>
+                <div class="tools-actions">
+                    <button type="button" class="tools-toggle" id="tools-compact">精简视图</button>
+                    <button type="button" class="tools-toggle" id="tools-reset" title="清空最近使用">清空记录</button>
+                </div>
+            </div>
+            <div class="tools-recent" id="tools-recent" hidden>
+                <span class="tools-recent-label">最近使用</span>
+                <div class="tools-recent-list" id="tools-recent-list"></div>
+            </div>
+            <style>
+            .tools-uibar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0 4px; }
+            .tools-search { flex:1 1 240px; display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:0 12px; height:42px; color:var(--text-muted); }
+            .tools-search input { border:0; outline:none; background:transparent; flex:1; height:100%; color:var(--text); font-size:14px; }
+            .tools-actions { display:flex; gap:8px; }
+            .tools-toggle { height:38px; padding:0 14px; border-radius:10px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); font-size:13px; font-weight:600; cursor:pointer; }
+            .tools-toggle.on { background:var(--primary); color:#fff; border-color:var(--primary); }
+            .tools-recent { margin:6px 0 2px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+            .tools-recent-label { font-size:12px; color:var(--text-muted); }
+            .tools-recent-list { display:flex; gap:6px; flex-wrap:wrap; }
+            .tools-recent-list button { border:1px solid var(--border); background:var(--card-bg); color:var(--text); border-radius:999px; padding:5px 12px; font-size:12.5px; cursor:pointer; }
+            .tool-card.is-hidden, .tools-category.is-hidden { display:none !important; }
+            </style>
+
             <?php /* 站务类入口：更新日志、下载客户端。
                      放在最前面而不是塞进某个工具分组里 ——
                      这两件事属于「了解站点」，不是「用工具」。 */ ?>
@@ -1417,6 +1446,80 @@ require __DIR__ . '/../includes/site_header.php';
             </div>
         </div>
     </main>
+
+    <script>
+    (function toolsSearchInit() {
+        var input = document.getElementById('tools-search');
+        var recentBox = document.getElementById('tools-recent');
+        var recentList = document.getElementById('tools-recent-list');
+        var compactBtn = document.getElementById('tools-compact');
+        var resetBtn = document.getElementById('tools-reset');
+        var cards = Array.prototype.slice.call(document.querySelectorAll('.tool-card'));
+        var categories = Array.prototype.slice.call(document.querySelectorAll('.tools-category'));
+        var DUPLICATE = ['dice', 'coin', 'scratch'];   // 与随机抽奖/转盘重复度高的娱乐小工具
+        var compact = localStorage.getItem('tools_compact') === '1';
+
+        function toolKey(card) {
+            var m = /openTool\('([a-z0-9_]+)'\)/.exec(card.getAttribute('onclick') || '');
+            return m ? m[1] : '';
+        }
+        function toolLabel(card) {
+            var el = card.querySelector('.tool-name');
+            return el ? el.textContent.trim() : '';
+        }
+        function applyCompact() {
+            cards.forEach(function (c) {
+                var k = toolKey(c);
+                if (DUPLICATE.indexOf(k) >= 0) { c.classList.toggle('is-hidden', compact); }
+            });
+            if (compactBtn) { compactBtn.classList.toggle('on', compact); }
+            filter(input ? input.value : '');
+        }
+        function filter(q) {
+            q = (q || '').trim().toLowerCase();
+            cards.forEach(function (c) {
+                var hit = !q || toolLabel(c).toLowerCase().indexOf(q) >= 0 || (toolKey(c) || '').indexOf(q) >= 0;
+                c.classList.toggle('is-hidden', !hit || (compact && DUPLICATE.indexOf(toolKey(c)) >= 0));
+            });
+            categories.forEach(function (cat) {
+                var visible = cat.querySelectorAll('.tool-card:not(.is-hidden)').length;
+                cat.classList.toggle('is-hidden', visible === 0);
+            });
+        }
+        function loadRecent() {
+            var arr = [];
+            try { arr = JSON.parse(localStorage.getItem('tools_recent') || '[]'); } catch (e) { arr = []; }
+            if (!recentBox || !recentList) return;
+            recentList.innerHTML = '';
+            arr.slice(0, 6).forEach(function (k) {
+                var card = cards.filter(function (c) { return toolKey(c) === k; })[0];
+                if (!card) return;
+                var b = document.createElement('button');
+                b.textContent = toolLabel(card);
+                b.onclick = function () { if (window.openTool) window.openTool(k); };
+                recentList.appendChild(b);
+            });
+            recentBox.hidden = arr.length === 0;
+        }
+        function markRecent(k) {
+            if (!k) return;
+            var arr = [];
+            try { arr = JSON.parse(localStorage.getItem('tools_recent') || '[]'); } catch (e) { arr = []; }
+            arr = [k].concat(arr.filter(function (x) { return x !== k; })).slice(0, 12);
+            localStorage.setItem('tools_recent', JSON.stringify(arr));
+            loadRecent();
+        }
+        if (window.openTool) {
+            var orig = window.openTool;
+            window.openTool = function (name) { markRecent(name); return orig.apply(this, arguments); };
+        }
+        if (input) { input.addEventListener('input', function () { filter(input.value); }); }
+        if (compactBtn) { compactBtn.addEventListener('click', function () { compact = !compact; localStorage.setItem('tools_compact', compact ? '1' : '0'); applyCompact(); }); }
+        if (resetBtn) { resetBtn.addEventListener('click', function () { localStorage.removeItem('tools_recent'); loadRecent(); }); }
+        applyCompact();
+        loadRecent();
+    })();
+    </script>
 
     <div id="modal-container"></div>
     <div class="eye-protection-overlay" id="eyeOverlay"></div>
@@ -2518,27 +2621,46 @@ require __DIR__ . '/../includes/site_header.php';
     }
 
     function wheelSpin() {
+        /* 【修复：转盘结果与播报不一致】
+         * 旧实现只把角度多转 5~10 圈（spins * 2π），落点角度恒等于初始角度，
+         * 于是指针永远停在同一格；而播报的 index 又是按 canvas 的 0 弧度（右侧）算的，
+         * 指针却在正上方（-90°），两者差了四分之一圈 —— 所以「转出来的和播报的不是一个」。
+         * 现在：先随机定中奖格 → 再把「该格中心」精确转到指针（正上方）→ 播报同一格。 */
         wheelDraw();
         var canvas = document.getElementById('wheel-canvas');
         var result = document.getElementById('wheel-result');
-        var spins = 5 + Math.random() * 5;
-        var targetAngle = wheelAngle + spins * 2 * Math.PI;
-        var startTime = Date.now();
-        var duration = 3000;
+        if (!canvas || !result) return;
+        if (wheelItems.length === 0) { result.textContent = '请先填写转盘选项'; return; }
+
+        var slice = 2 * Math.PI / wheelItems.length;
+        var winner = Math.floor(Math.random() * wheelItems.length);   // 中奖格（唯一真源）
+        // 指针在正上方 = -π/2；让 winner 的「格中心」落到指针处：
+        var pointer = -Math.PI / 2;
+        var endMod = pointer - (winner + 0.5) * slice;               // 目标落点（mod 2π 意义下）
+        var spins = 6 + Math.floor(Math.random() * 4);               // 转 6~9 圈
         var startAngle = wheelAngle;
-        var spin = setInterval(function() {
-            var elapsed = Date.now() - startTime;
-            var progress = Math.min(elapsed / duration, 1);
+        var targetAngle = 2 * Math.PI * spins + endMod;
+        while (targetAngle <= startAngle + 2 * Math.PI * spins) { targetAngle += 2 * Math.PI; }
+
+        var startTime = Date.now();
+        var duration = 3200;
+        var spin = setInterval(function () {
+            var progress = Math.min((Date.now() - startTime) / duration, 1);
             var ease = 1 - Math.pow(1 - progress, 3);
             wheelAngle = startAngle + (targetAngle - startAngle) * ease;
             wheelDraw();
             if (progress >= 1) {
                 clearInterval(spin);
-                wheelAngle = wheelAngle % (2 * Math.PI);
-                var sliceAngle = 2 * Math.PI / wheelItems.length;
-                var normalizedAngle = (2 * Math.PI - (wheelAngle % (2 * Math.PI))) % (2 * Math.PI);
-                var index = Math.floor(normalizedAngle / sliceAngle) % wheelItems.length;
-                result.textContent = '🎉 ' + wheelItems[index];
+                wheelAngle = endMod;   // 归一化，供下次绘制
+                wheelDraw();
+                var text = '🎉 ' + wheelItems[winner];
+                result.textContent = text;
+                if (window.speechSynthesis && document.getElementById('wheel-voice') && document.getElementById('wheel-voice').checked) {
+                    var u = new SpeechSynthesisUtterance('恭喜抽中，' + wheelItems[winner]);
+                    u.lang = 'zh-CN';
+                    speechSynthesis.cancel();
+                    speechSynthesis.speak(u);
+                }
             }
         }, 16);
     }
