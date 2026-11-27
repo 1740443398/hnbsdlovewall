@@ -92,12 +92,26 @@ h1{font-size:20px;margin:8px 0 6px}
 </div>
 <script>
 const CSRF = '<?= htmlspecialchars($csrf) ?>';
+const BACK_URL = '/pages/lottery.php?id=<?= (int) $id ?>';
+
+/* 全部条件完成后自动返回抽奖详情（带参与按钮），无需手动点返回 */
+function maybeDoneAll() {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var pending = rows.filter(function (r) { return !r.querySelector('.ok') && r.querySelector('.btn, button'); });
+  if (pending.length === 0) {
+    var tip = document.createElement('div');
+    tip.textContent = '条件已全部完成，正在返回抽奖…';
+    tip.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1E7A4C;color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;z-index:999';
+    document.body.appendChild(tip);
+    setTimeout(function () { location.href = BACK_URL; }, 900);
+  }
+}
 function doFollow(targetId, btn) {
   btn.disabled = true; btn.textContent = '处理中…';
   var body = new URLSearchParams({ csrf_token: CSRF, action: 'follow', target_id: targetId });
   fetch('/api/user/follow.php', { method: 'POST', credentials: 'same-origin', body: body })
     .then(r => r.json()).then(j => {
-      if (j && (j.success === true || j.ok === true)) { btn.outerHTML = '<span class="ok">已完成 ✓</span>'; }
+      if (j && (j.success === true || j.ok === true)) { btn.outerHTML = '<span class="ok">已完成 ✓</span>'; maybeDoneAll(); }
       else { btn.disabled = false; btn.textContent = '重试'; alert((j && j.message) || '关注失败'); }
     }).catch(() => { btn.disabled = false; btn.textContent = '重试'; });
 }
@@ -126,6 +140,7 @@ function openComment(postId, btn) {
           box.remove();
           row.querySelector('.nm').insertAdjacentHTML('beforeend', ' <span class="ok">✓</span>');
           btn.outerHTML = '<span class="ok">已完成 ✓</span>';
+          maybeDoneAll();
         } else {
           self.disabled = false; self.textContent = '发送';
           alert((j && (j.message || j.error)) || '评论失败');
@@ -161,6 +176,7 @@ function openRepost(postId, btn) {
         if (j && (j.success === true || j.ok === true)) {
           box.remove();
           btn.outerHTML = '<span class="ok">已完成 ✓</span>';
+          maybeDoneAll();
         } else {
           self.disabled = false; self.textContent = '转发';
           alert((j && (j.message || j.error)) || '转发失败');
@@ -174,7 +190,7 @@ function doLike(postId, btn) {
   var body = new URLSearchParams({ csrf_token: CSRF, post_id: postId });
   fetch('/api/posts/like.php', { method: 'POST', credentials: 'same-origin', body: body })
     .then(r => r.json()).then(j => {
-      if (j && (j.success === true || j.ok === true)) { btn.outerHTML = '<span class="ok">已完成 ✓</span>'; }
+      if (j && (j.success === true || j.ok === true)) { btn.outerHTML = '<span class="ok">已完成 ✓</span>'; maybeDoneAll(); }
       else { btn.disabled = false; btn.textContent = '重试'; alert((j && j.message) || '点赞失败'); }
     }).catch(() => { btn.disabled = false; btn.textContent = '重试'; });
 }
