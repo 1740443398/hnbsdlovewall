@@ -47,6 +47,7 @@ foreach ($favorites as $fav) {
             'id' => $fav['id'],
             'post_id' => $post['id'],
             'title' => $post['title'] ?: '(无标题)',
+            'cover' => (string) ($post['images'][0] ?? ''),
             'category' => (string) ($post['category'] ?? ''),
             'category_name' => [
                 'announcement' => '全站公告', 'lost_found' => '失物招领', 'study_help' => '学习互助',
@@ -71,7 +72,7 @@ jsonSuccess(lwProjectTop([
     'favorites' => lwProjectRows(
         $result,
         lwFieldsRequest(),
-        ['id', 'post_id', 'title', 'category', 'category_name', 'content', 'is_anonymous', 'author',
+        ['id', 'post_id', 'title', 'cover', 'category', 'category_name', 'content', 'is_anonymous', 'author',
          'like_count', 'comment_count', 'timeAgo', 'created_at'],
         ['id', 'post_id']
     ),

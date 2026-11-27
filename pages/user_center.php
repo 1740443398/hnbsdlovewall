@@ -263,6 +263,9 @@ if ($inviteEnabled && $tab === 'invite') {
             margin-bottom: 0.25rem;
         }
 
+        /* 收藏缩略图 */
+        .uc-fav-thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex: 0 0 auto; background: var(--bg-secondary,#F4F7FA); }
+
         /* 收藏分类徽标 */
         .uc-data-cat { display: inline-block; padding: 0 6px; border-radius: 5px; background: rgba(47,91,154,.10); color: var(--primary); font-size: .7rem; font-weight: 600; }
 
@@ -2226,6 +2229,7 @@ if ($inviteEnabled && $tab === 'invite') {
             loadList(SITE_URL + '/api/user/my_favorites.php' + (__fvParams.length ? ('?' + __fvParams.join('&')) : ''), 'myFavoritesList', 'myFavoritesPagination', function(data) {
                 return data.favorites.map(f => `
                     <div class="uc-data-item">
+                        ${f.cover ? '<img class="uc-fav-thumb" src="' + f.cover + '" alt="" loading="lazy">' : ''}
                         <div class="uc-data-main">
                             <a href="${SITE_URL}/pages/post_detail.php?id=${f.post_id}" class="uc-data-title">${f.title || __t('uc.no_title')}</a>
                             <div class="uc-data-content">${f.content || ''}</div>
