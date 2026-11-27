@@ -100,6 +100,11 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
     <a href="/pages/lottery.php?<?= $__vq ?>&status=all" style="padding:4px 10px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['status'] ?? 'all') === 'all' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">全部状态</a>
     <a href="/pages/lottery.php?<?= $__vq ?>&status=open" style="padding:4px 10px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['status'] ?? '') === 'open' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">进行中</a>
     <a href="/pages/lottery.php?<?= $__vq ?>&status=drawn" style="padding:4px 10px;border-radius:999px;text-decoration:none;font-weight:600;<?= ($_GET['status'] ?? '') === 'drawn' ? 'background:var(--primary);color:#fff' : 'background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted)' ?>">已开奖</a>
+    <span style="color:var(--border)">|</span>
+    <?php $__sq = $__vq . '&status=' . urlencode($_GET['status'] ?? 'all'); ?>
+    <a href="/pages/lottery.php?<?= $__sq ?>&sort=default" style="padding:4px 8px;text-decoration:none;<?= ($_GET['sort'] ?? 'default') === 'default' ? 'color:var(--primary);font-weight:700' : 'color:var(--text-muted)' ?>">最新</a>
+    <a href="/pages/lottery.php?<?= $__sq ?>&sort=draw_soon" style="padding:4px 8px;text-decoration:none;<?= ($_GET['sort'] ?? '') === 'draw_soon' ? 'color:var(--primary);font-weight:700' : 'color:var(--text-muted)' ?>">即将开奖</a>
+    <a href="/pages/lottery.php?<?= $__sq ?>&sort=entries" style="padding:4px 8px;text-decoration:none;<?= ($_GET['sort'] ?? '') === 'entries' ? 'color:var(--primary);font-weight:700' : 'color:var(--text-muted)' ?>">最热门</a>
   </div>
 <?php endif; ?>
 
@@ -326,6 +331,23 @@ if ($detail):
     /* 二级过滤：进行中 / 已开奖 */
     $listStatus = (string) ($_GET['status'] ?? 'all');
     if (!in_array($listStatus, ['all', 'open', 'drawn'], true)) { $listStatus = 'all'; }
+    /* 排序：默认最新创建 / 开奖时间升序 / 参与人数倒序 */
+    $listSort = (string) ($_GET['sort'] ?? 'default');
+    if (!in_array($listSort, ['default', 'draw_soon', 'entries'], true)) { $listSort = 'default'; }
+    if ($listSort === 'draw_soon') {
+        usort($all, function ($a, $b) {
+            return strcmp((string) ($a['draw_at'] ?? ''), (string) ($b['draw_at'] ?? ''));
+        });
+    } elseif ($listSort === 'entries') {
+        $__cntMap = [];
+        foreach ((array) getFS()->read('lottery_entries') as $__e3) {
+            $__lid3 = (int) ($__e3['lottery_id'] ?? 0);
+            if ($__lid3 > 0) { $__cntMap[$__lid3] = ($__cntMap[$__lid3] ?? 0) + 1; }
+        }
+        usort($all, function ($a, $b) use ($__cntMap) {
+            return ($__cntMap[(int) ($b['id'] ?? 0)] ?? 0) <=> ($__cntMap[(int) ($a['id'] ?? 0)] ?? 0);
+        });
+    }
     if ($listStatus !== 'all') {
         $all = array_values(array_filter($all, function ($__l) use ($listStatus) {
             $st = (string) ($__l['status'] ?? 'open');
