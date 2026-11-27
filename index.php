@@ -379,6 +379,7 @@ if (is_file($__ahJs)) {
                 <?php else: ?>
                 <div style="font-size:13px;color:var(--text-muted)">本周还没有人发帖，来做第一个吧。</div>
                 <?php endif; ?>
+                <a href="/pages/ranking.php" style="display:block;margin-top:10px;font-size:12.5px;color:var(--primary);text-decoration:none">查看完整排行榜 →</a>
             </div>
         </div>
 

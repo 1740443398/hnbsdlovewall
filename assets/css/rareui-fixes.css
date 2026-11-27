@@ -204,3 +204,31 @@
   .lot-actions .btn { flex: 1 1 auto; height: 44px; font-size: 15px; }
   .page-lottery, body { padding-bottom: 46px; }
 }
+
+
+/* ---------- 私信聊天（移动端）：输入区吸附底部 ---------- */
+@media (max-width: 640px) {
+  .pm-chat-input {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--card-bg, #fff);
+    border-top: 1px solid var(--border);
+  }
+  .pm-chat-input .pm-input {
+    flex: 1 1 auto;
+    resize: none;
+    max-height: 96px;
+    font-size: 16px; /* iOS 低于 16px 会触发自动放大 */
+  }
+  .pm-chat-input .pm-send {
+    flex: 0 0 auto;
+    height: 38px;
+    padding: 0 16px;
+  }
+  .pm-messages { padding-bottom: 4px; }
+}
