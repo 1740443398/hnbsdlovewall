@@ -279,7 +279,8 @@ function postCard(p){
     return '<div class="disc-card">' +
         '<h3><a href="/pages/post_detail.php?id=' + p.id + '">' + esc(title) + '</a></h3>' +
         '<div class="ex">' + esc(ex) + '</div>' +
-        '<div class="mt"><span>♡ ' + (p.like_count||p.likes||0) + '</span>' +
+        '<div class="mt">' + (p.author_name ? '<span>' + esc(p.author_name) + '</span>' : '') +
+        '<span>♡ ' + (p.like_count||p.likes||0) + '</span>' +
         '<span>评论 ' + (p.comment_count||p.comments||0) + '</span>' +
         '<span>' + esc(p.created_at||'') + '</span></div></div>';
 }
@@ -293,13 +294,27 @@ function loadRecommend(){
     .then(function(d){ render((d.data && d.data.posts) || [], '暂无推荐，先去发个帖子吧'); })
     .catch(function(){ document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
 }
-function loadFollowing(){
-    document.getElementById('content').innerHTML = '<div class="empty">加载中…</div>';
-    fetch('/api/posts/following.php?page=1&limit=12', { credentials: 'same-origin' })
+var FOLLOW_PAGE = 1, FOLLOW_MORE = false, FOLLOW_ITEMS = [];
+function renderFollowing() {
+    var box = document.getElementById('content');
+    if (!FOLLOW_ITEMS.length) return;
+    box.innerHTML = '<div class="disc-grid">' + FOLLOW_ITEMS.map(postCard).join('') + '</div>' +
+        (FOLLOW_MORE ? '<div style="text-align:center;margin:16px 0"><button type="button" id="followMore" style="padding:9px 24px;border-radius:999px;border:1px solid var(--border,#dfe4ea);background:var(--card-bg,#fff);color:var(--text-secondary,#4a5568);font-size:.86rem;cursor:pointer">加载更多</button></div>' : '');
+    var btn = document.getElementById('followMore');
+    if (btn) btn.addEventListener('click', function () { btn.disabled = true; btn.textContent = '加载中…'; loadFollowing(FOLLOW_PAGE + 1); });
+}
+
+function loadFollowing(page) {
+    page = page || 1;
+    if (page === 1) { FOLLOW_ITEMS = []; document.getElementById('content').innerHTML = '<div class="empty">加载中…</div>'; }
+    fetch('/api/posts/following.php?page=' + page + '&limit=12', { credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
         .then(function (d) {
             var data = d.data || {};
-            if (!data.posts || !data.posts.length) {
+            FOLLOW_ITEMS = FOLLOW_ITEMS.concat(data.posts || []);
+            FOLLOW_MORE = !!data.has_more;
+            FOLLOW_PAGE = page;
+            if (!FOLLOW_ITEMS.length) {
                 if (!data.following_count) {
                     document.getElementById('content').innerHTML =
                         '<div class="empty">还没有关注任何人 —— 去 <a href="/pages/discover.php?tab=hot">热门</a> 里找几位同学关注吧</div>';
@@ -308,7 +323,7 @@ function loadFollowing(){
                 }
                 return;
             }
-            render(data.posts, '暂无内容');
+            renderFollowing();
         })
         .catch(function () { document.getElementById('content').innerHTML = '<div class="empty">加载失败</div>'; });
 }
