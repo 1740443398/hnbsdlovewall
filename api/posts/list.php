@@ -96,6 +96,21 @@ unset($decorated);
 // 与搜索、AI 助手各写一份且不一致；现在三处共用同一条判定）。
 $filteredPosts = lwFilterVisiblePosts($posts, $user);
 
+/* 「关注」信息流：只保留我关注的人发的帖子。
+ * 放在可见性过滤之后、分页之前 —— 保证 total/pagination 都基于关注集计算，
+ * 不会出现「翻页空洞」或 total 与实际条数不符。
+ * 返回结构与其他 feed 完全一致（同一套字段输出），前端零改动即可渲染。 */
+if (!$isGuest && $user && ($feedMode = ($_REQUEST['feed'] ?? '')) === 'following') {
+    $followingIds = [];
+    foreach ((array) $fs->find('follows', ['user_id' => (int) $user['id']]) as $fr) {
+        $tid = (int) ($fr['target_id'] ?? 0);
+        if ($tid > 0) { $followingIds[$tid] = true; }
+    }
+    $filteredPosts = array_values(array_filter($filteredPosts, function ($p) use ($followingIds) {
+        return isset($followingIds[(int) ($p['user_id'] ?? 0)]);
+    }));
+}
+
 /* 总数与「本次返回条数」要分开算。
  *
  * 【原来这里有个严重的设计缺陷】

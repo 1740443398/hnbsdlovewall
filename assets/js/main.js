@@ -1561,6 +1561,10 @@
           '&page=' +
           this.currentPage +
           '&limit=20';
+        /* 关注信息流：服务端按关注关系过滤，返回结构与其他 feed 完全一致。 */
+        if (this.currentSort === 'following') {
+          url += '&feed=following';
+        }
         if (this.searchKeyword) {
           url += '&search=' + encodeURIComponent(this.searchKeyword);
         }
@@ -1594,8 +1598,16 @@
         if (posts.length === 0 && reset) {
           const reallyEmpty = (__total === 0);
           if (reallyEmpty) {
-            this.container.innerHTML =
-              '<div class="empty-state"><div class="empty-icon">' + LWIllustration('posts') + '</div><p>暂无帖子</p></div>';
+            if (this.currentSort === 'following') {
+              this.container.innerHTML =
+                '<div class="empty-state"><div class="empty-icon">' + LWIllustration('posts') + '</div>' +
+                '<p>还没有关注的动态</p>' +
+                '<p style="font-size:13px;color:var(--text-muted);margin-top:4px;">去发现页关注感兴趣的同学，动态就会出现在这里</p>' +
+                '<a class="btn btn-primary" style="margin-top:12px;" href="/pages/discover.php">去发现</a></div>';
+            } else {
+              this.container.innerHTML =
+                '<div class="empty-state"><div class="empty-icon">' + LWIllustration('posts') + '</div><p>暂无帖子</p></div>';
+            }
             this.hasMore = false;
           } else {
             // 有内容但这次没拿到 —— 保留 hasMore，给重试入口
