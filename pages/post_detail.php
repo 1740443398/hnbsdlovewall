@@ -353,6 +353,8 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             font-size: 1rem; font-weight: 700; color: var(--text);
             margin: 0 0 .875rem;
         }
+        .comment-draft-hint { align-self: center; margin-right: auto; font-size: .72rem; color: var(--text-tertiary,#9AA7B8); opacity: 0; transition: opacity .2s ease; }
+        .comment-draft-hint.show { opacity: 1; }
         .comment-sort-btn { border:1px solid var(--border,#dfe4ea); background:var(--card-bg,#fff); color:var(--text-secondary,#4a5568); font-size:.72rem; padding:3px 10px; border-radius:999px; cursor:pointer; }
         .comment-sort-btn.on { background:var(--primary,#2F5B9A); border-color:var(--primary,#2F5B9A); color:#fff; font-weight:600; }
         .comment-item {
@@ -872,6 +874,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                                 <span class="comment-anon-label"><?= t('pd.anon_comment') ?></span>
                             </label>
                         </div>
+                        <span class="comment-draft-hint" id="commentDraftHint" aria-live="polite"></span>
                         <button class="btn btn-primary" id="submitCommentBtn" onclick="submitComment()">
                             <span id="sendIcon"></span>
                             <?= t('pd.send') ?>
@@ -940,10 +943,19 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         var input = document.getElementById('commentInput');
         if (!input) return;
         var key = 'lw_comment_draft_' + '<?= (int)$postId ?>';
-        try { var d = localStorage.getItem(key); if (d) { input.value = d; } } catch (e) {}
+        var hint = document.getElementById('commentDraftHint');
+        var hintTimer = null;
+        function hintText(msg) {
+            if (!hint) return;
+            hint.textContent = msg;
+            hint.classList.add('show');
+            clearTimeout(hintTimer);
+            hintTimer = setTimeout(function () { hint.classList.remove('show'); }, 2200);
+        }
+        try { var d = localStorage.getItem(key); if (d) { input.value = d; hintText('已恢复上次草稿'); } } catch (e) {}
         input.addEventListener('input', function () {
             try {
-                if (input.value.trim()) { localStorage.setItem(key, input.value); }
+                if (input.value.trim()) { localStorage.setItem(key, input.value); hintText('草稿已自动保存'); }
                 else { localStorage.removeItem(key); }
             } catch (e) {}
         });
