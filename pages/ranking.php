@@ -64,6 +64,15 @@ foreach ($visible as $p) {
     $cands[(int)($p['id'] ?? 0)] = $p;
 }
 
+/* 分类筛选：只影响「帖子榜 / 活跃榜 / 话题榜」的候选集 */
+$__rankCatNames = ['lost_found' => '失物招领', 'study_help' => '学习互助', 'social_chat' => '交友闲聊', 'confession' => '表白', 'school_info' => '校园资讯', 'other' => '其他'];
+$__rankCat = (string) ($_GET['cat'] ?? '');
+if (isset($__rankCatNames[$__rankCat])) {
+    $cands = array_filter($cands, function ($p) use ($__rankCat) {
+        return (string) ($p['category'] ?? 'other') === $__rankCat;
+    });
+}
+
 // 收藏数：一次遍历建成 帖子ID => 数量，避免逐条 find 造成 N+1
 $favCount = [];
 foreach ($fs->read('post_favorites') as $f) {
@@ -364,6 +373,13 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
                         ];
                         echo htmlspecialchars($__rangeLabel[$range] ?? '');
                     ?></div>
+                    <?php $__catBase = '?range=' . urlencode($range); ?>
+                    <div class="rk-switch" style="margin-top:6px;flex-wrap:wrap">
+                        <a href="<?= $__catBase ?>" class="<?= $__rankCat === '' ? 'active' : '' ?>">全部分类</a>
+                        <?php foreach ($__rankCatNames as $__ck => $__cn): ?>
+                        <a href="<?= $__catBase ?>&cat=<?= $__ck ?>" class="<?= $__rankCat === $__ck ? 'active' : '' ?>"><?= $__cn ?></a>
+                        <?php endforeach; ?>
+                    </div>
                     <div class="rk-switch">
                         <a href="?range=week" class="<?= $range === 'week' ? 'active' : '' ?>"><?= t('rank.week') ?></a>
                         <a href="?range=month" class="<?= $range === 'month' ? 'active' : '' ?>"><?= t('rank.month') ?></a>
