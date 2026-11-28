@@ -62,6 +62,8 @@ love_wall_app_v3/local.properties
 
 # ===== 临时脚本（不同 agent 留下的调试文件）=====
 _*.php
+# 例外：这是线上真实功能（本机 Cookie 助手推送入口，cron_token 鉴权），必须纳入版本管理
+!_lw_cookie_push.php
 _*.py
 _tmp_*
 _ref_*
