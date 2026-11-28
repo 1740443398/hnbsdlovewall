@@ -303,9 +303,13 @@ if ($detail):
     <h2 style="font-size:15px">相关抽奖</h2>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
       <?php foreach ($__relLotteries as $__o): ?>
-      <a href="/pages/lottery.php?id=<?= (int)$__o['id'] ?>" style="display:flex;justify-content:space-between;gap:10px;text-decoration:none;color:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
+      <?php $__oEntryCnt = count(lwLotteryEntries((int)$__o['id'])); ?>
+      <a href="/pages/lottery.php?id=<?= (int)$__o['id'] ?>" style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-decoration:none;color:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
         <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:14px"><?= htmlspecialchars((string)($__o['title'] ?? '')) ?></span>
-        <span class="prize" style="flex:0 0 auto;font-size:11px"><?= htmlspecialchars((string)($__o['prize'] ?? '')) ?></span>
+        <span style="flex:0 0 auto;display:flex;gap:6px;align-items:center">
+          <span style="font-size:11px;color:var(--muted)"><?= (int)$__oEntryCnt ?> 人参与</span>
+          <span class="prize" style="font-size:11px"><?= htmlspecialchars((string)($__o['prize'] ?? '')) ?></span>
+        </span>
       </a>
       <?php endforeach; ?>
     </div>
