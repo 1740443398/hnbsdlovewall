@@ -485,12 +485,23 @@ if (!function_exists('lwQzoneFetchLikesBatch')) {
             return 0;
         };
 
-        /* 【主机兼容】部分共享主机（含本站部署环境）禁用了 curl_multi_* 整族函数，
+        /* 【主机兼容】部分共享主机（含本站部署环境）禁用了 curl_multi_* 函数，
            直接调用会 fatal「Call to undefined function curl_multi_exec()」——
-           之前的表现就是后台点「立即同步」报同步异常。检测不到 multi 时退回串行抓取：
+           之前的表现就是后台点「立即同步」报同步异常。
+           【注意】实测这台主机只禁了部分 multi 函数：curl_multi_init 存在、
+           curl_multi_exec 不存在——所以第一版只检测 init 是不够的，部署后仍报错。
+           这里改为校验整族函数全部存在，缺任何一个都退回串行抓取：
            慢一些，但功能完整，且同样受时间预算约束，不会拖死同步。
            注意：这个检测必须在任何 curl_multi_* 调用之前。 */
-        if (!function_exists('curl_multi_init')) {
+        $multiOk = function_exists('curl_multi_init')
+            && function_exists('curl_multi_add_handle')
+            && function_exists('curl_multi_exec')
+            && function_exists('curl_multi_select')
+            && function_exists('curl_multi_info_read')
+            && function_exists('curl_multi_getcontent')
+            && function_exists('curl_multi_remove_handle')
+            && function_exists('curl_multi_close');
+        if (!$multiOk) {
             $seqDeadline = microtime(true) + max(3, $budgetSec);
             foreach ($queue as $tid => $url) {
                 if (microtime(true) >= $seqDeadline) { break; }
