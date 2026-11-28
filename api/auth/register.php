@@ -270,6 +270,18 @@ if (empty($convertedFromShadow)) {
 
 logUserActivity($user['id'], 'register', '注册成功');
 
+/* ── 注册即开通站内邮箱 <QQ号>@<mail_domain> ─────────────────────────
+ * 幂等：已有站内邮箱则直接返回现有地址。全程容错，不影响注册主流程。
+ * 地址默认 bsd.ct.ws 域（后台「邮箱中心」可改域名）。
+ */
+$__siteMailAddr = '';
+try {
+    require_once __DIR__ . '/../../includes/mail_center.php';
+    $__siteMailAddr = lwMcProvision((int)$user['id'], (string)$user['qq']);
+} catch (Throwable $e) {
+    error_log('mail provision failed: ' . $e->getMessage());
+}
+
 // 欢迎邮件（邮箱由 QQ 号推导，见 includes/mail_service.php）
 if (is_file(__DIR__ . '/../../includes/mail_service.php')) {
     require_once __DIR__ . '/../../includes/mail_service.php';
@@ -277,13 +289,17 @@ if (is_file(__DIR__ . '/../../includes/mail_service.php')) {
  * 会全部排队，多用户并发时整站卡死。 */
 if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
 
+    $welcomeLines = [
+        '你的账号已经创建好了，现在就可以发帖、评论、和大家聊天。',
+        '你的登录账号是 QQ 号 ' . $qq . '，请保管好密码。',
+        '发帖前建议先看一下社区规范，友善交流能让这里更舒服一些。',
+    ];
+    if ($__siteMailAddr !== '') {
+        $welcomeLines[] = '系统已为你开通站内邮箱：' . $__siteMailAddr . '，登录后可在「邮箱中心」收发邮件，也可以绑定你自己的邮箱。';
+    }
     lwMailNotify('register', (int)$user['id'], [
         'title' => '欢迎加入 ' . (defined('SITE_NAME') ? SITE_NAME : '校园交流墙'),
-        'lines' => [
-            '你的账号已经创建好了，现在就可以发帖、评论、和大家聊天。',
-            '你的登录账号是 QQ 号 ' . $qq . '，请保管好密码。',
-            '发帖前建议先看一下社区规范，友善交流能让这里更舒服一些。',
-        ],
+        'lines' => $welcomeLines,
         'link' => defined('SITE_URL') ? SITE_URL . '/' : '',
         'linkText' => '去首页看看',
     ]);
