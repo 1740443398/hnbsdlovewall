@@ -104,6 +104,18 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
             .lb-title{font-size:1.05rem;}
             .lb-msgs{padding:.75rem .625rem;}
             .lb-body{max-width:calc(100% - 5rem);}
+            /* 触控目标 ≥44px：这几个类不在公共 a11y-touch.css 的命中区名单里 */
+            .lb-send,.lb-icon-btn{min-height:44px;height:auto;}
+            .lb-emoji-item{min-height:44px;display:flex;align-items:center;justify-content:center;}
+            .lb-more{min-height:44px;display:inline-flex;align-items:center;}
+            /* 触屏用按压反馈代替 hover 抬升（触屏 hover 会粘滞） */
+            .lb-send:active,.lb-icon-btn:active,.lb-emoji-item:active,.lb-more:active{transform:scale(.94);transition:transform .1s ease;}
+            .lb-send:hover{filter:none;} /* 触屏不保留亮度抬升，改由 :active 反馈 */
+        }
+        @media (prefers-reduced-motion: reduce){
+            .lb-send,.lb-icon-btn,.lb-emoji-item,.lb-more{transition:none !important;}
+            .lb-send:active,.lb-icon-btn:active,.lb-emoji-item:active,.lb-more:active{transform:none !important;}
+            .lb-new{transition:none !important;}
         }
     </style>
 </head>

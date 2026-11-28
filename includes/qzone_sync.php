@@ -732,11 +732,22 @@ if (!function_exists('lwQzoneSync')) {
         $maxPages  = max(1, min(20, (int) ($cfg['sync_pages_per_run'] ?? 6)));
         $wantPages = (int) ceil($wantItems / max(1, $num));
         $pageLimit = max(1, min($maxPages, $wantPages));
+        /* 【手动「立即同步一次」只跑指定页数，快速返回】
+         * 后台按钮传 ['pages'=>1]，本意是拉最新一页就结束。但此前 $pages 参数
+         * 定义了却从未使用 —— 实际仍按配置跑满 $pageLimit（默认 6）页，
+         * 每页网络最坏 12s，6×12=72s 直接撞穿免费主机 60s 上限 → 请求被 kill，
+         * 用户看到的就是「点一下卡死、返回 500」。显式传 pages 时用它收口。 */
+        if (array_key_exists('pages', $opts)) {
+            $pageLimit = min($pageLimit, max(1, min(5, (int) $opts['pages'])));
+        }
         $totalAll  = 0;
         $pos       = 0;
         $gotItems  = 0;
 
         for ($p = 0; $p < $pageLimit; $p++) {
+            /* 整轮时间硬闸：任何情况下都不让抓取阶段吃掉全部预算，
+             * 必须给落盘/收尾留时间（否则超时被 kill → 500）。 */
+            if (microtime(true) >= $deadline - 8) { break; }
             $r = lwQzoneFetchFeeds($pos, $num);
             if (!$r['ok'] && ($r['state'] ?? '') === 'cookie_expired') {
                 /* 【先自救再报错】Cookie 失效时先跑一次保活：

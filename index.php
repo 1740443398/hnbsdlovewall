@@ -184,7 +184,13 @@ if (is_file($__ahJs)) {
     .lottery-banner a { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13.5px; font-weight: 600; color: var(--primary); text-decoration: none; }
     .lottery-banner-prize { font-weight: 400; color: var(--text-muted); font-size: 12.5px; }
     .lottery-banner-go { margin-left: auto; font-size: 12.5px; }
-    @media (max-width: 640px) { .lottery-banner-prize { display: none; } }
+    @media (max-width: 640px) {
+      .lottery-banner-prize { display: none; }
+      /* 整行链接触控目标 ≥44px（公共 a11y-touch.css 未覆盖此类） */
+      .lottery-banner a { min-height: 44px; align-items: center; }
+      .lottery-banner a:active { opacity: .7; }
+    }
+    @media (prefers-reduced-motion: reduce) { .lottery-banner a { transition: none !important; } }
     </style>
     <?php endif; ?>
 

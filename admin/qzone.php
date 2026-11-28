@@ -134,7 +134,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'sync') {
-        $res = lwQzoneSync(['pages' => 1]);
+        /* 出网同步兜底：任何未预料的 Throwable（网络/文件锁/GD/编码）都转成
+         * 友好提示，避免冒泡成 500 白屏 —— 用户此前点「立即同步一次」卡死的直接症状。 */
+        try {
+            $res = lwQzoneSync(['pages' => 1]);
+        } catch (Throwable $e) {
+            lwQzoneSaveConfig(['last_state' => 'error', 'last_error' => $e->getMessage()]);
+            $redirect('err=' . urlencode('同步异常（已记录）：' . mb_substr($e->getMessage(), 0, 120)));
+        }
         if ($res['ok']) {
             $redirect('msg=' . urlencode("同步完成：新增 {$res['added']} 条，更新 {$res['updated']} 条"));
         }
