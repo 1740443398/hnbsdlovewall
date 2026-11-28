@@ -619,22 +619,64 @@ if (is_file($__ahJs)) {
        * 赞助窗的「主动打开」：页脚入口只放一个按钮，弹窗本体放在首页，
        * 其它页面点了就带 #sponsor 回首页 —— 避免在每个页面重复渲染一份十六进制二维码。
        */
+      var spModal = document.getElementById('sponsorModal');
+      var spAmount = document.getElementById('sponsorAmount');
+      var spList = document.getElementById('sponsorList');
+      var spPoll = null;
+      var spLast = null;
+      var spReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function spFmt(n) {
+        try { return Number(n || 0).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+        catch (e) { return Number(n || 0).toFixed(2); }
+      }
+      function spAnimate(from, to) {
+        if (!spAmount) return;
+        if (spReduce || from === to) { spAmount.textContent = spFmt(to); return; }
+        var t0 = performance.now(), d = 620;
+        (function step(now){
+          var p = Math.min(1, (now - t0) / d);
+          var e = 1 - Math.pow(1 - p, 3);
+          spAmount.textContent = spFmt(from + (to - from) * e);
+          if (p < 1) requestAnimationFrame(step);
+          else spAmount.textContent = spFmt(to);
+        })(t0);
+      }
+      function spNode(tag, cls, text) {
+        var el = document.createElement(tag);
+        if (cls) el.className = cls;
+        if (text != null) el.textContent = String(text);
+        return el;
+      }
+      function spRenderList(rows) {
+        if (!spList) return;
+        spList.textContent = '';
+        if (!Array.isArray(rows) || !rows.length) return;
+        rows.slice(0, 20).forEach(function (it) {
+          var row = spNode('div', 'sponsor-item');
+          row.appendChild(spNode('span', '', it.nickname || it.name || '匿名同学'));
+          row.appendChild(spNode('span', '', '\u00a5 ' + spFmt(it.amount)));
+          spList.appendChild(row);
+        });
+      }
+      function spRefresh() {
+        fetch('/api/sponsor.php', { credentials: 'same-origin', cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res || !res.success || !res.data) return;
+            var amt = Number(res.data.current_amount || res.data.total_amount || 0);
+            spAnimate(spLast == null ? 0 : spLast, amt);
+            spLast = amt;
+            spRenderList(res.data.sponsor_list);
+          }).catch(function () {});
+      }
+      function spStopPoll() { if (spPoll) { clearInterval(spPoll); spPoll = null; } }
+      function spStartPoll() { if (!spPoll) spPoll = setInterval(spRefresh, 60000); }
       function openSponsor(){
-        var m = document.getElementById('sponsorModal');
-        if (!m) { location.href = '/index.php#sponsor'; return; }
-        m.style.display = 'flex';
-        var list = document.getElementById('sponsorList');
-        if (list && !list.dataset.loaded) {
-          list.dataset.loaded = '1';
-          fetch('/api/sponsor.php', { credentials: 'same-origin' })
-            .then(function(r){ return r.json(); })
-            .then(function(res){
-              if (!res || !res.success || !res.data) return;
-              var amt = res.data.current_amount || res.data.total_amount || 0;
-              var el = document.getElementById('sponsorAmount');
-              if (el) el.textContent = Number(amt).toFixed(2);
-            }).catch(function(){});
-        }
+        if (!spModal) { location.href = '/index.php#sponsor'; return; }
+        spModal.style.display = 'flex';
+        spRefresh();       // 每次打开都拉取，不再一次性锁死
+        spStartPoll();     // 弹窗打开期间自动刷新
       }
       window.lwOpenSponsor = openSponsor;
       if (location.hash === '#sponsor') setTimeout(openSponsor, 400);
@@ -644,8 +686,12 @@ if (is_file($__ahJs)) {
 
       var spClose = document.querySelectorAll('.sponsor-close');
       for (var i=0; i<spClose.length; i++) {
-        spClose[i].onclick = function(){ var m=document.getElementById('sponsorModal'); if(m) m.style.display='none'; };
+        spClose[i].onclick = function(){ if(spModal) spModal.style.display='none'; spStopPoll(); };
       }
+      document.addEventListener('visibilitychange', function(){
+        if (document.hidden) { spStopPoll(); }
+        else if (spModal && spModal.style.display === 'flex') { spRefresh(); spStartPoll(); }
+      });
       var navItems = document.querySelectorAll('.mobile-nav-item');
       var currentPath = window.location.pathname;
       navItems.forEach(function(item) {
