@@ -272,12 +272,15 @@ if ($detail):
       <div class="winners">
         <b>🎉 中奖名单：</b>
         <?php if ($winnerIds): ?>
-          <?php foreach ($winnerIds as $wi): $wu = lwLUser($userIndex, (int) $wi); ?>
-            <span class="lot-winner">
+          <?php foreach ($winnerIds as $__wi => $wi): $wu = lwLUser($userIndex, (int) $wi); ?>
+            <span class="lot-winner<?= $__wi >= 20 ? ' lot-winner-extra' : '' ?>"<?= $__wi >= 20 ? ' hidden' : '' ?>>
               <a href="/pages/u.php?id=<?= (int) $wu['id'] ?>"><?= htmlspecialchars($wu['nickname']) ?></a>
               <button type="button" class="lot-congrats" data-name="<?= htmlspecialchars($wu['nickname'], ENT_QUOTES) ?>">🎉 恭喜</button>
             </span>
           <?php endforeach; ?>
+          <?php if (count($winnerIds) > 20): ?>
+          <button type="button" class="btn ghost" id="lotWinnerMore" style="font-size:12px;padding:4px 12px;margin-left:6px">展开全部 <?= count($winnerIds) ?> 人</button>
+          <?php endif; ?>
         <?php else: ?>
           无人参与，本轮流抽
         <?php endif; ?>
@@ -410,6 +413,14 @@ if ($detail):
       if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
       t.textContent = msg; t.classList.add('show');
       setTimeout(function () { t.classList.remove('show'); }, 2200);
+    }
+    /* 中奖名单展开 */
+    var __wm = document.getElementById('lotWinnerMore');
+    if (__wm) {
+      __wm.addEventListener('click', function () {
+        document.querySelectorAll('.lot-winner-extra').forEach(function (el) { el.hidden = false; });
+        __wm.style.display = 'none';
+      });
     }
   })();
   </script>
