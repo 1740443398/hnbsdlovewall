@@ -444,7 +444,7 @@ $quotaLeft = $user ? lwLobbyImageQuotaLeft((int)$user['id']) : 0;
         var list = readRecentEmoji();
         if (!list.length) { emojiRecent.hidden = true; emojiRecent.innerHTML = ''; return; }
         emojiRecent.hidden = false;
-        emojiRecent.innerHTML = list.map(function (e) { return '<span class="lb-emoji-item">' + e + '</span>'; }).join('');
+        emojiRecent.innerHTML = list.map(function (e) { return '<span class="lb-emoji-item">' + esc(e) + '</span>'; }).join('');
     }
     function rememberEmoji(ch) {
         var list = readRecentEmoji().filter(function (x) { return x !== ch; });
