@@ -968,7 +968,12 @@ require_once __DIR__ . '/../includes/text_linkify.php';
         window.__lwClearCommentDraft = function () { try { localStorage.removeItem(curKey); } catch (e) {} };
         input.addEventListener('input', function () {
             try {
-                if (input.value.trim()) { localStorage.setItem(curKey, input.value); hintText('草稿已自动保存'); }
+                if (input.value.trim()) {
+                    localStorage.setItem(curKey, input.value);
+                    var __d = new Date();
+                    var __hm = ('0' + __d.getHours()).slice(-2) + ':' + ('0' + __d.getMinutes()).slice(-2);
+                    hintText('草稿已自动保存 ' + __hm);
+                }
                 else { localStorage.removeItem(curKey); }
             } catch (e) {}
         });
