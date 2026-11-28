@@ -938,11 +938,13 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             .catch(function () {});
     })();
 
-    /* 评论草稿：编辑内容随时存本地，刷新/误关页面不丢；发表成功清空 */
+    /* 评论草稿：编辑内容随时存本地，刷新/误关页面不丢；发表成功清空。
+       主评论与「回复某条评论」各存各的，互不覆盖。 */
     (function () {
         var input = document.getElementById('commentInput');
         if (!input) return;
-        var key = 'lw_comment_draft_' + '<?= (int)$postId ?>';
+        var BASE = 'lw_comment_draft_' + '<?= (int)$postId ?>';
+        var curKey = BASE;
         var hint = document.getElementById('commentDraftHint');
         var hintTimer = null;
         function hintText(msg) {
@@ -952,14 +954,25 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             clearTimeout(hintTimer);
             hintTimer = setTimeout(function () { hint.classList.remove('show'); }, 2200);
         }
-        try { var d = localStorage.getItem(key); if (d) { input.value = d; hintText('已恢复上次草稿'); } } catch (e) {}
+        function setKey(k, load) {
+            curKey = k;
+            if (!load) return;
+            var v = null;
+            try { v = localStorage.getItem(k); } catch (e) {}
+            input.value = v || '';
+            if (v) hintText('已恢复上次草稿');
+        }
+        window.__lwDraftSetKey = function (parentId) {
+            setKey(parentId > 0 ? (BASE + '_r' + parentId) : BASE, true);
+        };
+        window.__lwClearCommentDraft = function () { try { localStorage.removeItem(curKey); } catch (e) {} };
         input.addEventListener('input', function () {
             try {
-                if (input.value.trim()) { localStorage.setItem(key, input.value); hintText('草稿已自动保存'); }
-                else { localStorage.removeItem(key); }
+                if (input.value.trim()) { localStorage.setItem(curKey, input.value); hintText('草稿已自动保存'); }
+                else { localStorage.removeItem(curKey); }
             } catch (e) {}
         });
-        window.__lwClearCommentDraft = function () { try { localStorage.removeItem(key); } catch (e) {} };
+        setKey(BASE, true);
     })();
 
     /* 评论排序：最早 / 最新（只重排顶层评论，子回复容器跟着走） */
@@ -1115,6 +1128,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             var ta = document.getElementById('commentInput');
             if (ta) {
                 ta.placeholder = replyTarget.id ? (__t('pd.reply_to_pre') + replyTarget.name + __t('pd.reply_to_post')) : __t('pd.comment_placeholder');
+                if (window.__lwDraftSetKey) { window.__lwDraftSetKey(replyTarget.id || 0); }
                 ta.focus();
             }
         }
@@ -1585,6 +1599,7 @@ require_once __DIR__ . '/../includes/text_linkify.php';
                 if (textarea) {
                     textarea.placeholder = __t('pd.comment_placeholder');
                 }
+                if (window.__lwDraftSetKey) { window.__lwDraftSetKey(0); }
 
                 setTimeout(function() {
                     var delIcon = document.getElementById('delCommentIcon' + comment.id);
