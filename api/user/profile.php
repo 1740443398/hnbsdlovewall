@@ -38,7 +38,7 @@ $isFollowing = !$isSelf && (bool)$fs->findOne('follows', ['user_id' => $viewer['
 $publicData = [
     'id' => $target['id'],
     'nickname' => $target['nickname'],
-    'avatar' => $target['avatar'],
+    'avatar' => lwUserAvatarUrl($target),
     'bio' => $target['bio'] ?? '',
     'role' => $target['role'],
     'is_banned' => $target['is_banned'],

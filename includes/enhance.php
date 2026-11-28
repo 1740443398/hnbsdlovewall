@@ -300,7 +300,7 @@ if (!defined('LW_ENHANCE_LOADED')) {
         try {
             foreach (getFS()->read('users') as $u) {
                 $userNames[(int)$u['id']] = (string)($u['nickname'] ?? $u['qq'] ?? '');
-                $userAvatars[(int)$u['id']] = (string)($u['avatar'] ?? '');
+                $userAvatars[(int)$u['id']] = lwUserAvatarUrl($u);
             }
         } catch (Throwable $e) {
         }

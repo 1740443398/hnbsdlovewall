@@ -50,7 +50,7 @@ jsonSuccess([
         'id' => (int)$user['id'],
         'qq' => $user['qq'] ?? '',
         'nickname' => $user['nickname'] ?? '',
-        'avatar' => $user['avatar'] ?? '',
+        'avatar' => lwUserAvatarUrl($user),
     ],
     'session_id' => $sid,
     'csrf_token' => generateCSRFToken(),

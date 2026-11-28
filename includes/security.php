@@ -128,6 +128,59 @@ function getQQAvatar($qq) {
     return 'https://q.qlogo.cn/headimg_dl?dst_uin=' . $qq . '&spec=100';
 }
 
+/**
+ * 换绑 QQ 后的头像地址（写入层用）
+ *
+ * avatar 字段若是 QQ 头像外链（qlogo.cn），里面写死了旧 QQ 号，
+ * 换绑后必须一并换成新号，否则数据层永远指着旧头像。
+ * 用户自己上传的头像（站内相对路径）保持不变 —— 那是用户自己的东西。
+ */
+function lwAvatarForQqChange($user, string $newQq): string {
+    $a = trim((string)((is_array($user) ? ($user['avatar'] ?? '') : '')));
+    if ($a !== '' && strpos($a, '/') === 0) {
+        return $a;   // 自传头像，不动
+    }
+    if ($newQq !== '' && isValidQQ($newQq)) {
+        return getQQAvatar($newQq);
+    }
+    return $a;
+}
+
+/**
+ * 用户头像地址（以「当前绑定 QQ」为准动态解析）
+ * ---------------------------------------------------------------------------
+ * 【为什么不能直接读 avatar 字段】
+ * users.avatar 里存的是 qlogo 外链，而 qlogo 的 URL 把 QQ 号写死在 dst_uin 上：
+ *     https://q.qlogo.cn/headimg_dl?dst_uin=1736246519&spec=100
+ * 用户换绑 QQ 后，这行数据仍指向旧 QQ 的头像 —— 于是「QQ 号变了，头像没变」。
+ * 站点里 146/149 个用户的 avatar 都是这种形态，靠字段自更新永远追不上。
+ *
+ * 【这里的规则】
+ *   1. avatar 是站内相对路径（用户自己上传的）→ 用它，上传的头像优先
+ *   2. 否则（有 QQ 头像外链或字段为空）→ 按**当前** qq 现场生成 qlogo 地址
+ *      这样换绑 QQ 的瞬间，全站所有头像都跟着变，不用等缓存过期
+ *   3. 连 QQ 都没有（异常数据）→ 回落默认头像
+ */
+function lwUserAvatarUrl($user): string {
+    if (!is_array($user) || !$user) {
+        return '/assets/images/default-avatar.svg';
+    }
+    $a = trim((string)($user['avatar'] ?? ''));
+    // 用户自传头像：站内相对路径
+    if ($a !== '' && strpos($a, '/') === 0) {
+        return $a;
+    }
+    $qq = trim((string)($user['qq'] ?? ''));
+    if ($qq !== '' && isValidQQ($qq)) {
+        return getQQAvatar($qq);
+    }
+    // 没有可用 QQ：保留原有外链，否则默认头像
+    if ($a !== '' && preg_match('#^https?://#i', $a)) {
+        return $a;
+    }
+    return '/assets/images/default-avatar.svg';
+}
+
 function generateRandomString($length = 32) {
     return bin2hex(random_bytes((int)ceil($length / 2)));
 }

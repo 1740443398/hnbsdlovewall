@@ -22,7 +22,7 @@ if (!isset($user)) {
 }
 $uIsLogged = is_array($user) && !empty($user['id']);
 $uNick = $uIsLogged ? (string) ($user['nickname'] ?? '') : '';
-$uAvatar = $uIsLogged ? (string) ($user['avatar'] ?? '') : '';
+$uAvatar = $uIsLogged ? lwUserAvatarUrl($user) : '';
 $uRole = $uIsLogged ? (string) ($user['role'] ?? '') : '';
 $uIsAdmin = in_array($uRole, ['admin', 'super_admin'], true);
 

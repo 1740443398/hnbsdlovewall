@@ -225,7 +225,7 @@ if (!function_exists('lwLobbyMessages')) {
                 'id' => (int)$r['id'],
                 'user_id' => (int)($r['user_id'] ?? 0),
                 'nickname' => (string)($r['nickname'] ?? ''),
-                'avatar' => (string)($r['avatar'] ?? ''),
+                'avatar' => lwUserAvatarUrl($r),
                 'role' => (string)($r['role'] ?? 'user'),
                 'kind' => (string)($r['kind'] ?? 'text'),
                 'text' => (string)($r['text'] ?? ''),
@@ -260,7 +260,7 @@ if (!function_exists('lwLobbyAppend')) {
             $row = getFS()->insert('lobby_messages', [
                 'user_id' => (int)$user['id'],
                 'nickname' => (string)($user['nickname'] ?? ''),
-                'avatar' => (string)($user['avatar'] ?? ''),
+                'avatar' => lwUserAvatarUrl($user),
                 'role' => (string)($user['role'] ?? 'user'),
                 'kind' => $kind === 'image' ? 'image' : 'text',
                 'text' => mb_substr($text, 0, 1000),

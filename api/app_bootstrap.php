@@ -154,7 +154,7 @@ if (!$isGuest) {
         $out['profile'] = [
             'id' => $uid,
             'nickname' => (string)($user['nickname'] ?? ''),
-            'avatar' => (string)($user['avatar'] ?? ''),
+            'avatar' => lwUserAvatarUrl($user),
             'qq' => (string)($user['qq'] ?? ''),
             'role' => (string)($user['role'] ?? 'user'),
             'title_text' => (string)($user['title_text'] ?? ''),

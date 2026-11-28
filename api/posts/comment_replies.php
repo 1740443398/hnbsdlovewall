@@ -73,7 +73,7 @@ foreach ($replies as $rc) {
         'parent_id' => $parentId,
         'is_anonymous' => $rAnon,
         'author_nickname' => $rAnon ? '匿名用户' : ($rUser['nickname'] ?? ''),
-        'author_avatar' => $rAnon ? '/assets/images/default-avatar.svg' : ($rUser['avatar'] ?? ''),
+        'author_avatar' => $rAnon ? '/assets/images/default-avatar.svg' : lwUserAvatarUrl($rUser),
         'author_frame' => $rDecor['frame'] ?? null,
         'author_title_text' => $rAnon ? '' : ($rUser['title_text'] ?? ''),
         'author_title_color' => $rAnon ? '' : ($rUser['title_color'] ?? ''),

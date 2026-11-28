@@ -103,7 +103,7 @@ if ($target) {
     $info = [
         'id'         => $targetId,
         'nickname'   => (string)($target['nickname'] ?? ('用户' . $targetId)),
-        'avatar'     => (string)($target['avatar'] ?? ''),
+        'avatar'     => lwUserAvatarUrl($target),
         'bio'        => (string)($target['bio'] ?? ''),
         'role'       => (string)($target['role'] ?? 'user'),
         'created_at' => (string)($target['created_at'] ?? ''),

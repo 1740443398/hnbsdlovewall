@@ -71,7 +71,7 @@ $payload = [
         'images' => postImagesExisting($post),
         'is_anonymous' => $isAnonymous,
         'author_nickname' => $isAnonymous ? '匿名用户' : ($postUser['nickname'] ?? ''),
-        'author_avatar' => $isAnonymous ? '/assets/images/default-avatar.svg' : ($postUser['avatar'] ?? ''),
+        'author_avatar' => $isAnonymous ? '/assets/images/default-avatar.svg' : lwUserAvatarUrl($postUser),
         'author_title_text' => $isAnonymous ? '' : ($postUser['title_text'] ?? ''),
         'author_title_color' => $isAnonymous ? '' : ($postUser['title_color'] ?? ''),
         'author_title_bg_color' => $isAnonymous ? '' : ($postUser['title_bg_color'] ?? ''),
@@ -171,7 +171,7 @@ if (!$preview) {
             'parent_id' => intval($c['parent_id'] ?? 0),
             'is_anonymous' => $cIsAnonymous,
             'author_nickname' => $cIsAnonymous ? '匿名用户' : ($cUser['nickname'] ?? ''),
-            'author_avatar' => $cIsAnonymous ? '/assets/images/default-avatar.svg' : ($cUser['avatar'] ?? ''),
+            'author_avatar' => $cIsAnonymous ? '/assets/images/default-avatar.svg' : lwUserAvatarUrl($cUser),
             'author_frame' => $cDecor['frame'] ?? null,
             'created_at' => $c['created_at'],
             'is_author' => $user && $user['id'] == $c['user_id']

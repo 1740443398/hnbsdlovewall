@@ -87,7 +87,7 @@ foreach ($topRows as $t) {
         'rank'     => $pos,
         'nickname' => $u['nickname'] ?: ('QQ:' . $u['qq']),
         'qq'       => (string)($u['qq'] ?? ''),
-        'avatar'   => $u['avatar'] ?: getQQAvatar((string)($u['qq'] ?? '')),
+        'avatar'   => lwUserAvatarUrl($u),
         'exp'      => $t['exp'],
         'level'    => $t['level'],
         'is_me'    => $t['user_id'] === $uid,
@@ -128,7 +128,7 @@ $pageTitle  = t('growth.page_title') . ' - ' . SITE_NAME;
         const CSRF_TOKEN = '<?= $csrfToken ?>';
         const IS_LOGGED_IN = true;
         window.IS_LOGGED_IN = true;
-        window.USER_DATA = <?= json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'nickname' => $user['nickname'], 'avatar' => $user['avatar'], 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
+        window.USER_DATA = <?= json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'nickname' => $user['nickname'], 'avatar' => lwUserAvatarUrl($user), 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
     </script>
     <style>
         /* 本页专属微调；通用样式（.gw-*）在 style.css 里，全站共用 */

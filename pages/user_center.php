@@ -107,7 +107,7 @@ if ($inviteEnabled && $tab === 'invite') {
     <script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = true;
-        const USER_DATA = <?= json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'uuid' => $user['uuid'] ?? '', 'nickname' => $user['nickname'], 'avatar' => $user['avatar'], 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
+        const USER_DATA = <?= json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'uuid' => $user['uuid'] ?? '', 'nickname' => $user['nickname'], 'avatar' => lwUserAvatarUrl($user), 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
         // 同步到 window：本页未引入 main.js，而增强脚本通过 window.IS_LOGGED_IN/window.USER_DATA
         // 判断登录态（const 声明的脚本级绑定不会挂到 window 上），否则登录后仍会误判为“未登录”。
         window.IS_LOGGED_IN = IS_LOGGED_IN;
@@ -1498,7 +1498,7 @@ if ($inviteEnabled && $tab === 'invite') {
                                     <?php else: ?>
                                     <span class="lw-widget lw-widget-frame <?= xss_clean($w['css_class']) ?>"></span>
                                     <?php endif; ?>
-                                    <img class="lw-av-img" width="49" height="49" style="position:absolute;left:3px;top:3px;width:49px;height:49px;border-radius:50%;object-fit:cover" src="<?= xss_clean(lwAvatarUrl($user['avatar'] ?? '')) ?>" alt="">
+                                    <img class="lw-av-img" width="49" height="49" style="position:absolute;left:3px;top:3px;width:49px;height:49px;border-radius:50%;object-fit:cover" src="<?= xss_clean(lwUserAvatarUrl($user)) ?>" alt="">
                                 </span>
                                 <?php elseif ($slotKey === 'bubble'): ?>
                                 <span class="lw-bubble-slot <?= xss_clean($w['css_class']) ?>" style="font-size:.72rem;">你好呀</span>

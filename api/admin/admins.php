@@ -41,7 +41,7 @@ if ($action === 'list') {
             'id' => $a['id'],
             'qq' => $a['qq'],
             'nickname' => $a['nickname'],
-            'avatar' => $a['avatar'],
+            'avatar' => lwUserAvatarUrl($a),
             'role' => $a['role'],
             'perm_mode' => getPermissionMode($a),
             'permissions' => $permissions,

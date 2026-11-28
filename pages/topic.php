@@ -133,7 +133,7 @@ $pageTitle = $tag !== ''
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
         const IS_GUEST = <?= $isGuest ? 'true' : 'false' ?>;
-        const USER_DATA = <?= $user ? json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'uuid' => $user['uuid'] ?? '', 'nickname' => $user['nickname'], 'avatar' => $user['avatar'], 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) : 'null' ?>;
+        const USER_DATA = <?= $user ? json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'uuid' => $user['uuid'] ?? '', 'nickname' => $user['nickname'], 'avatar' => lwUserAvatarUrl($user), 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) : 'null' ?>;
         window.IS_LOGGED_IN = IS_LOGGED_IN;
         window.IS_GUEST = IS_GUEST;
         window.USER_DATA = USER_DATA;

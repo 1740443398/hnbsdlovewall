@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'user_id'  => $id,
             'nickname' => $u['nickname'] ?: ('QQ:' . $u['qq']),
             'qq'       => $u['qq'] ?? '',
-            'avatar'   => $u['avatar'] ?: getQQAvatar($u['qq'] ?? ''),
+            'avatar'   => lwUserAvatarUrl($u),
             'blocked_at' => '',
         ];
     }

@@ -63,7 +63,10 @@ if ($action === 'review_qq') {
         if ($dup && (int)$dup['id'] !== $userId) {
             jsonError('新QQ号已被其他用户占用，无法通过');
         }
-        $fs->update('users', $userId, ['qq' => $newQq]);
+        /* 头像同步：换绑 QQ 后，avatar 里存的旧 qlogo 链接要跟着换成新 QQ */
+        $targetUser = $fs->findById('users', $userId);
+        $avatar = lwAvatarForQqChange($targetUser, $newQq);
+        $fs->update('users', $userId, ['qq' => $newQq, 'avatar' => $avatar]);
         $fs->update('qq_change_requests', $reqId, [
             'status' => 'approved',
             'reviewed_at' => date('Y-m-d H:i:s'),

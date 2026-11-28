@@ -33,7 +33,7 @@ if ($action === 'list') {
     foreach ($list as $k => $r) {
         $u = $fs->findById('users', $r['user_id']);
         $list[$k]['nickname'] = $u['nickname'] ?? $r['nickname'];
-        $list[$k]['avatar'] = $u['avatar'] ?? '';
+        $list[$k]['avatar'] = lwUserAvatarUrl($u);
         $list[$k]['cur_title'] = $u['title_text'] ?? '';
     }
     jsonSuccess($list);

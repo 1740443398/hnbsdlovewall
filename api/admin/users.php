@@ -152,7 +152,7 @@ if ($action === 'list') {
             'id' => $u['id'],
             'qq' => $u['qq'],
             'nickname' => $u['nickname'],
-            'avatar' => $u['avatar'],
+            'avatar' => lwUserAvatarUrl($u),
             'role' => $u['role'],
             'is_banned' => $u['is_banned'],
             'ban_reason' => $u['ban_reason'] ?? '',
@@ -552,7 +552,7 @@ if ($action === 'view_detail') {
         'id' => $user['id'],
         'qq' => $user['qq'],
         'nickname' => $user['nickname'],
-        'avatar' => $user['avatar'],
+        'avatar' => lwUserAvatarUrl($user),
         'role' => $user['role'],
         'real_name' => $user['real_name'] ?? '',
         'class_num' => $user['class_num'] ?? 0,
@@ -645,8 +645,13 @@ if ($action === 'change_qq') {
     $oldQq = $target['qq'];
     $oldNickname = $target['nickname'];
 
+    /* 头像同步：avatar 字段若是 QQ 头像外链（含旧 QQ 号），换绑后必须一并换成新 QQ 的，
+       否则 avatar 里永远指着旧号；读取层已改为动态解析，这里再补数据层一致性。 */
+    $avatar = lwAvatarForQqChange($target, $newQq);
+
     $fs->update('users', $userId, [
         'qq' => $newQq,
+        'avatar' => $avatar,
         // 变更绑定QQ属敏感操作，同时刷新安全戳强制原会话下线，需重新登录
         'security_stamp' => generateSecurityStamp(),
     ]);
@@ -695,7 +700,7 @@ if ($action === 'view_post_author') {
         'author_id' => $author['id'],
         'author_qq' => $author['qq'],
         'author_nickname' => $author['nickname'],
-        'author_avatar' => $author['avatar'],
+        'author_avatar' => lwUserAvatarUrl($author),
     ]);
 }
 

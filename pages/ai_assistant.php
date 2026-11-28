@@ -40,7 +40,7 @@ $aiWidgetMode = 'off';
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
         const CSRF_TOKEN = <?= json_encode($csrfToken) ?>;
-        const USER_DATA = <?= $user ? json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'uuid' => $user['uuid'] ?? '', 'nickname' => $user['nickname'], 'avatar' => $user['avatar'], 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) : 'null' ?>;
+        const USER_DATA = <?= $user ? json_encode(['id' => $user['id'], 'qq' => $user['qq'], 'uuid' => $user['uuid'] ?? '', 'nickname' => $user['nickname'], 'avatar' => lwUserAvatarUrl($user), 'role' => $user['role']], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) : 'null' ?>;
         window.IS_LOGGED_IN = IS_LOGGED_IN;
         window.USER_DATA = USER_DATA;
         window.CSRF_TOKEN = CSRF_TOKEN;

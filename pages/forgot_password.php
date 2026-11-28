@@ -24,7 +24,11 @@ header('Expires: 0');
 
 $resetToken = isset($_REQUEST['token']) ? sanitizeInput($_REQUEST['token']) : '';
 $resetQQ = isset($_REQUEST['qq']) ? sanitizeInput($_REQUEST['qq']) : '';
+// 邮件里的重置链接自带验证码，点开即自动填入 —— 不用从邮件正文手抄 6 位数字
+$resetCode = isset($_REQUEST['code']) ? sanitizeInput($_REQUEST['code']) : '';
+if (!preg_match('/^\d{6}$/', $resetCode)) { $resetCode = ''; }
 $showResetForm = !empty($resetToken) && !empty($resetQQ);
+$contactMail = defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -532,11 +536,18 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
                 <div class="form-group">
                     <label class="form-label" for="resetCode">邮箱验证码</label>
                     <div class="input-wrapper">
-                        <input type="text" id="resetCode" name="code" class="form-input" placeholder="请输入发送到QQ邮箱的6位验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-                        <button type="button" class="input-icon-btn" id="getCodeBtn">获取验证码</button>
+                        <input type="text" id="resetCode" name="code" class="form-input" placeholder="请输入发送到QQ邮箱的6位验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code" value="<?= xss_clean($resetCode) ?>">
+                        <button type="button" class="input-icon-btn" id="getCodeBtn">重新发送</button>
                     </div>
                     <div class="error-message" id="codeError">
                         <span id="codeErrorText"></span>
+                    </div>
+                    <div class="error-message" style="color:#7c8a9c;font-size:12px;margin-top:6px">
+                        <?php if ($resetCode !== ''): ?>
+                        验证码已随邮件链接自动填入，直接设置新密码即可；若提示过期，重置链接本身在 1 小时内仍然有效。
+                        <?php else: ?>
+                        验证码会随邮件链接一起发出（已自动带入）；也可以留空直接设置新密码——链接有效即可。
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -605,6 +616,12 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
 
             <div class="auth-footer">
                 <a href="<?= SITE_URL ?>/pages/login.php">返回登录</a>
+            </div>
+
+            <div style="font-size:12px;color:#8E9AA8;text-align:center;margin-top:14px;line-height:1.8">
+                收不到验证码邮件？请先检查垃圾邮件箱并稍后重试（同一账号的旧验证码会即时作废，只认最新一封）。<br>
+                仍无法解决，可联系管理员协助：站内信箱
+                <a href="mailto:<?= htmlspecialchars($contactMail) ?>" style="color:#2F5B9A"><?= htmlspecialchars($contactMail) ?></a>
             </div>
 
             <div class="auth-links">
@@ -740,6 +757,12 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
                 var fd = new FormData();
                 fd.append('csrf_token', CSRF_TOKEN);
                 fd.append('qq', qq);
+                // 重置页上已有 token 时沿用它：重发邮件不会让手里这条链接失效
+                var kt = document.getElementById('resetToken');
+                if (kt && kt.value) {
+                    fd.append('keep_token', kt.value);
+                    fd.append('keep_qq', qq);
+                }
                 lwAuthPost(SITE_URL + '/api/auth/forgot_password.php', fd)
                     .then(function(data) {
                         if (data.success) {
@@ -834,7 +857,12 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
                 var cpwd = confirmNewInput.value;
                 var code = resetCodeInput.value.trim();
 
-                if (!code || !/^\d{6}$/.test(code)) { showAlert('请输入正确的6位验证码'); resetCodeInput.focus(); return; }
+                // 验证码不再是必填：邮件里的重置链接本身（64 位随机 token，1 小时有效）
+                // 就是凭证。旧逻辑强制"必须输入正确的 6 位验证码"，而邮件送达 +
+                // 手抄 + 等待几乎必然让它过期 —— 用户点开链接却被拦在门外。
+                if (code && !/^\d{6}$/.test(code)) {
+                    showInfo('验证码看起来不完整，将继续使用邮件链接完成重置');
+                }
                 if (pwd.length < 8) { showAlert('密码长度不能少于8位'); newPasswordInput.focus(); return; }
                 if (!/[a-zA-Z]/.test(pwd) || !/[0-9]/.test(pwd)) { showAlert('密码必须包含字母和数字'); newPasswordInput.focus(); return; }
                 if (pwd !== cpwd) { showAlert('两次输入的密码不一致'); confirmNewInput.focus(); return; }
@@ -847,6 +875,8 @@ $showResetForm = !empty($resetToken) && !empty($resetQQ);
                 .then(function(data) {
                     if (data.success) {
                         showToast('密码重置成功！请使用新密码登录', 'success');
+                        // 清掉地址栏里的 token，避免留在浏览器历史/书签里
+                        try { if (window.history && history.replaceState) { history.replaceState({}, document.title, window.location.pathname); } } catch (e) {}
                         setTimeout(function() {
                             window.location.href = SITE_URL + '/pages/login.php';
                         }, 1500);

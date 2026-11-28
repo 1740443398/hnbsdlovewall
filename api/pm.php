@@ -39,7 +39,7 @@ function pm_peer($fs, $qq, $meQq) {
         'id' => (int)($other['id'] ?? 0),          // 用户 id：私信偏好（免打扰/置顶）按 id 存
         'qq' => $peerQq,
         'nickname' => $other['nickname'] ?? $peerQq,
-        'avatar' => $other['avatar'] ?? ('https://q.qlogo.cn/headimg_dl?dst_uin=' . $peerQq . '&spec=100'),
+        'avatar' => lwUserAvatarUrl($other),
         'is_banned' => !empty($other['is_banned']) ? 1 : 0,
     ];
 }

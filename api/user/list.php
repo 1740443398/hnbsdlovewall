@@ -39,7 +39,7 @@ $formatted = array_map(function($u) {
         'id' => $u['id'],
         'qq' => $u['qq'] ?? '',
         'nickname' => $u['nickname'] ?? '',
-        'avatar' => $u['avatar'] ?? '/assets/images/default-avatar.svg',
+        'avatar' => lwUserAvatarUrl($u),
         'role' => $u['role'] ?? 'user'
     ];
 }, $users);

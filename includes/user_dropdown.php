@@ -16,7 +16,7 @@ $ddIsAdmin = in_array($user['role'] ?? '', ['admin', 'super_admin']);
 ?>
 <div class="user-menu">
     <button class="user-menu-btn" id="userMenuBtn">
-        <img src="<?= htmlspecialchars($user['avatar'] ?? '') ?>" alt="<?= t('common.avatar_alt') ?>" class="user-avatar" onerror="this.style.display='none'">
+        <img src="<?= htmlspecialchars(lwUserAvatarUrl($user)) ?>" alt="<?= t('common.avatar_alt') ?>" class="user-avatar" onerror="this.style.display='none'">
         <span class="user-name"><?= htmlspecialchars($user['nickname'] ?? '') ?></span>
     </button>
     <div class="user-dropdown" id="userDropdown">

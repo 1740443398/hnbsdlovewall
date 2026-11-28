@@ -11,7 +11,7 @@ if (!verifyCSRFToken($csrfToken)) {
 }
 
 $ip = getClientIP();
-if (!checkRateLimit($ip, 'forgot_password', 5, 300)) {
+if (!checkRateLimit($ip, 'forgot_password', 8, 300)) {
     jsonError('请求过于频繁，请稍后再试', 429);
 }
 
@@ -38,9 +38,19 @@ $user = checkBanned($user);
 
 $email = $qq . '@qq.com';
 
-// 生成 6 位数字验证码，5 分钟有效
+// 生成 6 位数字验证码，15 分钟有效
+// 【为什么从 5 分钟放宽到 15 分钟】邮件送达、用户看到、点开链接、手抄 6 位码——
+// 全程都可能超过 5 分钟，而重置链接本身有 1 小时有效期。验证码比链接先过期，
+// 用户点开链接却被告知"验证码已过期"，这就是"忘记密码用不了"的直接原因。
 $code = (string)random_int(100000, 999999);
-$expiresAt = time() + 300;
+$expiresAt = time() + 900;
+
+// 同一 QQ 的旧验证码立即作废：只保留最新一枚，避免多枚并存导致"输哪个都提示错误"
+foreach ($fs->find('password_reset_codes', ['qq' => $qq]) as $old) {
+    if (empty($old['used'])) {
+        $fs->update('password_reset_codes', $old['id'], ['used' => 1]);
+    }
+}
 
 // 写入验证码表（FileStorage 首次 insert 自动建表）
 $fs->insert('password_reset_codes', [
@@ -52,18 +62,38 @@ $fs->insert('password_reset_codes', [
 ]);
 
 // 先为本次请求生成一次性重置 token（1 小时有效），供邮件/站内通知携带重置链接
-$token = generateRandomString(64);
-$existing = $fs->find('password_reset_tokens', ['user_id' => $user['id']]);
-foreach ($existing as $t) {
-    $fs->delete('password_reset_tokens', $t['id']);
+/* 「重新发送验证码」时沿用当前 token：
+ * 否则用户点一下"重新发送"，旧 token 被作废、手里那条链接立刻失效，
+ * 必须切到新邮件才能继续 —— 白白多绕一圈。 */
+$token = '';
+$keepToken = sanitizeInput($_POST['keep_token'] ?? '');
+$keepQq = sanitizeInput($_POST['keep_qq'] ?? '');
+if ($keepToken !== '' && $keepQq !== '' && $keepQq === $qq) {
+    $keepRow = $fs->findOne('password_reset_tokens', ['token' => $keepToken]);
+    if ($keepRow && (int)$keepRow['user_id'] === (int)$user['id']
+        && strtotime((string)$keepRow['expires_at']) >= time()) {
+        $token = $keepToken;
+        $fs->update('password_reset_tokens', $keepRow['id'], [
+            'expires_at' => date('Y-m-d H:i:s', time() + 3600),
+        ]);
+    }
 }
-$fs->insert('password_reset_tokens', [
-    'user_id' => $user['id'],
-    'token' => $token,
-    'expires_at' => date('Y-m-d H:i:s', time() + 3600)
-]);
-// 重置页同时需要 token 与 qq 才展示重置表单，故链接中携带两者
-$resetUrl = SITE_URL . '/pages/forgot_password.php?token=' . $token . '&qq=' . $qq;
+if ($token === '') {
+    $token = generateRandomString(64);
+    $existing = $fs->find('password_reset_tokens', ['user_id' => $user['id']]);
+    foreach ($existing as $t) {
+        $fs->delete('password_reset_tokens', $t['id']);
+    }
+    $fs->insert('password_reset_tokens', [
+        'user_id' => $user['id'],
+        'token' => $token,
+        'expires_at' => date('Y-m-d H:i:s', time() + 3600)
+    ]);
+}
+// 重置页同时需要 token 与 qq 才展示重置表单，故链接中携带两者；
+// 验证码也一并带上 —— 用户点开链接即可自动填入，不必从邮件里手抄 6 位数字
+// （手抄是重置失败最常见的原因：错一位、少一位、被当成乱码）。
+$resetUrl = SITE_URL . '/pages/forgot_password.php?token=' . $token . '&qq=' . $qq . '&code=' . $code;
 $resetUrlEsc = htmlspecialchars($resetUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
 // 尝试发送邮件验证码
@@ -84,7 +114,23 @@ if (session_status() === PHP_SESSION_ACTIVE) { session_write_close(); }
 }
 
 if (!$mailOk) {
-    // 兜底：邮件不可用时退回站内通知（同时携带重置链接与验证码，用户才能完成重置）
+    /* 发信失败：站内通知兜底 + 落失败日志。
+     *
+     * 注意：站内通知对"忘记密码"场景基本无效——用户此时还没登录，
+     * 根本看不到站内消息。所以真正的后路是：管理员在后台看到这条失败日志，
+     * 主动联系用户协助重置；页面上也给出了"联系管理员"的引导。
+     * 对外文案仍与"账号不存在"完全一致，不泄露账号是否存在。 */
+    $err = (string)(class_exists('QQMailer') ? QQMailer::lastError() : 'SMTP 未配置');
+    $logDir = dirname(__DIR__, 2) . '/data/logs';
+    if (!is_dir($logDir)) { @mkdir($logDir, 0755, true); }
+    @file_put_contents(
+        $logDir . '/password_reset_mail_fail.log',
+        date('Y-m-d H:i:s') . " | qq=" . $qq . " | user_id=" . (int)$user['id']
+            . " | ip=" . $ip . " | reason=" . str_replace(["\r", "\n", "|"], ['', '', '/'], $err) . "\n",
+        FILE_APPEND | LOCK_EX
+    );
+    error_log('[forgot_password] mail delivery failed: ' . $err);
+
     $fs->insert('notifications', [
         'user_id' => $user['id'],
         'type' => 'password_reset',

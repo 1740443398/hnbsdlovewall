@@ -228,7 +228,7 @@ if (!function_exists('lwUserRelations')) {
             $out[] = [
                 'user_id' => $peerId,
                 'nickname' => (string)($peer['nickname'] ?? ('用户' . $peerId)),
-                'avatar' => (string)($peer['avatar'] ?? ''),
+                'avatar' => lwUserAvatarUrl($peer),
                 'type' => (string)($r['type'] ?? '好友'),
                 'visibility' => $vis,
                 'visibility_label' => lwRelationVisibilityLabel($vis),
@@ -265,7 +265,7 @@ if (!function_exists('lwRelationPending')) {
             $out[] = [
                 'user_id' => $fromId,
                 'nickname' => (string)($from['nickname'] ?? ('用户' . $fromId)),
-                'avatar' => (string)($from['avatar'] ?? ''),
+                'avatar' => lwUserAvatarUrl($from),
                 'type' => (string)($r['type'] ?? '好友'),
                 'ts' => (string)($r['ts'] ?? ''),
             ];

@@ -56,7 +56,7 @@ if (!function_exists('lwAvatarComposite')) {
 
         $avatar = $anonymous
             ? lwDefaultAvatar()
-            : lwAvatarUrl($user['avatar'] ?? '');
+            : lwUserAvatarUrl($user);
         $alt = $anonymous ? '匿名用户' : (string)($user['nickname'] ?? '');
 
         // 外径尺寸全部走内联变量：一个 class 管尺寸，不再让各页面自己写宽高

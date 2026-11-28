@@ -254,7 +254,7 @@ if (!function_exists('lwInviteStats')) {
             $list[] = [
                 'id'       => (int)($u['id'] ?? 0),
                 'nickname' => (string)($u['nickname'] ?? ''),
-                'avatar'   => (string)($u['avatar'] ?? ''),
+                'avatar'   => lwUserAvatarUrl($u),
                 'uuid'     => (string)($u['uuid'] ?? ''),
                 'time'     => (string)($u['invited_at'] ?? ($u['created_at'] ?? '')),
             ];
@@ -301,7 +301,7 @@ if (!function_exists('lwInviteLeaderboard')) {
             $rows[] = [
                 'user_id'  => (int)$uid,
                 'nickname' => (string)($u['nickname'] ?? ''),
-                'avatar'   => (string)($u['avatar'] ?? ''),
+                'avatar'   => lwUserAvatarUrl($u),
                 'uuid'     => (string)($u['uuid'] ?? ''),
                 'count'    => (int)$cnt,
             ];

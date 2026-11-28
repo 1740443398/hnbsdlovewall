@@ -130,7 +130,7 @@ if (!function_exists('lw_do_post_comment')) {
                 'parent_id'           => $parentId,
                 'is_anonymous'        => $cIsAnonymous,
                 'author_nickname'     => $cIsAnonymous ? '匿名用户' : ($cUser['nickname'] ?? ''),
-                'author_avatar'       => $cIsAnonymous ? '/assets/images/default-avatar.svg' : ($cUser['avatar'] ?? ''),
+                'author_avatar'       => $cIsAnonymous ? '/assets/images/default-avatar.svg' : lwUserAvatarUrl($cUser),
                 'author_title_text'   => $cIsAnonymous ? '' : ($cUser['title_text'] ?? ''),
                 'author_title_color'  => $cIsAnonymous ? '' : ($cUser['title_color'] ?? ''),
                 'author_title_bg_color' => $cIsAnonymous ? '' : ($cUser['title_bg_color'] ?? ''),

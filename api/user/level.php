@@ -72,7 +72,7 @@ if ($action === 'rank') {
             'user_id'  => $t['user_id'],
             'nickname' => $u['nickname'] ?: ('QQ:' . $u['qq']),
             'qq'       => $u['qq'] ?? '',
-            'avatar'   => $u['avatar'] ?: getQQAvatar($u['qq'] ?? ''),
+            'avatar'   => lwUserAvatarUrl($u),
             'exp'      => $t['exp'],
             'level'    => $info['level'],
             'title'    => $info['title'],

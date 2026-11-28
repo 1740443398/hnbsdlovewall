@@ -96,7 +96,7 @@ if ($recoveryCode) {
         'id' => $user['id'],
         'qq' => $user['qq'],
         'nickname' => $user['nickname'],
-        'avatar' => $user['avatar'],
+        'avatar' => lwUserAvatarUrl($user),
         'role' => $user['role']
     ]]);
 }
@@ -144,6 +144,6 @@ jsonSuccess(['user' => [
     'id' => $user['id'],
     'qq' => $user['qq'],
     'nickname' => $user['nickname'],
-    'avatar' => $user['avatar'],
+    'avatar' => lwUserAvatarUrl($user),
     'role' => $user['role']
 ]]);

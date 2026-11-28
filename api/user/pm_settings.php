@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $out[] = [
                 'peer_id'  => (int)$pid,
                 'nickname' => $u ? ($u['nickname'] ?: ('QQ:' . $u['qq'])) : '（已注销）',
-                'avatar'   => $u ? ($u['avatar'] ?: getQQAvatar($u['qq'] ?? '')) : '',
+                'avatar'   => $u ? lwUserAvatarUrl($u) : '',
                 'since'    => (int)$ts,
             ];
         }
