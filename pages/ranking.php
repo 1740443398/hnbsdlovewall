@@ -257,6 +257,29 @@ $pageTitle = t('rank.page_title') . ' - ' . SITE_NAME;
     <link rel="stylesheet" href="<?= asset_url('/assets/css/enhancements.css') ?>?v=<?= asset_ver('/assets/css/enhancements.css') ?>">
     <?php endif; ?>
     <script>
+/* 记住上次查看的榜单范围：无 ?range 参数时自动回到上次（默认周榜） */
+(function () {
+    try {
+        var params = new URLSearchParams(location.search);
+        var cur = params.get('range');
+        if (!cur) {
+            var saved = localStorage.getItem('lw_rank_range');
+            if (saved && saved !== 'week') { location.replace('/pages/ranking.php?range=' + encodeURIComponent(saved)); return; }
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.rk-switch a').forEach(function (a) {
+                a.addEventListener('click', function () {
+                    try {
+                        var m = (a.getAttribute('href') || '').match(/range=([a-z]+)/);
+                        if (m) localStorage.setItem('lw_rank_range', m[1]);
+                    } catch (e) {}
+                });
+            });
+        });
+    } catch (e) {}
+})();
+</script>
+<script>
         const SITE_URL = '<?= SITE_URL ?>';
         const IS_LOGGED_IN = <?= $user ? 'true' : 'false' ?>;
         const IS_GUEST = <?= $isGuest ? 'true' : 'false' ?>;
