@@ -250,9 +250,88 @@ a:hover { text-decoration: underline; }
         --success: #4CAF7D;
         --success-light: #173026;
     }
+
+  /* ===== 滚动浮现动效（Scroll Reveal） ===== */
+  .gw-reveal { opacity: 0; transform: translateY(26px) scale(.98); transition: opacity .7s cubic-bezier(.22,.61,.36,1), transform .7s cubic-bezier(.22,.61,.36,1); will-change: opacity, transform; }
+  .gw-reveal.is-in { opacity: 1; transform: none; }
+  .gw-reveal[data-anim="left"] { transform: translateX(-32px); }
+  .gw-reveal[data-anim="left"].is-in { transform: none; }
+  .gw-reveal[data-anim="right"] { transform: translateX(32px); }
+  .gw-reveal[data-anim="right"].is-in { transform: none; }
+  .gw-reveal[data-anim="pop"] { transform: scale(.92); }
+  .gw-reveal[data-anim="pop"].is-in { transform: none; }
+  .gw-reveal[data-delay="1"] { transition-delay: .08s; }
+  .gw-reveal[data-delay="2"] { transition-delay: .16s; }
+  .gw-reveal[data-delay="3"] { transition-delay: .24s; }
+  /* Hero 首屏入场（无需 JS，页面加载即播） */
+  @keyframes gwHeroUp { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+  .hero .eyebrow { animation: gwHeroUp .6s cubic-bezier(.22,.61,.36,1) both; }
+  .hero h1 { animation: gwHeroUp .6s cubic-bezier(.22,.61,.36,1) .08s both; }
+  .hero .sub { animation: gwHeroUp .6s cubic-bezier(.22,.61,.36,1) .16s both; }
+  .hero .cta { animation: gwHeroUp .6s cubic-bezier(.22,.61,.36,1) .24s both; }
+  .hero .hint { animation: gwHeroUp .6s cubic-bezier(.22,.61,.36,1) .32s both; }
+  .hero-glow { animation: gwHeroUp .8s cubic-bezier(.22,.61,.36,1) .4s both; }
+  @keyframes gwFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  .hero-card { animation: gwHeroUp .8s cubic-bezier(.22,.61,.36,1) .4s both, gwFloat 5.5s ease-in-out 1.2s infinite; }
+  /* 功能卡片 hover 已有；给图标加一个柔和呼吸 */
+  @keyframes gwPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(47,91,154,.16); } 50% { box-shadow: 0 0 0 8px rgba(47,91,154,0); } }
+  .feat-ico { animation: gwPulse 2.8s ease-in-out infinite; }
+  /* 视差光斑：随滚动轻微移动 */
+  .gw-orb { position: fixed; border-radius: 50%; filter: blur(60px); opacity: .5; pointer-events: none; z-index: 0; }
+  .gw-orb-a { width: 340px; height: 340px; left: -120px; top: 12vh; background: rgba(47,91,154,.18); }
+  .gw-orb-b { width: 260px; height: 260px; right: -90px; top: 52vh; background: rgba(201,169,110,.16); }
+  @media (prefers-reduced-motion: reduce) {
+    .gw-reveal, .gw-reveal.is-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .hero .eyebrow, .hero h1, .hero .sub, .hero .cta, .hero .hint, .hero-glow, .hero-card { animation: none !important; }
+    .feat-ico { animation: none !important; }
+    .gw-orb { display: none; }
+  }
+
+  /* ===== 移动端体验优化（gwMob） ===== */
+  @media (max-width: 768px) {
+    /* 触控目标 ≥ 44px */
+    .btn { min-height: 46px; padding: 12px 22px; font-size: 15px; border-radius: 14px; }
+    .nav-links a { padding: 10px 10px; }
+    /* Hero 排版 */
+    .hero { padding: 40px 0 32px; }
+    .hero h1 { font-size: clamp(26px, 7.2vw, 34px); letter-spacing: -0.02em; }
+    .hero .sub { font-size: 14.5px; margin-bottom: 22px; }
+    .hero .cta { flex-direction: column; align-items: stretch; gap: 10px; }
+    .hero .cta form, .hero .cta .btn { width: 100%; }
+    .hero .hint { font-size: 12.5px; line-height: 1.7; }
+    /* 卡片间距与阴影收敛（小屏不需要大投影） */
+    .hero-card { padding: 16px; gap: 14px; border-radius: 20px; box-shadow: var(--shadow); animation: none; }
+    .section { padding: 44px 0; }
+    .section-head { margin-bottom: 26px; }
+    .features { grid-template-columns: 1fr; gap: 12px; }
+    .feat-card { padding: 18px 16px; }
+    .feat-card:hover { transform: none; } /* 触屏没有 hover，避免「点击粘住抬起效果」 */
+    .feat-ico { animation: none; } /* 低电量/低端机省帧 */
+    /* 按压反馈（触屏代替 hover） */
+    .feat-card:active { transform: scale(.985); transition: transform .12s ease; }
+    .btn:active { transform: scale(.97); }
+    .open-card { padding: 18px 16px; flex-direction: column; gap: 14px; }
+    .cta-band .wrap h2 { font-size: 22px; }
+    /* 底部安全提示更易读 */
+    .foot-safe { font-size: 12.5px; line-height: 1.7; padding: 12px 14px; }
+    /* 浮现位移减小，避免小屏内容跳动 */
+    .gw-reveal { transform: translateY(18px); }
+    .gw-reveal[data-anim="left"] { transform: translateX(-20px); }
+    .gw-reveal[data-anim="right"] { transform: translateX(20px); }
+    /* 光斑缩小降透明，防过曝 */
+    .gw-orb-a { width: 220px; height: 220px; opacity: .35; }
+    .gw-orb-b { width: 180px; height: 180px; opacity: .3; }
+    /* 平滑滚动到锚点 */
+    html { scroll-behavior: smooth; }
+  }
+  @media (max-width: 480px) {
+    .hero h1 { font-size: 24px; }
+    .eyebrow { font-size: 11.5px; padding: 4px 12px; }
+  }
 </style>
 </head>
 <body>
+<div class="gw-orb gw-orb-a" id="orbA"></div><div class="gw-orb gw-orb-b" id="orbB"></div>
 
 <?php require __DIR__ . '/../includes/ai_widget.php'; ?>
 
@@ -309,13 +388,13 @@ a:hover { text-decoration: underline; }
 
 <section class="section" id="features">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head gw-reveal">
       <span class="eyebrow">社区功能</span>
       <h2>一个完整的校园线上社区</h2>
       <p>轻量、流畅、面向低配设备优化，随时随地都能用。</p>
     </div>
     <div class="features">
-      <div class="feat-card">
+      <div class="feat-card gw-reveal" data-anim="pop">
         <div class="feat-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F5B9A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></div>
         <h3>发动态 · 可匿名</h3>
         <p>文字、图片、投票轻松发布，实名或匿名随心切换，投稿头衔展示个性。</p>
@@ -382,5 +461,56 @@ a:hover { text-decoration: underline; }
   </div>
 </footer>
 
+
+<script>
+(function () {
+  'use strict';
+  /* 1) 统一给区块加浮现标记（HTML 零改动也能跑） */
+  var plan = [
+    ['.section-head', 'up', 0],
+    ['.feat-card:nth-child(1)', 'pop', 0],
+    ['.feat-card:nth-child(2)', 'pop', 1],
+    ['.feat-card:nth-child(3)', 'pop', 2],
+    ['.feat-card:nth-child(4)', 'pop', 3],
+    ['.open-card', 'left', 0],
+    ['.cta-band .wrap h2', 'up', 0],
+    ['.cta-band .wrap p', 'up', 1],
+    ['.cta-band .wrap form', 'pop', 2],
+    ['.foot-safe', 'up', 0],
+    ['.foot-meta', 'up', 1]
+  ];
+  plan.forEach(function (it) {
+    document.querySelectorAll(it[0]).forEach(function (el) {
+      el.classList.add('gw-reveal');
+      el.setAttribute('data-anim', it[1]);
+      if (it[2]) el.setAttribute('data-delay', String(it[2]));
+    });
+  });
+
+  /* 2) IntersectionObserver 触发 */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); }
+    });
+  }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('.gw-reveal').forEach(function (el) { io.observe(el); });
+
+  /* 3) 光斑视差：滚动时轻微位移（rAF 节流，移动端也顺滑） */
+  var a = document.getElementById('orbA'), b = document.getElementById('orbB');
+  if (a && b && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () {
+        var y = window.scrollY || 0;
+        a.style.transform = 'translateY(' + (y * 0.08) + 'px)';
+        b.style.transform = 'translateY(' + (y * -0.05) + 'px)';
+        ticking = false;
+      });
+    }, { passive: true });
+  }
+})();
+</script>
 </body>
 </html>
