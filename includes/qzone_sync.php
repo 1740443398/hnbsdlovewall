@@ -468,6 +468,54 @@ if (!function_exists('lwQzoneFetchLikesBatch')) {
         if (!$queue) { return $out; }
         $concurrency = max(1, min(8, $concurrency));
 
+        $parse = function (string $body): int {
+            $body = trim($body);
+            if (preg_match('/^[A-Za-z_$][\w$]*\((.*)\)\s*;?$/s', $body, $m)) { $body = $m[1]; }
+            $body = preg_replace('/([{,])\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/', '$1"$2":', $body);
+            $json = json_decode($body, true);
+            if (is_array($json) && isset($json['data']) && is_array($json['data'])) {
+                foreach ($json['data'] as $row) {
+                    $cur = $row['current'] ?? null;
+                    if (!is_array($cur)) { continue; }
+                    $cnt = $cur['cntdata'] ?? [];
+                    if (is_array($cnt) && isset($cnt['like'])) { return max(0, (int) $cnt['like']); }
+                }
+            }
+            if (preg_match('/like:(\d+)/', $body, $mm)) { return max(0, (int) $mm[1]); }
+            return 0;
+        };
+
+        /* 【主机兼容】部分共享主机（含本站部署环境）禁用了 curl_multi_* 整族函数，
+           直接调用会 fatal「Call to undefined function curl_multi_exec()」——
+           之前的表现就是后台点「立即同步」报同步异常。检测不到 multi 时退回串行抓取：
+           慢一些，但功能完整，且同样受时间预算约束，不会拖死同步。
+           注意：这个检测必须在任何 curl_multi_* 调用之前。 */
+        if (!function_exists('curl_multi_init')) {
+            $seqDeadline = microtime(true) + max(3, $budgetSec);
+            foreach ($queue as $tid => $url) {
+                if (microtime(true) >= $seqDeadline) { break; }
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT        => 5,
+                    CURLOPT_CONNECTTIMEOUT => 4,
+                    CURLOPT_COOKIE         => $cookie,
+                    CURLOPT_REFERER        => 'https://user.qzone.qq.com/',
+                    CURLOPT_HTTPHEADER     => [
+                        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    ],
+                ]);
+                $body = (string) curl_exec($ch);
+                $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                if ($code === 200 && $body !== '') {
+                    $like = $parse($body);
+                    if ($like > 0) { $out[$tid] = $like; }
+                }
+            }
+            return $out;
+        }
+
         $mh = curl_multi_init();
         $handles = [];
         $start = function ($tid, $url) use ($mh, &$handles, $cookie) {
@@ -495,23 +543,6 @@ if (!function_exists('lwQzoneFetchLikesBatch')) {
         }
         $started = array_slice(array_keys($queue), 0, $active);
         $rest = array_slice(array_keys($queue), $active, null, true);
-
-        $parse = function (string $body): int {
-            $body = trim($body);
-            if (preg_match('/^[A-Za-z_$][\w$]*\((.*)\)\s*;?$/s', $body, $m)) { $body = $m[1]; }
-            $body = preg_replace('/([{,])\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/', '$1"$2":', $body);
-            $json = json_decode($body, true);
-            if (is_array($json) && isset($json['data']) && is_array($json['data'])) {
-                foreach ($json['data'] as $row) {
-                    $cur = $row['current'] ?? null;
-                    if (!is_array($cur)) { continue; }
-                    $cnt = $cur['cntdata'] ?? [];
-                    if (is_array($cnt) && isset($cnt['like'])) { return max(0, (int) $cnt['like']); }
-                }
-            }
-            if (preg_match('/like:(\d+)/', $body, $mm)) { return max(0, (int) $mm[1]); }
-            return 0;
-        };
 
         /* 【硬性时间上限】实测线上主机访问 qz_opcnt2 会长时间挂住（6 条 > 90 秒没返回），
            会导致整轮同步被主机 60 秒上限杀掉、什么状态都存不下来。
