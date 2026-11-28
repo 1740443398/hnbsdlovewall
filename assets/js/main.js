@@ -5265,3 +5265,97 @@
   else initFeedSkeleton();
 
 })();
+
+/* ===== 静态 modal 无障碍增强 =====
+ * 动态 Modal.open() 已自带 role/focus trap/Esc（见上方 Modal 对象）；
+ * 但页面里手写的 .modal-overlay（赞助窗、海报、确认框等）没走那个组件，
+ * 读屏与键盘用户会被困在背景内容里、Esc 也关不掉。这里统一补偿：
+ * 对话框语义 + 焦点陷阱 + Esc 关闭 + 关闭后焦点归还。
+ * 幂等；刻意不改 display、不动 body.overflow，避免与现有 Modal 组件打架。
+ */
+(function () {
+  function focusables(root) {
+    return root.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+  }
+  function isShown(overlay) {
+    if (overlay.style.display === 'none') return false;
+    if (overlay.classList.contains('show')) return true;
+    return overlay.style.display !== '' || overlay.offsetParent !== null;
+  }
+  function enhance(overlay) {
+    if (overlay.dataset.modalA11y === '1') return;
+    var modal = overlay.querySelector('.modal');
+    if (!modal) return;
+    overlay.dataset.modalA11y = '1';
+
+    if (!overlay.getAttribute('role')) overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    var title = modal.querySelector('h3, .modal-title');
+    if (title) {
+      if (!title.id) title.id = (overlay.id || 'modal') + '-title';
+      overlay.setAttribute('aria-labelledby', title.id);
+    }
+
+    var wasOpen = isShown(overlay);
+    overlay.setAttribute('aria-hidden', wasOpen ? 'false' : 'true');
+    var lastFocus = null;
+
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        var closeBtn = modal.querySelector('.modal-close, [data-modal-close]');
+        if (closeBtn) closeBtn.click();
+        else overlay.style.display = 'none';
+        return;
+      }
+      if (e.key === 'Tab') {
+        var f = focusables(modal);
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === modal)) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    }
+    function onOpen() {
+      lastFocus = document.activeElement;
+      overlay.setAttribute('aria-hidden', 'false');
+      var f = focusables(modal);
+      if (f.length) {
+        try { f[0].focus(); } catch (err) {}
+      } else {
+        modal.setAttribute('tabindex', '-1');
+        try { modal.focus(); } catch (err) {}
+      }
+      document.addEventListener('keydown', onKey, true);
+    }
+    function onClose() {
+      overlay.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onKey, true);
+      if (lastFocus && typeof lastFocus.focus === 'function' && document.contains(lastFocus)) {
+        try { lastFocus.focus(); } catch (err) {}
+      }
+      lastFocus = null;
+    }
+
+    var mo = new MutationObserver(function () {
+      var now = isShown(overlay);
+      if (now && !wasOpen) { wasOpen = true; onOpen(); }
+      else if (!now && wasOpen) { wasOpen = false; onClose(); }
+    });
+    mo.observe(overlay, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+  function initStaticModalA11y() {
+    var list = document.querySelectorAll('.modal-overlay');
+    for (var i = 0; i < list.length; i++) enhance(list[i]);
+  }
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initStaticModalA11y);
+  } else {
+    initStaticModalA11y();
+  }
+})();
