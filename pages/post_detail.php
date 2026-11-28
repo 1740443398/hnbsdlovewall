@@ -935,6 +935,21 @@ require_once __DIR__ . '/../includes/text_linkify.php';
             .catch(function () {});
     })();
 
+    /* 评论草稿：编辑内容随时存本地，刷新/误关页面不丢；发表成功清空 */
+    (function () {
+        var input = document.getElementById('commentInput');
+        if (!input) return;
+        var key = 'lw_comment_draft_' + '<?= (int)$postId ?>';
+        try { var d = localStorage.getItem(key); if (d) { input.value = d; } } catch (e) {}
+        input.addEventListener('input', function () {
+            try {
+                if (input.value.trim()) { localStorage.setItem(key, input.value); }
+                else { localStorage.removeItem(key); }
+            } catch (e) {}
+        });
+        window.__lwClearCommentDraft = function () { try { localStorage.removeItem(key); } catch (e) {} };
+    })();
+
     /* 评论排序：最早 / 最新（只重排顶层评论，子回复容器跟着走） */
     (function () {
         var wrap = document.getElementById('commentsList');
