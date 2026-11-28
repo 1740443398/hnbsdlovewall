@@ -131,8 +131,10 @@ $updated = "2026-10-24";
 
     <h2>十、联系我们</h2>
     <p>
-        任何疑问、举报或数据请求，请发一条「网站反馈」分类的帖子，
-        或站内私信管理员。我们通常在 48 小时内回复。
+        任何疑问、举报或数据请求，请发一条「网站反馈」分类的帖子，或站内私信管理员。
+        也可以直接发邮件到
+        <a href="mailto:<?= htmlspecialchars(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') ?>"><?= htmlspecialchars(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') ?></a>
+        （站内信箱，登录后也可以在「邮箱中心」直接写信给这个地址）。我们通常在 48 小时内回复。
     </p>
 </div>
 </main>

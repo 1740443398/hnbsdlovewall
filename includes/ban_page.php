@@ -380,7 +380,8 @@ button:active{transform:scale(.97)}
 
   <p class="tip">
     认为属于误判（例如校园网 / 运营商共享出口，或短时间内自己连续翻看了几页）？请联系站长
-    <a href="tencent://message/?uin=<?= $e($qq) ?>&amp;site=qq&amp;menu=yes" rel="noopener">QQ <?= $e($qq) ?></a>，
+    <a href="tencent://message/?uin=<?= $e($qq) ?>&amp;site=qq&amp;menu=yes" rel="noopener">QQ <?= $e($qq) ?></a>
+    或发邮件至 <a href="mailto:<?= $e(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') ?>"><?= $e(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') ?></a>，
     并附上上面的「事件编号」与「受限网络」，站长可据此快速定位并处理。
   </p>
 

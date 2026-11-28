@@ -30,6 +30,15 @@ if (($admin['role'] ?? '') !== 'super_admin') {
 $csrfToken = generateCSRFToken();
 $cfg = lwMcCfg();
 
+/* 站点官方信箱回填到配置框：每行「地址 | 说明」 */
+$mbLines = [];
+foreach ((array)($cfg['site_mailboxes'] ?? []) as $b) {
+    $a = is_array($b) ? (string)($b['addr'] ?? '') : (string)$b;
+    $l = is_array($b) ? (string)($b['label'] ?? '') : '';
+    if (trim($a) !== '') { $mbLines[] = trim($a) . ($l !== '' ? ' | ' . $l : ''); }
+}
+$mbText = implode("\n", $mbLines);
+
 adminHeader('邮箱中心', $admin, $csrfToken);
 ?>
 
@@ -50,8 +59,31 @@ adminHeader('邮箱中心', $admin, $csrfToken);
 <div class="card" style="padding:16px;margin-bottom:16px">
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
     <button class="btn" id="tabAudit" style="background:#2F5B9A;color:#fff">审计流水</button>
+    <button class="btn" id="tabSites">站点信箱</button>
     <button class="btn" id="tabAccts">邮箱账号</button>
     <button class="btn" id="tabCfg">站点配置</button>
+  </div>
+
+  <!-- 站点官方信箱 -->
+  <div id="paneSites" style="display:none">
+    <div style="font-size:12px;color:#98A2B3;line-height:1.7;margin-bottom:12px">
+      站点对外公布的固定联系地址（官网 / 条款 / 封禁页上写的那个）。它与普通用户邮箱的区别是
+      <b>不依赖任何注册账号</b>：站长换号、账号被封、甚至站点还没有人注册，这些地址照样能收站内信，
+      在这里随时可查、可作为违规处置依据。
+    </div>
+    <div id="siteBoxCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:14px"></div>
+    <div id="siteBoxDetail" style="display:none">
+      <h3 style="margin:0 0 10px;font-size:14px" id="sbTitle"></h3>
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:12.5px;border-collapse:collapse">
+          <thead><tr style="text-align:left;color:#98A2B3">
+            <th style="padding:6px 8px">时间</th><th style="padding:6px 8px">发件人</th>
+            <th style="padding:6px 8px">主题</th><th style="padding:6px 8px">风控</th><th style="padding:6px 8px">操作</th>
+          </tr></thead>
+          <tbody id="sbBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- 审计流水 -->
@@ -101,8 +133,14 @@ adminHeader('邮箱中心', $admin, $csrfToken);
       <input id="cfgDomain" value="<?= htmlspecialchars($cfg['mail_domain']) ?>" style="width:100%;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px">
     </div>
     <div style="margin-bottom:14px">
-      <label style="font-size:12.5px;color:#64748B;display:block;margin-bottom:4px">每用户每日外发上限</label>
-      <input id="cfgLimit" type="number" min="1" max="200" value="<?= (int)$cfg['daily_limit'] ?>" style="width:120px;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px">
+      <label style="font-size:12.5px;color:#64748B;display:block;margin-bottom:4px">站点官方信箱（对外公布的联系地址，每行一个，可写「地址 | 说明」）</label>
+      <textarea id="cfgMailboxes" rows="3" style="width:100%;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-family:inherit;font-size:13px" placeholder="1740443398@bsd.ct.ws | 站长信箱"><?= htmlspecialchars($mbText) ?></textarea>
+      <div style="font-size:11.5px;color:#98A2B3;margin-top:4px;line-height:1.6">
+        这些地址不绑定任何注册账号，永久可收站内信，在「站点信箱」里查看；若同地址也有注册用户，会同时投递到对方邮箱中心。
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12.5px;color:#64748B;display:block;margin-bottom:4px">每用户每日外发上限</label>      <input id="cfgLimit" type="number" min="1" max="200" value="<?= (int)$cfg['daily_limit'] ?>" style="width:120px;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px">
     </div>
     <h3 style="margin:18px 0 12px;font-size:14px">外部来信接收（catch-all）</h3>
     <div style="font-size:12px;color:#98A2B3;line-height:1.7;margin-bottom:10px">
@@ -153,17 +191,22 @@ function toast(m){var t=document.createElement('div');t.textContent=m;t.style.cs
 
 function pane(name){
   document.getElementById('paneAudit').style.display = name==='audit'?'':'none';
+  document.getElementById('paneSites').style.display = name==='sites'?'':'none';
   document.getElementById('paneAccts').style.display = name==='accts'?'':'none';
   document.getElementById('paneCfg').style.display = name==='cfg'?'':'none';
   document.getElementById('tabAudit').style.background = name==='audit'?'#2F5B9A':'';
   document.getElementById('tabAudit').style.color = name==='audit'?'#fff':'';
+  document.getElementById('tabSites').style.background = name==='sites'?'#2F5B9A':'';
+  document.getElementById('tabSites').style.color = name==='sites'?'#fff':'';
   document.getElementById('tabAccts').style.background = name==='accts'?'#2F5B9A':'';
   document.getElementById('tabAccts').style.color = name==='accts'?'#fff':'';
   document.getElementById('tabCfg').style.background = name==='cfg'?'#2F5B9A':'';
   document.getElementById('tabCfg').style.color = name==='cfg'?'#fff':'';
   if (name==='accts') loadAccts();
+  if (name==='sites') loadSites();
 }
 document.getElementById('tabAudit').onclick = function(){pane('audit');};
+document.getElementById('tabSites').onclick = function(){pane('sites');};
 document.getElementById('tabAccts').onclick = function(){pane('accts');};
 document.getElementById('tabCfg').onclick = function(){pane('cfg');};
 document.getElementById('fGo').onclick = function(){curPage=1;loadAudit();};
@@ -268,6 +311,76 @@ function bindAuditRows(){
   });
 }
 
+function loadSites(){
+  var wrap = document.getElementById('siteBoxCards');
+  wrap.innerHTML = '<div style="font-size:12.5px;color:#98A2B3">加载中…</div>';
+  document.getElementById('siteBoxDetail').style.display='none';
+  api({action:'siteboxes'}).then(function(res){
+    if (!res.success) { wrap.innerHTML = '<div style="color:#B45309;font-size:12.5px">'+esc(res.message)+'</div>'; return; }
+    var list = res.data.list||[];
+    if (!list.length) {
+      wrap.innerHTML = '<div style="font-size:12.5px;color:#98A2B3">还没有配置站点官方信箱。到「站点配置」里填一个（如 xxx@'+esc(res.data.domain||'bsd.ct.ws')+'），保存后即可收站内信。</div>';
+      return;
+    }
+    wrap.innerHTML = list.map(function(b, i){
+      return '<div class="card" style="padding:14px;cursor:pointer" data-addr="'+esc(b.addr)+'" data-i="'+i+'">'
+        + '<div style="font-size:13px;font-weight:600;word-break:break-all">' + esc(b.addr) + '</div>'
+        + '<div style="font-size:11.5px;color:#98A2B3;margin-top:2px">' + esc(b.label||'站点官方信箱') + '</div>'
+        + '<div style="font-size:12px;color:#2F5B9A;margin-top:8px">收信 <b>' + (b.count||0) + '</b> 封</div>'
+        + (b.last ? '<div style="font-size:11.5px;color:#64748B;margin-top:6px;line-height:1.5;word-break:break-all">最近：' + esc(b.last.subject || '(无主题)') + '<br>' + esc(b.last.from||'') + '</div>' : '')
+        + '</div>';
+    }).join('');
+    document.querySelectorAll('#siteBoxCards .card').forEach(function(c){
+      c.onclick = function(){ loadSiteBox(c.getAttribute('data-addr')); };
+    });
+  });
+}
+
+function loadSiteBox(addr){
+  var box = document.getElementById('siteBoxDetail');
+  box.style.display = '';
+  document.getElementById('sbTitle').textContent = addr + ' 的来信';
+  var tb = document.getElementById('sbBody');
+  tb.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#98A2B3">加载中…</td></tr>';
+  api({action:'sitebox', addr:addr}).then(function(res){
+    if (!res.success) { tb.innerHTML='<tr><td colspan="5" style="padding:16px;color:#B45309">'+esc(res.message)+'</td></tr>'; return; }
+    var list = res.data.list||[];
+    if (!list.length) { tb.innerHTML='<tr><td colspan="5" style="padding:20px;text-align:center;color:#98A2B3">这个信箱还没有收到信</td></tr>'; return; }
+    tb.innerHTML = list.map(function(r){
+      return '<tr style="border-top:1px solid #F1F5F9">'
+        + '<td style="padding:6px 8px;white-space:nowrap">' + esc(r.ts||'-') + '</td>'
+        + '<td style="padding:6px 8px;word-break:break-all">' + esc(r.from||'-') + '</td>'
+        + '<td style="padding:6px 8px;word-break:break-all"><a href="#" class="sb-subj" data-row="'+esc(JSON.stringify(r))+'">' + esc(r.subject||'(无主题)') + '</a></td>'
+        + '<td style="padding:6px 8px">' + (r.risk && r.risk!=='none' ? '<span style="color:#B45309">疑似</span>' : '-') + '</td>'
+        + '<td style="padding:6px 8px"><button class="sb-view btn" data-row="'+esc(JSON.stringify(r))+'" style="font-size:11px;padding:3px 8px">看全文</button></td>'
+        + '</tr>';
+    }).join('');
+    document.querySelectorAll('.sb-subj, .sb-view').forEach(function(a){
+      a.onclick = function(e){
+        e.preventDefault();
+        var r = JSON.parse(a.getAttribute('data-row'));
+        document.getElementById('mcDetail').style.display='';
+        document.getElementById('dTitle').textContent = r.subject || '(无主题)';
+        var d = document.getElementById('dBody');
+        d.textContent = '';
+        [['收件信箱', addr], ['发件人', (r.from||'-') + (r.from_addr?' <'+r.from_addr+'>':'')],
+         ['时间', r.ts||'-'], ['通道', r.transport||'-'], ['风控', (r.risk==='none'?'无':r.risk)]
+        ].forEach(function(kv){
+          var p = document.createElement('div');
+          p.style.cssText='color:#64748B;font-size:12px';
+          p.textContent = kv[0] + '：' + kv[1];
+          d.appendChild(p);
+        });
+        if (r.text) {
+          var hr=document.createElement('hr'); hr.style.cssText='border:none;border-top:1px solid #E2E8F0;margin:10px 0'; d.appendChild(hr);
+          var txt=document.createElement('div'); txt.textContent=r.text; d.appendChild(txt);
+        }
+        document.getElementById('mcDetail').scrollIntoView({behavior:'smooth'});
+      };
+    });
+  });
+}
+
 function loadAccts(){
   var tb = document.getElementById('acctBody');
   tb.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#98A2B3">加载中…</td></tr>';
@@ -308,7 +421,8 @@ document.getElementById('cfgSave').onclick = function(){
     catchall_enabled: document.getElementById('cfgCaEnabled').checked?'1':'0',
     catchall_imap_host: document.getElementById('cfgCaHost').value.trim(),
     catchall_imap_user: document.getElementById('cfgCaUser').value.trim(),
-    catchall_imap_pass: document.getElementById('cfgCaPass').value
+    catchall_imap_pass: document.getElementById('cfgCaPass').value,
+    site_mailboxes: document.getElementById('cfgMailboxes').value
   }).then(function(r){ toast(r.message||'已保存'); });
 };
 

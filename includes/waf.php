@@ -127,7 +127,9 @@ class WAF {
                     . ($remain > 0
                         ? '预计 ' . date('Y-m-d H:i:s', $expireAt) . ' 自动恢复。'
                         : '该限制需站长人工解除。')
-                    . '如为误判请联系站长 QQ ' . LW_BAN_CONTACT_QQ . '（事件编号 ' . $refId . '）',
+                    . '如为误判请联系站长 QQ ' . LW_BAN_CONTACT_QQ
+                    . ' 或邮件 ' . (defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws')
+                    . '（事件编号 ' . $refId . '）',
                 'banned'      => true,
                 'reason'      => (string)($entry['reason'] ?? ''),
                 'strategy'    => $code,

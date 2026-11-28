@@ -58,6 +58,12 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
             'mail_domain' => 'bsd.ct.ws',   // 站内邮箱域名（可在后台改）
             'daily_limit' => 20,            // 每用户每日外发上限
             'inbox_cap'   => 200,           // 每用户收件箱保留条数
+            // 站点官方信箱：对外公布的固定联系地址。与普通用户邮箱的区别是
+            // 它不依赖任何注册账号是否存活 —— 站长换号、账号被封、甚至从未
+            // 注册，这些地址照样能收站内信，后台「站点信箱」随时可查。
+            'site_mailboxes' => [
+                '1740443398@bsd.ct.ws',
+            ],
             'catchall'    => [              // 外部来信 catch-all IMAP（配好 MX 后启用）
                 'enabled' => false,
                 'imap_host' => '',          // 如 imap.exmail.qq.com
@@ -71,6 +77,7 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
             if (is_array($j)) {
                 $cfg = array_merge($defaults, $j);
                 if (!is_array($cfg['catchall'] ?? null)) { $cfg['catchall'] = $defaults['catchall']; }
+                if (!is_array($cfg['site_mailboxes'] ?? null)) { $cfg['site_mailboxes'] = $defaults['site_mailboxes']; }
                 return $cfg;
             }
         }
@@ -230,6 +237,96 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
             if (strcasecmp((string)($a['site_addr'] ?? ''), $addr) === 0) { return (int)$uid; }
         }
         return 0;
+    }
+
+    /* ── 站点官方信箱（对外公布的联系地址） ───────────────────────────── */
+
+    /**
+     * 站点信箱表：[小写地址 => ['addr'=>原样地址, 'uid'=>虚拟uid(负数), 'label'=>说明]]
+     *
+     * 为什么会存在这一层：
+     *   普通站内邮箱绑死在某个注册用户身上（accounts.json 里有记录才会投递）。
+     *   而官网、条款页、封禁页上写的联系邮箱必须「永远能收信」——站长换 QQ 号、
+     *   账号被误封、甚至站点还没人注册，这个地址都不能失效。
+     *   所以用负数虚拟 uid 单独划一块存储区（inbox/-1.json），后台可直接查阅。
+     */
+    function lwMcSiteBoxes(): array
+    {
+        static $boxes = null;
+        if ($boxes !== null) { return $boxes; }
+        $boxes = [];
+        $list = lwMcCfg()['site_mailboxes'] ?? [];
+        if (!is_array($list)) { $list = []; }
+        $i = 0;
+        foreach ($list as $item) {
+            $addr = is_array($item) ? (string)($item['addr'] ?? '') : (string)$item;
+            $addr = strtolower(trim($addr));
+            if ($addr === '' || !filter_var($addr, FILTER_VALIDATE_EMAIL)) { continue; }
+            if (isset($boxes[$addr])) { continue; }
+            $label = is_array($item) ? (string)($item['label'] ?? '') : '';
+            $boxes[$addr] = [
+                'addr'  => $addr,
+                'uid'   => -1 - $i,                      // -1, -2, -3 …… 与真实用户互不冲突
+                'label' => $label !== '' ? $label : '站点官方信箱',
+            ];
+            $i++;
+        }
+        return $boxes;
+    }
+
+    function lwMcIsSiteBox(string $addr): bool
+    {
+        return isset(lwMcSiteBoxes()[strtolower(trim($addr))]);
+    }
+
+    /**
+     * 把收件地址解析成投递目标（可以多个）。
+     *
+     * 同一地址可能同时命中两类目标：
+     *   · 站点官方信箱（负 uid，后台可查，永久有效）
+     *   · 已注册用户开通的同名站内邮箱（正 uid，用户自己的邮箱中心可看）
+     * 两份都投，站内信不会因为「谁是站长」这种组织问题而丢。
+     */
+    function lwMcResolveTargets(string $addr): array
+    {
+        $addr = strtolower(trim($addr));
+        if ($addr === '') { return []; }
+        $out = [];
+        $boxes = lwMcSiteBoxes();
+        if (isset($boxes[$addr])) { $out[] = (int)$boxes[$addr]['uid']; }
+        $u = lwMcFindUidByAddr($addr);
+        if ($u > 0) { $out[] = $u; }
+        return array_values(array_unique($out));
+    }
+
+    /** 站点信箱里的信（后台查看用） */
+    function lwMcSiteBoxInbox(string $addr): array
+    {
+        $boxes = lwMcSiteBoxes();
+        $addr = strtolower(trim($addr));
+        if (!isset($boxes[$addr])) { return []; }
+        return lwMcStoreGet('inbox', (int)$boxes[$addr]['uid']);
+    }
+
+    /** 站点信箱列表 + 未读量（后台首屏用） */
+    function lwMcSiteBoxOverview(): array
+    {
+        $out = [];
+        foreach (lwMcSiteBoxes() as $addr => $b) {
+            $rows = lwMcStoreGet('inbox', (int)$b['uid']);
+            $last = $rows[0] ?? null;
+            $out[] = [
+                'addr'  => (string)$b['addr'],
+                'label' => (string)$b['label'],
+                'count' => count($rows),
+                'last'  => is_array($last) ? [
+                    'from' => (string)($last['from'] ?? ''),
+                    'subject' => (string)($last['subject'] ?? ''),
+                    'ts' => (string)($last['ts'] ?? ''),
+                ] : null,
+            ];
+        }
+        return $out;
     }
 
     /* ── 常见邮箱服务商主机推导 ───────────────────────────────────────── */
@@ -685,14 +782,14 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
             return $fail('内容触发安全策略，已拦截并记录；如有疑问请联系管理员', 'high');
         }
 
-        /* 站内互发：收件人是本站站内邮箱 → 直接落库，不走 SMTP */
-        $localUid = 0;
-        if ($fromKind === 'site') {
-            $domain = strtolower((string)(lwMcCfg()['mail_domain'] ?? 'bsd.ct.ws'));
-            if (preg_match('/@(' . preg_quote($domain, '/') . ')$/i', $to)) {
-                $localUid = lwMcFindUidByAddr($to);
-                if ($localUid <= 0) { return $fail('站内不存在该邮箱地址'); }
-            }
+        /* 站内互发：收件人是本站站内地址（含站点官方信箱）→ 直接落库，不走 SMTP。
+           站点域名下的信无论如何都不该出网：MX 未配置时外发必然退信，
+           而且站内互发零成本、即时到达、还能被审计。 */
+        $localTargets = [];
+        $domain = strtolower((string)(lwMcCfg()['mail_domain'] ?? 'bsd.ct.ws'));
+        if (preg_match('/@' . preg_quote($domain, '/') . '$/i', $to)) {
+            $localTargets = lwMcResolveTargets($to);
+            if (!$localTargets) { return $fail('站内不存在该邮箱地址'); }
         }
 
         $fromAddr = '';
@@ -700,7 +797,7 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
         $now = date('Y-m-d H:i:s');
         $siteName = defined('SITE_NAME') ? SITE_NAME : '校园交流墙';
 
-        if ($fromKind === 'bound') {
+        if ($fromKind === 'bound' && !$localTargets) {
             $bound = lwMcAcct($uid)['bound'] ?? null;
             if (!$bound || empty($bound['email'])) { return $fail('尚未绑定自有邮箱'); }
             $fromAddr = (string)$bound['email'];
@@ -721,10 +818,8 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
             if (!$r['ok']) { return $fail('发送失败：' . $r['err'], $risk['level']); }
             lwMcQuotaBump($uid);
         } else {
-            // 站内地址发信
-            if ($localUid > 0) {
-                // 站内投递：不走 SMTP
-            } else {
+            // 站内地址发信（含收件人在本站、但用户选了自有邮箱身份的情况：走站内投递）
+            if (!$localTargets) {
                 // 外部投递：经站点网关中继
                 if (!class_exists('QQMailer')) {
                     @require_once __DIR__ . '/qqmail.php';
@@ -752,24 +847,29 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
                 if (!$r['ok']) { return $fail('发送失败：' . $r['err'], $risk['level']); }
                 lwMcQuotaBump($uid);
             }
-            $fromAddr = lwMcSiteAddr($uid);
+            $fromAddr = $fromKind === 'bound'
+                ? (string)(lwMcAcct($uid)['bound']['email'] ?? '')
+                : lwMcSiteAddr($uid);
         }
 
         $row = [
             'msgid' => $msgid, 'ts' => $now, 'from' => $fromAddr, 'to' => $to,
             'subject' => $subject, 'text' => mb_substr($text, 0, 2000),
             'risk' => $risk['level'], 'risk_hits' => $risk['hits'],
-            'transport' => $localUid > 0 ? 'internal' : ($fromKind === 'bound' ? 'bound' : 'gateway'),
+            'transport' => $localTargets ? 'internal' : ($fromKind === 'bound' ? 'bound' : 'gateway'),
         ];
 
         // 落发送者已发送
         lwMcStorePush('sent', $uid, $row);
 
-        // 站内投递：落收件人收件箱
-        if ($localUid > 0) {
+        // 站内投递：落收件箱。目标可能是「站点官方信箱 + 该地址对应的注册用户」
+        // 两个位置，两份都投 —— 站内信绝不能因为组织归属问题而丢。
+        if ($localTargets) {
             $inRow = $row;
             $inRow['dir'] = 'in';
-            lwMcStorePush('inbox', $localUid, $inRow);
+            foreach ($localTargets as $tu) {
+                lwMcStorePush('inbox', (int)$tu, $inRow);
+            }
         }
 
         lwMcAudit([
@@ -845,16 +945,18 @@ if (!defined('LW_MAIL_CENTER_LOADED')) {
             }
             if (!$targets) { continue; }
             foreach ($targets as $t) {
-                $destUid = lwMcFindUidByAddr($t);
-                if ($destUid <= 0) { continue; }
-                $ok = lwMcStorePush('inbox', $destUid, [
-                    'msgid' => 'imap-site-' . $m['uid'],
-                    'ts' => (string)($m['date'] ?: date('Y-m-d H:i:s')),
-                    'from' => $m['from'], 'from_addr' => $m['from_addr'],
-                    'to' => $t, 'subject' => $m['subject'], 'text' => $m['text'],
-                    'transport' => 'imap-site', 'risk' => lwMcScan($m['subject'], $m['text'])['level'],
-                ]);
-                if ($ok) { $n++; }
+                $destList = lwMcResolveTargets($t);   // 站点官方信箱 + 注册用户，两者都要投
+                if (!$destList) { continue; }
+                foreach ($destList as $destUid) {
+                    $ok = lwMcStorePush('inbox', (int)$destUid, [
+                        'msgid' => 'imap-site-' . $m['uid'] . '-' . $destUid,
+                        'ts' => (string)($m['date'] ?: date('Y-m-d H:i:s')),
+                        'from' => $m['from'], 'from_addr' => $m['from_addr'],
+                        'to' => $t, 'subject' => $m['subject'], 'text' => $m['text'],
+                        'transport' => 'imap-site', 'risk' => lwMcScan($m['subject'], $m['text'])['level'],
+                    ]);
+                    if ($ok) { $n++; }
+                }
             }
         }
         $ca['last_uid'] = max((int)($ca['last_uid'] ?? 0), $seenUids ? max($seenUids) : 0);

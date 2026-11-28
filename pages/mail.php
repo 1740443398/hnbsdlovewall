@@ -83,6 +83,8 @@ $csrfToken = generateCSRFToken();
 
 <script>
 var csrf = <?= json_encode($csrfToken) ?>;
+/* 站点官方联系信箱（后台可改，这里只作展示与一键写信） */
+var OFFICIAL_MAIL = <?= json_encode(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') ?>;
 var body = document.getElementById('mcBody');
 var STATUS = null;
 var curTab = 'inbox';
@@ -206,7 +208,11 @@ function viewSettings(){
       + '<div class="mc-sec">站内邮箱</div>'
       + '<div class="mc-kv"><b>地址</b>' + esc(s.site_addr || '未开通') + '</div>'
       + '<div class="mc-kv"><b>配额</b>' + (s.quota ? (s.quota.used + ' / ' + s.quota.limit + ' 封（今日）') : '-') + '</div>'
-      + '<div class="mc-hint">站内互发即时送达；发往外部邮箱经站方通道中继。' + (s.catchall_enabled ? '外部来信已启用。' : '外部来信暂未启用（管理员未配置 MX/收信邮箱），目前站内邮箱可收站内互发。') + '</div>';
+      + '<div class="mc-hint">站内互发即时送达；发往外部邮箱经站方通道中继。' + (s.catchall_enabled ? '外部来信已启用。' : '外部来信暂未启用（管理员未配置 MX/收信邮箱），目前站内邮箱可收站内互发。') + '</div>'
+      + '<div class="mc-sec">官方联系信箱</div>'
+      + '<div class="mc-kv"><b>地址</b>' + esc(OFFICIAL_MAIL) + '</div>'
+      + '<div class="mc-hint">遇到账号问题、举报违规内容或想提建议，可以直接写信给这个地址。它由站方长期维护，不依赖任何个人账号，管理员会在后台看到。</div>'
+      + '<div class="mc-row" style="margin-top:10px"><button class="mc-btn ghost" id="mailOfficial">写信给管理团队</button></div>';
     html += '<div class="mc-sec">绑定自有邮箱</div>';
     if (bound) {
       html += '<div class="mc-kv"><b>邮箱</b>' + esc(bound.email) + '</div>'
@@ -229,6 +235,17 @@ function viewSettings(){
     }
     var el = document.getElementById('mcSettings'); if(!el){return;}
     el.innerHTML = html;
+
+    var offBtn = document.getElementById('mailOfficial');
+    if (offBtn) {
+      offBtn.addEventListener('click', function(){
+        switchTab('compose');
+        var toEl = document.getElementById('cTo');
+        if (toEl) { toEl.value = OFFICIAL_MAIL; }
+        var subjEl = document.getElementById('cSubj');
+        if (subjEl) { subjEl.focus(); }
+      });
+    }
 
     if (bound) {
       document.getElementById('bTest').addEventListener('click', function(){

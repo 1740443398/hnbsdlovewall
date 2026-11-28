@@ -6,6 +6,8 @@
  *   stats     本月收发统计
  *   list      审计流水（筛选：月份/方向/用户/关键词）
  *   accounts  全部站内邮箱账号列表（含绑定与封禁状态）
+ *   siteboxes 站点官方信箱概览（对外公布的联系地址，永久可收信）
+ *   sitebox   某个站点官方信箱的全部来信
  *   ban       封禁某用户邮箱功能
  *   unban     解封
  *   flags     已标记违规列表 key
@@ -124,6 +126,22 @@ if ($action === 'accounts') {
     jsonSuccess(['list' => $out]);
 }
 
+/* 站点官方信箱：对外公布的联系地址，不依赖任何注册账号 */
+if ($action === 'siteboxes') {
+    jsonSuccess([
+        'list'  => lwMcSiteBoxOverview(),
+        'domain' => (string)(lwMcCfg()['mail_domain'] ?? ''),
+    ]);
+}
+
+if ($action === 'sitebox') {
+    $addr = strtolower(trim((string)($_REQUEST['addr'] ?? '')));
+    if (!lwMcIsSiteBox($addr)) { jsonError('不是站点官方信箱', 404); }
+    $rows = lwMcSiteBoxInbox($addr);
+    // 正文最多保留 2000 字，直接在后台列表里展开，无需二次请求
+    jsonSuccess(['addr' => $addr, 'list' => $rows, 'total' => count($rows)]);
+}
+
 /* 写操作：POST 请求（CSRF 已在入口统一校验） */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('该操作仅支持 POST 请求', 405);
@@ -180,6 +198,21 @@ if ($action === 'save_cfg') {
     $passRaw = (string)($_POST['catchall_imap_pass'] ?? '');
     if ($passRaw !== '') { $ca['imap_pass_enc'] = lwMcEnc($passRaw); }  // 留空 = 不改
     $cfg['catchall'] = $ca;
+
+    /* 站点官方信箱：每行一个地址，支持「地址 | 说明」写法 */
+    if (isset($_POST['site_mailboxes'])) {
+        $boxes = [];
+        foreach (preg_split('/[\r\n,;]+/', (string)$_POST['site_mailboxes']) as $ln) {
+            $ln = trim($ln);
+            if ($ln === '') { continue; }
+            $parts = array_map('trim', explode('|', $ln, 2));
+            $addr = strtolower($parts[0]);
+            if (!filter_var($addr, FILTER_VALIDATE_EMAIL)) { continue; }
+            $boxes[] = ['addr' => $addr, 'label' => (string)($parts[1] ?? '')];
+        }
+        $cfg['site_mailboxes'] = $boxes;
+    }
+
     lwMcCfgSave($cfg);
     jsonSuccess([], '配置已保存');
 }

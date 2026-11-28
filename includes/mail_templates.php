@@ -271,7 +271,8 @@ if (!function_exists('lwMailBuild')) {
                 $devSnippetHtml = (string)($ctx['dev_snippet_html'] ?? '');
                 $devName = trim((string)($ctx['dev_name'] ?? ''));
                 $devWho = $devName !== ''
-                    ? '我是本站站长 <b>' . $esc($devName) . '</b>（QQ ' . (defined('LW_BAN_CONTACT_QQ') ? LW_BAN_CONTACT_QQ : '1740443398') . '），'
+                    ? '我是本站站长 <b>' . $esc($devName) . '</b>（QQ ' . (defined('LW_BAN_CONTACT_QQ') ? LW_BAN_CONTACT_QQ : '1740443398')
+                      . '，站内邮箱 ' . $esc(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') . '），'
                     : '本站站长';
                 $devBlock = $devSnippetHtml !== ''
                     ? '<li style="margin-bottom:8px"><b>站长担保：</b>' . $devWho . '本人实名注册并使用本站。'
@@ -282,7 +283,8 @@ if (!function_exists('lwMailBuild')) {
                       . $devSnippetHtml . '</pre>'
                       . '任何关于密码或账号的可疑情况，都可随时找站长本人核实。</li>'
                     : '<li style="margin-bottom:8px"><b>站长担保：</b>本站站长本人实名注册并使用本站，'
-                      . '遇到任何密码或账号的可疑情况，都可联系站长核实（QQ ' . (defined('LW_BAN_CONTACT_QQ') ? LW_BAN_CONTACT_QQ : '1740443398') . '）。</li>';
+                      . '遇到任何密码或账号的可疑情况，都可联系站长核实（QQ ' . (defined('LW_BAN_CONTACT_QQ') ? LW_BAN_CONTACT_QQ : '1740443398')
+                      . '，或发邮件至 ' . $esc(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws') . '）。</li>';
                 $body = lwMailNote('您好，' . $nick . ($qq !== '' ? '（QQ：' . $esc($qq) . '）' : '') . '：')
                     . lwMailNote('欢迎加入「' . $esc($siteName) . '」！')
                     . lwMailNote('在开始之前，有几件事想郑重说明，请务必留意：')
@@ -394,6 +396,7 @@ if (!function_exists('lwMailBuild')) {
                         : '无需任何操作，到达解封时间后自动恢复，届时刷新页面即可继续使用。')
                     . lwMailNote('认为属于误判（例如校园网 / 运营商共享出口，或短时间内自己连续翻看了几页）？'
                         . '请联系站长 <b style="color:#8a6a24">QQ ' . (defined('LW_BAN_CONTACT_QQ') ? LW_BAN_CONTACT_QQ : '1740443398')
+                        . '</b>，或发邮件至 <b style="color:#8a6a24">' . $esc(defined('SITE_CONTACT_EMAIL') ? SITE_CONTACT_EMAIL : '1740443398@bsd.ct.ws')
                         . '</b>，并附上上面的「事件编号」与「受限网络」，站长可据此快速定位并处理。');
                 return [
                     'subject' => '【' . $siteName . '】访问已被临时限制（' . $remainTxt . '后自动恢复）',
