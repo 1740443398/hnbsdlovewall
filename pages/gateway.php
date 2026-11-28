@@ -280,11 +280,56 @@ a:hover { text-decoration: underline; }
   .gw-orb { position: fixed; border-radius: 50%; filter: blur(60px); opacity: .5; pointer-events: none; z-index: 0; }
   .gw-orb-a { width: 340px; height: 340px; left: -120px; top: 12vh; background: rgba(47,91,154,.18); }
   .gw-orb-b { width: 260px; height: 260px; right: -90px; top: 52vh; background: rgba(201,169,110,.16); }
+
+  /* ===== 滚动动效第二期（gwMotion2） ===== */
+  /* 1) 顶部滚动进度条：细线随滚动增长 */
+  .gw-progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 0 2px 2px 0; z-index: 100; pointer-events: none;
+    transition: width .08s linear;
+  }
+  /* 2) 大标题逐字浮现：JS 拆分文本节点为字符 span */
+  .hero h1.gw-h1-split { animation: none !important; }
+  .gw-char {
+    display: inline-block; opacity: 0;
+    animation: gwCharIn .55s cubic-bezier(.22,.61,.36,1) both;
+  }
+  .hl .gw-char { color: var(--accent); }
+  @keyframes gwCharIn {
+    from { opacity: 0; transform: translateY(16px); filter: blur(5px); }
+    to { opacity: 1; transform: none; filter: none; }
+  }
+  /* 3) sticky 卡片堆叠：安全承诺逐条钉住、逐层缩放变暗 */
+  .stack-list { max-width: 680px; margin: 0 auto; }
+  .stack-card {
+    position: sticky; top: calc(var(--nav-h) + 22px);
+    display: flex; gap: 22px; align-items: flex-start;
+    background: var(--card-bg); border: 1px solid var(--border-light);
+    border-radius: var(--radius); box-shadow: var(--shadow-md);
+    padding: 28px 30px; margin-bottom: 42vh;
+    transform: scale(var(--stack-scale, 1));
+    transform-origin: top center;
+    filter: brightness(calc(1 - var(--stack-dim, 0)));
+    transition: transform .3s cubic-bezier(.22,.61,.36,1), filter .3s ease;
+    will-change: transform;
+  }
+  .stack-card:last-child { margin-bottom: 0; }
+  .sc-num {
+    font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: 40px; font-weight: 800;
+    color: var(--accent); opacity: .55; line-height: 1; flex: 0 0 auto;
+  }
+  .sc-body h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .sc-body p { font-size: 14px; color: var(--text-secondary); }
+
   @media (prefers-reduced-motion: reduce) {
     .gw-reveal, .gw-reveal.is-in { opacity: 1 !important; transform: none !important; transition: none !important; }
     .hero .eyebrow, .hero h1, .hero .sub, .hero .cta, .hero .hint, .hero-glow, .hero-card { animation: none !important; }
     .feat-ico { animation: none !important; }
     .gw-orb { display: none; }
+    .gw-progress { display: none !important; }
+    .gw-char { opacity: 1 !important; animation: none !important; transform: none !important; filter: none !important; }
+    .stack-card { transform: none !important; filter: none !important; transition: none !important; }
   }
 
   /* ===== 移动端体验优化（gwMob） ===== */
@@ -323,10 +368,17 @@ a:hover { text-decoration: underline; }
     .gw-orb-b { width: 180px; height: 180px; opacity: .3; }
     /* 平滑滚动到锚点 */
     html { scroll-behavior: smooth; }
+    /* 堆叠卡片：小屏停缩放/滤镜（省帧，规避 transform+sticky 兼容抖动），保留层叠 */
+    .stack-card { padding: 20px; gap: 16px; margin-bottom: 34vh; transform: none !important; filter: none !important; }
+    .sc-num { font-size: 30px; }
+    .sc-body h3 { font-size: 16px; }
+    .sc-body p { font-size: 13px; }
   }
   @media (max-width: 480px) {
     .hero h1 { font-size: 24px; }
     .eyebrow { font-size: 11.5px; padding: 4px 12px; }
+    .stack-card { padding: 18px; gap: 12px; }
+    .sc-num { font-size: 26px; }
   }
 </style>
 </head>
@@ -418,6 +470,34 @@ a:hover { text-decoration: underline; }
   </div>
 </section>
 
+<section class="section" id="assurance" style="padding-bottom:0;">
+  <div class="wrap">
+    <div class="section-head gw-reveal">
+      <span class="eyebrow">安全承诺</span>
+      <h2>四条底线，守护每一次表达</h2>
+      <p>向下滚动，逐条了解我们如何保护你的校园社区。</p>
+    </div>
+    <div class="stack-list">
+      <article class="stack-card">
+        <div class="sc-num">01</div>
+        <div class="sc-body"><h3>隐私至上</h3><p>实名与匿名自由切换，个人敏感信息加密存储，绝不对外泄露。</p></div>
+      </article>
+      <article class="stack-card">
+        <div class="sc-num">02</div>
+        <div class="sc-body"><h3>防钓拦截</h3><p>网关自动识别恶意链接与异常请求，可疑访问第一时间拦截预警。</p></div>
+      </article>
+      <article class="stack-card">
+        <div class="sc-num">03</div>
+        <div class="sc-body"><h3>内容风控</h3><p>举报与审核双通道并行，双重验证守护账号，社区环境由同学共同维护。</p></div>
+      </article>
+      <article class="stack-card">
+        <div class="sc-num">04</div>
+        <div class="sc-body"><h3>数据自主</h3><p>数据可随时导出备份，全程开源可审计，你的表达始终由你掌控。</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="open" style="padding-top:0;">
   <div class="wrap">
     <div class="open-card">
@@ -495,20 +575,78 @@ a:hover { text-decoration: underline; }
   }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
   document.querySelectorAll('.gw-reveal').forEach(function (el) { io.observe(el); });
 
-  /* 3) 光斑视差：滚动时轻微位移（rAF 节流，移动端也顺滑） */
+  /* 3) 滚动动效第二期：进度条 + 光斑视差 + 卡片堆叠（统一 rAF 节流） */
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var a = document.getElementById('orbA'), b = document.getElementById('orbB');
-  if (a && b && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var bar = null;
+  if (!reduce) {
+    bar = document.createElement('div');
+    bar.className = 'gw-progress';
+    document.body.appendChild(bar);
+  }
+  var stackWrap = document.querySelector('.stack-list');
+  var stackCards = stackWrap ? Array.prototype.slice.call(stackWrap.querySelectorAll('.stack-card')) : [];
+  var stackOn = stackCards.length > 0 && !reduce && matchMedia('(min-width: 769px)').matches;
+  if (stackOn) {
+    stackCards.forEach(function (c, i) { c.style.zIndex = String(10 + i); });
+  }
+
+  /* 3a) 大标题逐字浮现：拆分文本节点为字符 span，保留 .hl 高亮结构 */
+  var h1 = document.querySelector('.hero h1');
+  if (h1 && !reduce) {
+    var walker = document.createTreeWalker(h1, NodeFilter.SHOW_TEXT);
+    var tn, texts = [];
+    while ((tn = walker.nextNode())) texts.push(tn);
+    var ci = 0;
+    texts.forEach(function (node) {
+      var s = node.textContent, frag = document.createDocumentFragment();
+      for (var i = 0; i < s.length; i++) {
+        if (/\s/.test(s[i])) { frag.appendChild(document.createTextNode(s[i])); continue; }
+        var sp = document.createElement('span');
+        sp.className = 'gw-char';
+        sp.textContent = s[i];
+        sp.style.animationDelay = (0.12 + ci * 0.045).toFixed(3) + 's';
+        ci++;
+        frag.appendChild(sp);
+      }
+      node.parentNode.replaceChild(frag, node);
+    });
+    h1.classList.add('gw-h1-split');
+  }
+
+  /* 3b) 统一滚动驱动 */
+  function updateScroll() {
+    var y = window.scrollY || 0;
+    if (bar) {
+      var doc = document.documentElement;
+      var max = doc.scrollHeight - doc.clientHeight;
+      var p = max > 0 ? (y / max) * 100 : 0;
+      bar.style.width = (p < 0 ? 0 : p > 100 ? 100 : p).toFixed(2) + '%';
+    }
+    if (a && b && !reduce) {
+      a.style.transform = 'translateY(' + (y * 0.08) + 'px)';
+      b.style.transform = 'translateY(' + (y * -0.05) + 'px)';
+    }
+    if (stackOn) {
+      var anchor = 86; /* nav-h 64 + 22 */
+      var pinned = 0;
+      stackCards.forEach(function (c) { if (c.getBoundingClientRect().top <= anchor + 2) pinned++; });
+      stackCards.forEach(function (c, i) {
+        var depth = Math.min(4, Math.max(0, pinned - 1 - i));
+        c.style.setProperty('--stack-scale', (1 - depth * 0.035).toFixed(3));
+        c.style.setProperty('--stack-dim', (depth * 0.07).toFixed(3));
+      });
+    }
+  }
+  if (bar || stackOn || (a && b && !reduce)) {
     var ticking = false;
     window.addEventListener('scroll', function () {
       if (ticking) return;
       ticking = true;
-      requestAnimationFrame(function () {
-        var y = window.scrollY || 0;
-        a.style.transform = 'translateY(' + (y * 0.08) + 'px)';
-        b.style.transform = 'translateY(' + (y * -0.05) + 'px)';
-        ticking = false;
-      });
+      requestAnimationFrame(function () { updateScroll(); ticking = false; });
     }, { passive: true });
+    window.addEventListener('resize', updateScroll, { passive: true });
+    updateScroll();
   }
 })();
 </script>
