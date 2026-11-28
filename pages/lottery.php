@@ -97,6 +97,22 @@ h1 { font-size: 20px; margin: 6px 0 14px; }
 <div class="wrap">
   <h1><a href="/pages/lottery.php" style="color:inherit;text-decoration:none">🎁 站内抽奖</a></h1>
 <?php
+/* 相关抽奖（详情页用）：同奖品优先，其次其它进行中活动 */
+$__relLotteries = [];
+if (!empty($detail)) {
+    foreach (lwLotteryAll() as $__lo) {
+        if ((int) ($__lo['id'] ?? 0) === (int) ($detail['id'] ?? 0)) { continue; }
+        if ((string) ($__lo['status'] ?? 'open') !== 'open') { continue; }
+        $__lo['__same_prize'] = (string) ($__lo['prize'] ?? '') === (string) ($detail['prize'] ?? '');
+        $__relLotteries[] = $__lo;
+    }
+    usort($__relLotteries, function ($a, $b) {
+        if ($a['__same_prize'] !== $b['__same_prize']) { return $a['__same_prize'] ? -1 : 1; }
+        return strcmp((string) ($a['draw_at'] ?? ''), (string) ($b['draw_at'] ?? ''));
+    });
+    $__relLotteries = array_slice($__relLotteries, 0, 3);
+}
+
 /* 我的参与记录：只按 lottery_id 关联读取，不复制抽奖数据 */
 $myLotIds = [];
 if ($user) {
@@ -282,6 +298,19 @@ if ($detail):
     <?php endif; ?>
   </div>
   <p style="font-size:12px;color:var(--muted)"><a href="/pages/lottery.php">← 返回抽奖列表</a></p>
+  <?php if (!empty($__relLotteries)): ?>
+  <div class="card" style="margin-top:4px">
+    <h2 style="font-size:15px">相关抽奖</h2>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <?php foreach ($__relLotteries as $__o): ?>
+      <a href="/pages/lottery.php?id=<?= (int)$__o['id'] ?>" style="display:flex;justify-content:space-between;gap:10px;text-decoration:none;color:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:10px">
+        <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:14px"><?= htmlspecialchars((string)($__o['title'] ?? '')) ?></span>
+        <span class="prize" style="flex:0 0 auto;font-size:11px"><?= htmlspecialchars((string)($__o['prize'] ?? '')) ?></span>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <script>
   (function () {
